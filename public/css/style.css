@@ -536,3 +536,52 @@ body.dark-mode textarea:disabled {
     direction: rtl !important;
   }
 }
+/* ========== عرض البطاقات للجوال ========== */
+@media (max-width: 600px) {
+  table thead { display: none; }
+  table tbody tr {
+    display: block;
+    margin-bottom: 20px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 15px;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    transition: background-color 0.2s ease;
+  }
+  body.dark-mode table tbody tr {
+    background: #2d3748;
+    border-color: #4a5568;
+  }
+  table tbody td {
+    display: flex;
+    align-items: center;
+    padding: 8px 0;
+    border: none;
+    text-align: right !important;
+    justify-content: flex-end !important;
+    gap: 10px;
+  }
+  table tbody td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    min-width: 90px;
+    color: #4a5568;
+    text-align: left !important;
+  }
+  body.dark-mode table tbody td::before {
+    color: #a0aec0;
+  }
+  table tbody td:empty { display: none; }
+  table tbody td:last-child { justify-content: flex-end; }
+  table tbody td:last-child::before { display: none; }
+  table tfoot tr {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    background: #f8fafc;
+    padding: 10px;
+    border-radius: 8px;
+  }
+  body.dark-mode table tfoot tr { background: #2d3748; }
+}
