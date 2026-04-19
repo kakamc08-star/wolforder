@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wolforder-v1';
+const CACHE_NAME = 'wolforder-v2';
 const urlsToCache = [
   '/',
   '/login.html',
