@@ -1,0 +1,16 @@
+name: Keep Render Alive
+
+on:
+  schedule:
+    # يعمل كل 14 دقيقة
+    - cron: '*/14 * * * *'
+  # يسمح بتشغيله يدويًا من واجهة GitHub (للتجربة)
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping WolfOrder Site
+        # استبدل الرابط التالي برابط تطبيقك الفعلي على Render
+        run: curl -s -o /dev/null -w "%{http_code}" https://wolforder.onrender.com
