@@ -460,7 +460,7 @@ body.dark-mode textarea:disabled {
   /* تحويل كل خلية إلى صف منفصل */
   table tbody td {
     display: flex;
-    align-items: center;
+    align-items: right;
     padding: 8px 0;
     border: none;
     text-align: right;
@@ -506,5 +506,33 @@ body.dark-mode textarea:disabled {
 
   body.dark-mode table tfoot tr {
     background: #2d3748;
+  }
+}
+
+/* تحسين نافذة طلب التعديل على الجوال */
+@media (max-width: 600px) {
+  #editRequestModal .card {
+    width: 95% !important;
+    max-width: 95% !important;
+    margin: 10px !important;
+    padding: 15px !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+    text-align: right !important;
+  }
+  
+  #editRequestModal .form-group {
+    text-align: right !important;
+  }
+  
+  #editRequestModal label {
+    text-align: right !important;
+    display: block !important;
+  }
+  
+  #editRequestModal input,
+  #editRequestModal select {
+    text-align: right !important;
+    direction: rtl !important;
   }
 }

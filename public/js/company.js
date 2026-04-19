@@ -7,7 +7,7 @@ document.getElementById('userNameDisplay').textContent = user.name || user.usern
 
 // ❌ تم تعطيل Socket.IO
 // const socket = io({ auth: { token } });
-let autoRefresh = setInterval(fetchOrders, 10000);
+let autoRefresh = setInterval(fetchOrders, 5000);
 let allOrders = [];
 let adminPhone = '';
 
