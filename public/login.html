@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تسجيل الدخول - نظام الطلبات</title>
+  <link rel="stylesheet" href="css/style.css">
+
+    
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
+  <!-- iOS Support -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="WolfOrder">
+  <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+
+  <!-- Theme color -->
+  <meta name="theme-color" content="#3498db">
+</head>
+<body>
+  <div class="login-container">
+    <div class="login-box">
+      <h2>🚚 WolfOrder</h2>
+      <form id="loginForm">
+        <div class="form-group"><label for="username">اسم المستخدم</label><input type="text" id="username" required></div>
+        <div class="form-group"><label for="password">كلمة المرور</label><input type="password" id="password" required></div>
+        <button type="submit" class="btn btn-primary">دخول</button>
+        <div id="loginMessage" class="message"></div>
+      </form>
+    </div>
+  </div>
+  <script src="js/auth.js"></script>
+</body>
+</html>

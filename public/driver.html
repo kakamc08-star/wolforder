@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
+  <!-- iOS Support -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="WolfOrder">
+  <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+
+  <!-- Theme color -->
+  <meta name="theme-color" content="#3498db">
+
+
+  <title>لوحة السائق - نظام الطلبات</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="dashboard-header">
+    <h1>🚚 لوحة السائق</h1>
+    <div class="user-info">
+      <span id="userNameDisplay"></span>
+      <button class="btn btn-secondary btn-sm" onclick="logout()">تسجيل الخروج</button>
+      <button class="btn btn-sm btn-secondary" onclick="toggleDarkMode(event)">🌙</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>📋 طلباتي</h2>
+    <div class="filters-section">
+      
+
+ 
+   <div class="form-group">
+    <label for="searchInput">🔍 بحث</label>
+    <input type="text" id="searchInput" placeholder="ابحث عن طلب..." style="min-width:250px;">
+  </div>
+
+      <div class="form-group"><label for="filterStatus">الحالة</label><select id="filterStatus"><option value="">الكل</option><option value="تم">تم</option><option value="قيد التسليم">قيد التسليم</option><option value="إلغاء">إلغاء</option></select></div>
+      <button class="btn btn-secondary" onclick="fetchOrders()">تطبيق</button>
+      <span id="lastUpdateTime"></span>
+      <button class="btn btn-sm btn-secondary" onclick="fetchOrders()" style="margin-left:10px;">🔄 تحديث الآن</button>
+    </div>
+    <div class="table-responsive">
+      <table id="ordersTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>م</th>
+            <th>رقم الطلب</th>
+            <th>اسم العميل</th>
+            <th>رقم العميل</th>
+            <th>العنوان</th>
+            <th>السعر</th>
+            <th>النسبة</th>
+            <th>الحالة</th>
+            <th>ملاحظة</th>
+            <th>التاريخ</th>
+            <th>إجراء</th>
+        </tr>
+      </thead>
+      <tbody id="ordersTableBody"></tbody>
+
+      <tfoot id="ordersTableFoot" style="background-color: #f8f9fa; font-weight: bold;">
+        <!-- صف إجمالي الليرة السورية -->
+        <tr>
+          <td colspan="6" style="text-align: left;">إجمالي السعر بالليرة السورية:</td>
+          <td id="totalPriceSYR">0 ل.س</td>
+          <td colspan="5"></td>
+        </tr>
+        <!-- صف إجمالي الدولار -->
+        <tr>
+          <td colspan="6" style="text-align: left;">إجمالي السعر بالدولار:</td>
+          <td id="totalPriceUSD">0 $</td>
+          <td colspan="5"></td>
+        </tr>
+        <!-- صف إجمالي النسبة -->
+        <tr>
+          <td colspan="6" style="text-align: left;">إجمالي النسبة:</td>
+          <td></td>
+          <td id="totalRatioSum" >0</td>
+          <td colspan="4"></td>
+        </tr>
+      </tfoot>
+
+      </table>
+    </div>
+  </div>
+  <div id="editModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center; z-index:1000;">
+    <div class="card" style="max-width:500px;">
+      <h3>تعديل الطلب</h3>
+      <form id="editOrderForm">
+        <input type="hidden" id="editOrderId">
+        <div class="form-group"><label for="editStatus">الحالة</label><select id="editStatus" required><option value="تم">تم</option><option value="قيد التسليم">قيد التسليم</option><option value="إلغاء">إلغاء</option></select></div>
+        <div class="form-group"><label for="editNote">ملاحظة</label><textarea id="editNote"></textarea></div>
+        <button type="submit" class="btn btn-primary">حفظ</button>
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">إلغاء</button>
+      </form>
+    </div>
+  </div>
+  <div id="notificationArea"></div>
+ 
+  <script src="js/auth.js"></script>
+  <script src="js/driver.js"></script>
+</body>
+</html>

@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <!-- iOS Support -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="WolfOrder">
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+
+    <!-- Theme color -->
+    <meta name="theme-color" content="#3498db">
+
+
+  <title>لوحة المدير - نظام الطلبات</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="dashboard-header">
+    <h1>📋 الطلبات</h1>
+    <div class="user-info">
+      <span id="userNameDisplay"></span>
+      <button class="btn btn-secondary btn-sm" onclick="logout()">تسجيل الخروج</button>
+    </div>
+  </div>
+
+  <!-- إنشاء طلب جديد -->
+  <div class="card">
+    <h2>➕ إنشاء طلب جديد</h2>
+    <form id="createOrderForm">
+      <div class="form-row">
+        <div class="form-group"><label for="orderNumber">رقم الطلب *</label><input type="text" id="orderNumber" required></div>
+        <div class="form-group"><label for="customerName">اسم العميل *</label><input type="text" id="customerName" required></div>
+        <div class="form-group"><label for="customerNumber">رقم العميل *</label><input type="text" id="customerNumber" required></div>
+        <div class="form-group"><label for="address">العنوان *</label><input type="text" id="address" required></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label for="price">السعر *</label><input id="price" required></div>
+        <div class="form-group" style="max-width: 100px;"><label for="currency">العملة</label><select id="currency" ><option value="ل.س" selected>ل.س</option><option value="دولار">دولار</option></select></div>
+        <div class="form-group"><label for="ratio">النسبة</label><input id="ratio" value="0"></div>
+        <div class="form-group"><label for="driverSelect">السائق</label><select id="driverSelect"><option value="">-- بدون سائق --</option></select></div>
+        <div class="form-group"><label for="companySelect">الشركة</label><select id="companySelect"><option value="">-- بدون شركة --</option></select></div>
+      </div>
+      <button type="submit" class="btn btn-primary">إنشاء الطلب</button>
+    </form>
+  </div>
+
+  <!-- قائمة طلبات اليوم -->
+  <div class="card">
+    <h2>📋قائمة الطلبات</h2>
+    <div class="filters-section">
+      <div class="filters-section" style="margin-bottom:15px;">
+        <div class="form-group">
+      <label for="searchInput">🔍 بحث</label>
+      <input type="text" id="searchInput" placeholder="ابحث عن طلب..." style="min-width:250px;">
+    </div>
+    <div class="form-group">
+      <label for="filterStartDate">من تاريخ</label>
+      <input type="date" id="filterStartDate">
+    </div>
+    <div class="form-group">
+      <label for="filterEndDate">إلى تاريخ</label>
+      <input type="date" id="filterEndDate">
+    </div>
+    <div class="form-group">
+      <label for="filterDriver">السائق</label>
+      <select id="filterDriver">
+        <option value="">الكل</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="filterCompany">الشركة</label>
+      <select id="filterCompany">
+        <option value="">الكل</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="filterStatus">الحالة</label>
+      <select id="filterStatus">
+        <option value="">الكل</option>
+        <option value="تم">تم</option>
+        <option value="قيد التسليم">قيد التسليم</option>
+        <option value="إلغاء">إلغاء</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" onclick="fetchOrders()">🔍 تطبيق الفلتر</button>
+    <button class="btn btn-secondary" onclick="clearFilters()">🗑️ مسح الفلاتر</button>
+  </div>
+
+  
+      <!-- <div class="form-group"><label for="filterStatus">الحالة</label><select id="filterStatus"><option value="">الكل</option><option value="تم">تم</option><option value="قيد التسليم">قيد التسليم</option><option value="إلغاء">إلغاء</option></select></div>
+      <button class="btn btn-secondary" onclick="fetchOrders()">تطبيق الفلتر</button> -->
+      <span style="flex:1"></span>
+      <span id="lastUpdateTime"></span>
+      <button class="btn btn-sm btn-secondary" onclick="fetchOrders()" style="margin-left:10px;">🔄 تحديث الآن</button>
+    </div>
+    <div class="table-responsive">
+      <table id="ordersTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>م</th>
+            <th>رقم الطلب</th>
+            <th>اسم العميل</th>
+            <th>رقم العميل</th>
+            <th>العنوان</th>
+            <th>السعر</th>
+            <th>النسبة</th>
+            <th>الحالة</th>
+            <th>ملاحظة</th>
+            <th>السائق</th>
+            <th>الشركة</th>
+            <th>التاريخ</th>
+            <th>إجراء</th>
+          </tr>
+        </thead>
+
+        <tbody id="ordersTableBody"></tbody>
+
+      <tfoot id="ordersTableFoot" style="background-color: #f8f9fa; font-weight: bold;">
+        <!-- صف إجمالي الليرة السورية -->
+        <tr>
+          <td style="text-align: right;">إجمالي السعر بالليرة السورية:</td>
+          <td colspan="5"></td>
+          <td id="totalPriceSYR">0 ل.س</td>
+          <td colspan="7"></td>
+        </tr>
+        <!-- صف إجمالي الدولار -->
+        <tr>
+          <td style="text-align: right;">إجمالي السعر بالدولار:</td>
+          <td colspan="5"></td>
+          <td id="totalPriceUSD">0 $</td>
+          <td colspan="7"></td>
+        </tr>
+        <!-- صف إجمالي النسبة -->
+        <tr>
+          <td colspan="6" style="text-align: right;">إجمالي النسبة:</td>
+          <td></td>
+          <td id="totalRatioSum" >0</td>
+          <td colspan="6"></td>
+        </tr>
+      </tfoot>
+      </table>
+    </div>
+  </div>
+
+
+  
+<div class="card">
+  <h2>📋 طلبات التعديل المعلقة</h2>
+  <div id="editRequestsContainer"></div>
+</div>
+
+
+
+  <!-- التقارير -->
+  <div class="card">
+    <h2>📈 التقارير</h2>
+    <div class="filters-section">
+      <div class="form-group"><label for="reportStartDate">من تاريخ</label><input type="date" id="reportStartDate"></div>
+      <div class="form-group"><label for="reportEndDate">إلى تاريخ</label><input type="date" id="reportEndDate"></div>
+      <div class="form-group"><label for="reportStatus">الحالة</label><select id="reportStatus"><option value="">الكل</option><option value="تم">تم</option><option value="قيد التسليم">قيد التسليم</option><option value="إلغاء">إلغاء</option></select></div>
+      <div class="form-group"><label for="reportDriver">السائق</label><select id="reportDriver"><option value="">الكل</option></select></div>
+      <div class="form-group"><label for="reportCompany">الشركة</label><select id="reportCompany"><option value="">الكل</option></select></div>
+      <div style="display:flex; gap:10px;"><button class="btn btn-primary" onclick="generateReport()">عرض التقرير</button><button class="btn btn-secondary" onclick="exportReport()">📥 تصدير Excel</button></div>
+    </div>
+    <div id="reportSummary" style="margin: 20px 0; padding: 15px; background-color: #f0f8ff; border-radius: 8px; border-right: 4px solid #3498db;">
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px;">
+    <div><span>📊 عدد الطلبات:</span> <span id="totalCount">0</span></div>
+    <div><span>💰 إجمالي ل.س:</span> <span id="totalPriceSYR_report">0 ل.س</span></div>
+    <div><span>💵 إجمالي $:</span> <span id="totalPriceUSD_report">0 $</span></div>
+    <div><span>🎯 إجمالي النسب:</span> <span id="totalRatioAll">0</span></div>
+    
+  </div>
+</div>
+
+    <div class="table-responsive">
+      <table id="reportTable">
+        <thead><tr>
+          <th>#</th>
+          <th>م</th>
+          <th>رقم الطلب</th>
+          <th>اسم العميل</th>
+          <th>رقم العميل</th>
+          <th>السعر</th>
+          <th>النسبة</th>
+          <th>الحالة</th>
+          <th>السائق</th>
+          <th>الشركة</th>
+        </tr></thead>
+        <tbody id="reportTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+
+  <!-- إدارة المستخدمين -->
+  <div class="card">
+    <h2>👥 إضافة حساب جديد</h2>
+    <form id="createUserForm">
+      <div class="form-row">
+        <div class="form-group"><label for="newUsername">اسم المستخدم</label><input type="text" id="newUsername" required></div>
+        <div class="form-group"><label for="newPassword">كلمة المرور</label><input type="password" id="newPassword" required></div>
+        <div class="form-group"><label for="newName">الاسم الكامل</label><input type="text" id="newName" required></div>
+        <div class="form-group"><label for="newRole">الدور</label><select id="newRole" required><option value="driver">سائق</option><option value="company">شركة</option></select></div>
+      </div>
+      <button type="submit" class="btn btn-primary">إنشاء حساب</button>
+      <div id="userMessage" class="message"></div>
+    </form>
+  </div>
+
+  <!-- نافذة تعيين سائق -->
+  <div id="assignDriverModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center; z-index:1000;">
+    <div class="card" style="max-width:400px;">
+      <h3>🚚 تعيين سائق للطلب</h3>
+      <form id="assignDriverForm">
+        <input type="hidden" id="assignOrderId">
+        <div class="form-group"><label for="assignDriverSelect">اختر السائق</label><select id="assignDriverSelect" required></select></div>
+        
+        <div class="form-group">
+        <label for="assignRatio">النسبة</label>
+        <input  id="assignRatio" value="0" min="0">
+        </div>
+        <div style="display:flex; gap:10px;">
+        <button type="submit" class="btn btn-primary">تعيين</button>
+        <button type="button" class="btn btn-secondary" onclick="closeAssignModal()">إلغاء</button>
+      </div>
+      </form>
+    </div>
+  </div>
+    <!-- نافذة تعديل الطلب -->
+  <div id="editOrderModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center; z-index:1000;">
+    <div class="card" style="max-width:700px; max-height:90vh; overflow-y:auto;">
+      <h3>✏️ تعديل الطلب</h3>
+      <form id="editOrderForm">
+        <input type="hidden" id="editOrderId">
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="editOrderNumber">رقم الطلب *</label>
+            <input type="text" id="editOrderNumber" required>
+          </div>
+          <div class="form-group">
+            <label for="editCustomerNumber">رقم العميل</label>
+            <input type="text" id="editCustomerNumber">
+          </div>
+          <div class="form-group">
+            <label for="editCustomerName">اسم العميل *</label>
+            <input type="text" id="editCustomerName" required>
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="editAddress">العنوان *</label>
+            <input type="text" id="editAddress" required>
+          </div>
+          <div class="form-group">
+            <label for="editPrice">السعر *</label>
+            <input  id="editPrice" required>
+          </div>
+        <div class="form-group">
+            <label for="editCurrency">العملة</label>
+            <select id="editCurrency" style="max-width: 100px;">
+              <option value="ل.س">ل.س</option>
+              <option value="دولار">دولار</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="editRatio">النسبة</label>
+            <input id="editRatio" value="0">
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="editDriverSelect">السائق</label>
+            <select id="editDriverSelect">
+              <option value="">-- بدون سائق --</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="editCompanySelect">الشركة</label>
+            <select id="editCompanySelect">
+              <option value="">-- بدون شركة --</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="editStatus">الحالة</label>
+            <select id="editStatus">
+              <option value="قيد التسليم">قيد التسليم</option>
+              <option value="تم">تم</option>
+              <option value="إلغاء">إلغاء</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="editNote">ملاحظة</label>
+            <textarea id="editNote" rows="2"></textarea>
+          </div>
+        </div>
+        
+        <div style="display:flex; gap:10px; margin-top:20px;">
+          <button type="submit" class="btn btn-primary">حفظ التعديلات</button>
+          <button type="button" class="btn btn-secondary" onclick="closeEditModal()">إلغاء</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <!-- إدارة المستخدمين -->
+  <div class="card">
+    <h2>👥 إدارة المستخدمين</h2>
+    <div class="table-responsive">
+      <table id="usersTable">
+        <thead>
+          <tr>
+            <th>اسم المستخدم</th>
+            <th>الاسم الكامل</th>
+            <th>الدور</th>
+            <th>إجراء</th>
+          </tr>
+        </thead>
+        <tbody id="usersTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+<!-- إعدادات المدير -->  
+<div class="card">
+  <h2>⚙️ إعدادات المدير</h2>
+  <form id="adminSettingsForm">
+    <div class="form-row">
+      <div class="form-group">
+        <label for="adminPhone">رقم هاتف المدير (للتواصل)</label>
+        <input type="text" id="adminPhone" placeholder="963xxxxxxxxx" style="direction: ltr;">
+        <small>أدخل الرقم مع مفتاح الدولة بدون + أو مسافات (مثال: 963123456789)</small>
+      </div>  
+    </div>  
+    <button type="submit" class="btn btn-primary">حفظ الإعدادات</button>
+    <div id="settingsMessage" class="message"></div>
+  </form>  
+</div>  
+
+
+
+  <div id="notificationArea"></div>
+
+  
+  <script src="js/auth.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
