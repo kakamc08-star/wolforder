@@ -152,51 +152,53 @@ function renderTable(orders) {
 
 // ==================== تعديل الحالة ====================
 async function openEditModal(orderId) {
-  try {
-    // 1. البحث عن الطلب في البيانات المحلية أولاً
-    const localOrder = allOrders.find(o => (o.id || o._id) === orderId);
-    
-    let order;
-    
-    // 2. إذا كنا متصلين، نحاول جلب أحدث بيانات من الخادم
-    if (navigator.onLine) {
-      try {
-        const res = await fetch(`/api/orders/${orderId}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-          order = await res.json();
-        }
-      } catch (e) {
-        console.warn('تعذر جلب البيانات من الخادم، استخدام البيانات المحلية');
-      }
-    }
-    
-    // 3. إذا لم نحصل على بيانات من الخادم، استخدم المحلية
-    if (!order) {
-      if (!localOrder) {
-        throw new Error('الطلب غير موجود في البيانات المحلية');
-      }
-      order = localOrder;
-      if (!navigator.onLine) {
-        showNotification('⚠️ أنت غير متصل. البيانات المعروضة قد لا تكون محدثة.', 'warning');
-      }
-    }
-    
-    // 4. ملء الحقول
-    document.getElementById('editOrderId').value = order.id || order._id;
-    document.getElementById('editStatus').value = order.status;
-    document.getElementById('editNote').value = order.note || '';
+  // 1. البحث عن الطلب في البيانات المحلية
+  const localOrder = allOrders.find(o => (o.id || o._id) === orderId);
+  
+  let order = null;
+  let usedLocal = false;
 
-    const statusSelect = document.getElementById('editStatus');
-    if (order.status !== 'قيد المتابعة') {
-      statusSelect.disabled = true;
-    } else {
-      statusSelect.disabled = false;
+  // 2. إذا كان متصلاً، نحاول جلب أحدث البيانات من الخادم
+  if (navigator.onLine) {
+    try {
+      const res = await fetch(`/api/orders/${orderId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        order = await res.json();
+      }
+    } catch (e) {
+      console.warn('تعذر جلب البيانات من الخادم');
     }
-    document.getElementById('editModal').style.display = 'flex';
-  } catch (err) {
-    alert('خطأ في تحميل بيانات الطلب: ' + err.message);
+  }
+
+  // 3. إذا لم نحصل على بيانات من الخادم، استخدم المحلية
+  if (!order) {
+    if (localOrder) {
+      order = localOrder;
+      usedLocal = true;
+    } else {
+      alert('❌ الطلب غير موجود في البيانات المحلية. يرجى الاتصال بالإنترنت وتحديث الصفحة.');
+      return;
+    }
+  }
+
+  // 4. ملء الحقول
+  document.getElementById('editOrderId').value = order.id || order._id;
+  document.getElementById('editStatus').value = order.status;
+  document.getElementById('editNote').value = order.note || '';
+
+  const statusSelect = document.getElementById('editStatus');
+  if (order.status !== 'قيد المتابعة') {
+    statusSelect.disabled = true;
+  } else {
+    statusSelect.disabled = false;
+  }
+  document.getElementById('editModal').style.display = 'flex';
+
+  // 5. إشعار تحذيري فقط إذا استخدمنا البيانات المحلية
+  if (usedLocal) {
+    showNotification('⚠️ أنت غير متصل. البيانات المعروضة قد لا تكون محدثة.', 'warning');
   }
 }
 
