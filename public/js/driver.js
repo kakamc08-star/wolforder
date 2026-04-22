@@ -153,12 +153,37 @@ function renderTable(orders) {
 // ==================== تعديل الحالة ====================
 async function openEditModal(orderId) {
   try {
-    const res = await fetch(`/api/orders/${orderId}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (!res.ok) throw new Error('فشل جلب بيانات الطلب');
-    const order = await res.json();
-
+    // 1. البحث عن الطلب في البيانات المحلية أولاً
+    const localOrder = allOrders.find(o => (o.id || o._id) === orderId);
+    
+    let order;
+    
+    // 2. إذا كنا متصلين، نحاول جلب أحدث بيانات من الخادم
+    if (navigator.onLine) {
+      try {
+        const res = await fetch(`/api/orders/${orderId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          order = await res.json();
+        }
+      } catch (e) {
+        console.warn('تعذر جلب البيانات من الخادم، استخدام البيانات المحلية');
+      }
+    }
+    
+    // 3. إذا لم نحصل على بيانات من الخادم، استخدم المحلية
+    if (!order) {
+      if (!localOrder) {
+        throw new Error('الطلب غير موجود في البيانات المحلية');
+      }
+      order = localOrder;
+      if (!navigator.onLine) {
+        showNotification('⚠️ أنت غير متصل. البيانات المعروضة قد لا تكون محدثة.', 'warning');
+      }
+    }
+    
+    // 4. ملء الحقول
     document.getElementById('editOrderId').value = order.id || order._id;
     document.getElementById('editStatus').value = order.status;
     document.getElementById('editNote').value = order.note || '';
