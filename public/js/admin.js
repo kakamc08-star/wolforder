@@ -840,3 +840,5 @@ fetchOrders();
 fetchEditRequests(); // الآن تعيد مصفوفة فارغة
 loadAdminPhone();
 loadUsersListForManagement();
+// تحديث حالة السائقين كل 30 ثانية
+setInterval(loadUsersLists, 30000);
