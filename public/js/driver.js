@@ -319,6 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (searchInput) {
     searchInput.addEventListener('input', applyFiltersAndRender);
   }
+startHeartbeat();
 });
 
 // ==================== بدء التطبيق ====================
