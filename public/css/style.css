@@ -342,91 +342,194 @@ tfoot td {
 }
 
 /* ========== الوضع الليلي ========== */
+/* ========== الوضع الليلي - تغطية شاملة ========== */
 body.dark-mode {
-  background-color: #1a202c;
+  background-color: #121826;
   color: #e2e8f0;
 }
 
-body.dark-mode .card {
-  background-color: #2d3748;
-  border-color: #4a5568;
+body.dark-mode .card,
+body.dark-mode .login-box,
+body.dark-mode .modal .card,
+body.dark-mode #editRequestModal .card,
+body.dark-mode #assignDriverModal .card,
+body.dark-mode #editOrderModal .card {
+  background-color: #1e2638;
+  border-color: #3a4a5e;
   color: #e2e8f0;
 }
 
-body.dark-mode .dashboard-header {
-  border-bottom-color: #4a5568;
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode h4,
+body.dark-mode label,
+body.dark-mode .dashboard-header h1 {
+  color: #f0f4f8;
 }
 
-body.dark-mode th {
-  background-color: #2d3748;
-  color: #cbd5e0;
-}
-
-body.dark-mode tr:hover {
-  background-color: #3a4a5a;
-}
-
-body.dark-mode .status-badge.status-تم {
-  background-color: #22543d;
-  color: #c6f6d5;
-}
-
-body.dark-mode .status-badge.status-قيد\ التسليم {
-  background-color: #744210;
-  color: #fef3c7;
-}
-
-body.dark-mode .status-badge.status-إلغاء {
-  background-color: #4a5568;
+body.dark-mode .card *,
+body.dark-mode .login-box * {
   color: #e2e8f0;
-}
-
-body.dark-mode .btn-primary {
-  background-color: #4299e1;
-}
-
-body.dark-mode .btn-secondary {
-  background-color: #718096;
 }
 
 body.dark-mode input,
 body.dark-mode select,
 body.dark-mode textarea {
-  background-color: #2d3748;
-  border-color: #4a5568;
+  background-color: #283040;
+  border-color: #4a5a70;
+  color: #f0f4f8;
+}
+
+body.dark-mode ::placeholder {
+  color: #9aa5b5;
+  opacity: 0.7;
+}
+
+body.dark-mode .btn-secondary {
+  background-color: #4a5568;
+  color: #f0f4f8;
+}
+body.dark-mode .btn-secondary:hover {
+  background-color: #5a6578;
+}
+
+body.dark-mode .btn-primary {
+  background-color: #3b82f6;
+}
+body.dark-mode .btn-primary:hover {
+  background-color: #2563eb;
+}
+
+body.dark-mode .btn-danger {
+  background-color: #dc2626;
+}
+body.dark-mode .btn-danger:hover {
+  background-color: #b91c1c;
+}
+
+body.dark-mode .btn-warning {
+  background-color: #d97706;
+  color: white;
+}
+
+body.dark-mode .btn-success {
+  background-color: #059669;
+}
+
+body.dark-mode table {
+  background-color: transparent;
+  color: #e2e8f0;
+}
+body.dark-mode th {
+  background-color: #1e2638;
+  color: #cbd5e0;
+  border-bottom-color: #3a4a5e;
+}
+body.dark-mode td {
+  border-bottom-color: #3a4a5e;
+}
+body.dark-mode tr:hover {
+  background-color: #2a3448;
+}
+
+body.dark-mode tfoot td {
+  background-color: #1e2638;
   color: #e2e8f0;
 }
 
-body.dark-mode input:disabled,
-body.dark-mode select:disabled,
-body.dark-mode textarea:disabled {
-  background-color: #4a5568;
-  color: #a0aec0;
+body.dark-mode .status-badge.status-تم {
+  background-color: #065f46;
+  color: #d1fae5;
+}
+body.dark-mode .status-badge.status-قيد\ التسليم {
+  background-color: #92400e;
+  color: #fef3c7;
+}
+body.dark-mode .status-badge.status-إلغاء {
+  background-color: #374151;
+  color: #e5e7eb;
 }
 
+body.dark-mode .message.error {
+  background-color: #7f1d1d;
+  color: #fecaca;
+}
+body.dark-mode .message.success {
+  background-color: #064e3b;
+  color: #d1fae5;
+}
+
+body.dark-mode .toast-notification {
+  background-color: #1e2638;
+  color: #e2e8f0;
+}
+body.dark-mode .toast-success {
+  background-color: #065f46;
+}
+body.dark-mode .toast-error {
+  background-color: #991b1b;
+}
+body.dark-mode .toast-warning {
+  background-color: #b45309;
+}
+
+body.dark-mode a {
+  color: #60a5fa;
+}
+body.dark-mode a:hover {
+  color: #93c5fd;
+}
+
+body.dark-mode .dashboard-header {
+  border-bottom-color: #3a4a5e;
+}
+
+body.dark-mode select option {
+  background-color: #1e2638;
+  color: #e2e8f0;
+}
+
+/* إجبار أي خلفية بيضاء صريحة على التحول */
+body.dark-mode [style*="background: white"],
+body.dark-mode [style*="background: #fff"],
+body.dark-mode [style*="background: #ffffff"],
+body.dark-mode [style*="background-color: white"],
+body.dark-mode [style*="background-color: #fff"],
+body.dark-mode [style*="background-color: #ffffff"] {
+  background-color: #1e2638 !important;
+  color: #e2e8f0 !important;
+  border-color: #3a4a5e !important;
+}
 /* ========== تجاوب مع الجوال ========== */
 @media (max-width: 768px) {
   body { padding: 10px; }
   .card { padding: 15px; }
-  .form-row { flex-direction: column; gap: 10px; }
+  .form-row { 
+    display: grid;
+     gap: 10px;
+  
+    }
   .filters-section { flex-direction: column; align-items: stretch; }
-  table { font-size: 14px; }
+  table { font-size: 18px; }
   th, td { padding: 8px 5px; }
   .btn { padding: 8px 16px; font-size: 14px; }
   .dashboard-header h1 { font-size: 22px; }
   .table-responsive {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+  
   }
   .hide-on-mobile {
     display: none;
   }
-}
-
-@media (max-width: 480px) {
-  .hide-on-small {
-    display: none;
+  .user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
   }
+
+
   table {
     display: block;
     overflow-x: auto;
@@ -451,8 +554,10 @@ body.dark-mode textarea:disabled {
     background: #2d3748;
     border-color: #4a5568;
   }
+  /* ORDERS FORM */
   table tbody td {
     display: flex;
+    
     align-items: center;
     padding: 8px 0;
     border: none;
@@ -466,8 +571,13 @@ body.dark-mode textarea:disabled {
     font-weight: 700;
     min-width: 90px;
     color: #4a5568;
-    text-align: left !important;
+    text-align: right !important;
   }
+  table tbody td::after {
+    content: attr(data-cell);
+
+  }
+
   body.dark-mode table tbody td::before {
     color: #a0aec0;
   }
@@ -482,7 +592,7 @@ body.dark-mode textarea:disabled {
     padding: 10px;
     border-radius: 8px;
   }
-  body.dark-mode table tfoot tr { background: #2d3748; }
+  body.dark-mode table tfoot tr { background: #1e2638; }
 }
 
 /* تحسين نافذة طلب التعديل على الجوال */
@@ -505,7 +615,6 @@ body.dark-mode textarea:disabled {
     text-align: right !important;
     display: block !important;
   }
-  
   #editRequestModal input,
   #editRequestModal select {
     text-align: right !important;
