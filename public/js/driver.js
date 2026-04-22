@@ -6,8 +6,7 @@ if (user.role !== 'driver') window.location.href = 'login.html';
 document.getElementById('userNameDisplay').textContent = user.name || user.username;
 
 const notificationSound = new Audio('data:audio/wav;base64,UklGRlwAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVoAAACAgYGBgYGBgYCAgICAgICAgICAf39/f39/f39/f39/f39/f3+AgICAgICBgYGBgYGBgYGBgYCAgICAgID///8=');
-// ❌ تم تعطيل Socket.IO
-// const socket = io({ auth: { token } });
+let previousOrderIds = new Set();
 let autoRefresh = setInterval(fetchOrders, 10000);
 let allOrders = [];
 
@@ -85,12 +84,37 @@ async function fetchOrders() {
     const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
     if (!res.ok) throw new Error('فشل جلب الطلبات');
     const orders = await res.json();
+    const newOrders = orders.filter(o => !previousOrderIds.has(o.id || o._id));
+    if (newOrders.length > 0 && previousOrderIds.size > 0) {
+    // تجاهل أول تحميل للصفحة (عندما تكون previousOrderIds فارغة)
+    newOrders.forEach(order => {
+     showNotification(`🚚 طلب جديد #${order.order_number || order.orderNumber}`, 'success');
+      notificationSound.play().catch(() => {});
+    });
+    }
+
+        // تحديث مجموعة المعرفات
+    previousOrderIds = new Set(orders.map(o => o.id || o._id));
+
     allOrders = orders;
     applyFiltersAndRender();
     document.getElementById('lastUpdateTime').textContent = `آخر تحديث: ${new Date().toLocaleTimeString('ar')}`;
   } catch (err) {
     console.error('fetchOrders error:', err);
   }
+}
+
+function startHeartbeat() {
+  setInterval(async () => {
+    if (navigator.onLine) {
+      try {
+        await fetch('/api/auth/heartbeat', {
+          method: 'PATCH',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+      } catch (e) { /* فشل صامت */ }
+    }
+  }, 25000);
 }
 
 // ==================== عرض الجدول ====================
@@ -129,18 +153,18 @@ function renderTable(orders) {
       : '<span style="color:#999;">—</span>';
 
     tr.innerHTML = `
-      <td data-label="الرقم التسلسلي">${serialNumber || ''}</td>
-      <td data-label="م">${index + 1}</td>
-      <td data-label="رقم الطلب">${orderNumber}</td>
-      <td data-label="اسم العميل">${customerName}</td>
-      <td data-label="رقم العميل">${customerNumber ? `<a href="tel:${customerNumber}">${customerNumber}</a>` : '-'}</td>
-      <td data-label="العنوان">${address}</td>
-      <td data-label="السعر">${formatNumber(priceVal)} ${currency}</td>
-      <td data-label="النسبة">${formatNumber(ratio)}</td>
-      <td data-label="الحالة"><span class="status-badge status-${status}">${status}</span></td>
-      <td data-label="ملاحظة">${note || '-'}</td>
-      <td data-label="التاريخ">${formatDate(createdAt)}</td>
-      <td data-label="إجراء">${editButton}</td>
+      <td data-label="الرقم التسلسلي :">${serialNumber || ''}</td>
+      <td data-label="م :">${index + 1}</td>
+      <td data-label="رقم الطلب :">${orderNumber}</td>
+      <td data-label="اسم العميل :">${customerName}</td>
+      <td data-label="رقم العميل :">${customerNumber ? `<a href="tel:${customerNumber}">${customerNumber}</a>` : '-'}</td>
+      <td data-label="العنوان :">${address}</td>
+      <td data-label="السعر :">${formatNumber(priceVal)} ${currency}</td>
+      <td data-label="النسبة :">${formatNumber(ratio)}</td>
+      <td data-label="الحالة :"><span class="status-badge status-${status}">${status}</span></td>
+      <td data-label="ملاحظة :">${note || '-'}</td>
+      <td data-label="التاريخ :">${formatDate(createdAt)}</td>
+      <td data-label="إجراء :">${editButton}</td>
     `;
     tbody.appendChild(tr);
   });

@@ -26,19 +26,29 @@ app.use('/api/edit-requests', require('./routes/editRequests')); // سيحتاج
 app.get('/api/online-drivers', authenticateToken, async (req, res) => {
   if (req.user.role !== 'admin') return res.sendStatus(403);
   try {
-    // جلب جميع السائقين من Supabase
+    // جلب جميع السائقين مع حقل last_seen من Supabase
     const { data: drivers, error } = await supabase
       .from('users')
-      .select('id, name, username')
+      .select('id, name, username, last_seen')
       .eq('role', 'driver');
 
     if (error) throw error;
 
-    // حالياً لا يوجد تتبع للاتصال (onlineUsers)، لذا نجعل الكل offline
-    const driversWithStatus = drivers.map(d => ({
-      ...d,
-      online: false // يمكنك لاحقاً إضافة تتبع الاتصال عبر جدول presence
-    }));
+    const now = new Date();
+    const driversWithStatus = drivers.map(d => {
+      let online = false;
+      if (d.last_seen) {
+        const lastSeen = new Date(d.last_seen);
+        const diffSeconds = (now - lastSeen) / 1000;
+        online = diffSeconds < 35; // يعتبر متصلاً إذا كان آخر نبض خلال 35 ثانية
+      }
+      return {
+        _id: d.id,
+        name: d.name,
+        username: d.username,
+        online: online
+      };
+    });
 
     res.json(driversWithStatus);
   } catch (err) {

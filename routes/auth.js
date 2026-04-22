@@ -163,4 +163,29 @@ router.get('/users', authenticateToken, async (req, res) => {
   }
 });
 
+
+
+// ==================== تحديث نبضات القلب (Heartbeat) ====================
+// هذا المسار يُستدعى من قبل السائق كل 25 ثانية لتحديث وقت آخر نشاط له
+router.patch('/heartbeat', authenticateToken, async (req, res) => {
+  try {
+    // الحصول على id المستخدم من التوكن (الذي تم التحقق منه في authenticateToken)
+    const userId = req.user.id;
+    
+    // تحديث حقل last_seen في جدول users إلى الوقت الحالي
+    const { error } = await supabase
+      .from('users')
+      .update({ last_seen: new Date().toISOString() })
+      .eq('id', userId);
+
+    if (error) throw error;
+    
+    // إرسال استجابة 200 (OK) بدون محتوى
+    res.sendStatus(200);
+  } catch (err) {
+    console.error('Heartbeat error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
 module.exports = router;
