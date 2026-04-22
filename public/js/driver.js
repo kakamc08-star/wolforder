@@ -123,8 +123,8 @@ function renderTable(orders) {
     const createdAt = order.created_at || order.createdAt;
     const serialNumber = order.serial_number || order.serialNumber;
 
-    // ✅ زر التعديل يظهر فقط إذا كانت الحالة "قيد التسليم"
-    const editButton = (status === 'قيد التسليم')
+    // ✅ زر التعديل يظهر فقط إذا كانت الحالة "قيد المتابعة"
+    const editButton = (status === 'قيد المتابعة')
       ? `<button class="btn btn-sm btn-primary" onclick='openEditModal("${orderId}")'>تعديل</button>`
       : '<span style="color:#999;">—</span>';
 
@@ -164,7 +164,7 @@ async function openEditModal(orderId) {
     document.getElementById('editNote').value = order.note || '';
 
     const statusSelect = document.getElementById('editStatus');
-    if (order.status !== 'قيد التسليم') {
+    if (order.status !== 'قيد المتابعة') {
       statusSelect.disabled = true;
     } else {
       statusSelect.disabled = false;
@@ -182,25 +182,60 @@ function closeModal() {
 document.getElementById('editOrderForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const id = document.getElementById('editOrderId').value;
-  const status = document.getElementById('editStatus').value;
-  const note = document.getElementById('editNote').value;
+  const newStatus = document.getElementById('editStatus').value;
+  const newNote = document.getElementById('editNote').value;
+
+  // البحث عن الطلب في allOrders لتحديثه مؤقتاً
+  const orderIndex = allOrders.findIndex(o => (o.id || o._id) === id);
+  if (orderIndex === -1) return;
+
+  const originalOrder = { ...allOrders[orderIndex] }; // نسخة احتياطية
+
+  // 1. تحديث الواجهة فوراً (تفاؤل)
+  allOrders[orderIndex].status = newStatus;
+  allOrders[orderIndex].note = newNote;
+  applyFiltersAndRender(); // إعادة رسم الجدول بالبيانات الجديدة
+  closeModal();
+
+  // 2. إرسال الطلب الفعلي إلى الخادم
   try {
     const res = await fetch(`/api/orders/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ status, note })
+      body: JSON.stringify({ status: newStatus, note: newNote })
     });
     if (!res.ok) {
       const err = await res.json();
       throw new Error(err.message || 'فشل التحديث');
     }
-    closeModal();
-    fetchOrders();
     showNotification('تم تحديث الطلب', 'success');
+    // التحديث النهائي سيأتي من الخادم أو يمكننا تركه كما هو
   } catch (err) {
-    alert(err.message);
+    // 3. فشل الطلب: نعيد الحالة الأصلية ونخبر المستخدم
+    allOrders[orderIndex] = originalOrder;
+    applyFiltersAndRender();
+    showNotification(`❌ فشل الاتصال: ${err.message}. يرجى المحاولة لاحقاً.`, 'error');
   }
 });
+
+// offline notification
+function updateOnlineStatus() {
+  const offlineBar = document.getElementById('offlineBar');
+  if (!navigator.onLine) {
+    if (!offlineBar) {
+      const bar = document.createElement('div');
+      bar.id = 'offlineBar';
+      bar.style.cssText = 'background:#f39c12; color:white; text-align:center; padding:8px; margin-bottom:10px; border-radius:8px;';
+      bar.textContent = '⚠️ أنت غير متصل بالإنترنت. التغييرات ستحفظ لاحقاً.';
+      document.querySelector('.dashboard-header').after(bar);
+    }
+  } else {
+    if (offlineBar) offlineBar.remove();
+  }
+}
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+document.addEventListener('DOMContentLoaded', updateOnlineStatus);
 
 // ==================== PWA ====================
 if ('serviceWorker' in navigator) {

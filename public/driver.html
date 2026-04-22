@@ -40,7 +40,13 @@
     <input type="text" id="searchInput" placeholder="ابحث عن طلب..." style="min-width:250px;">
   </div>
 
-      <div class="form-group"><label for="filterStatus">الحالة</label><select id="filterStatus"><option value="">الكل</option><option value="تم">تم</option><option value="قيد التسليم">قيد التسليم</option><option value="إلغاء">إلغاء</option></select></div>
+      <div class="form-group"><label for="filterStatus">الحالة</label><select id="filterStatus">
+        <option value="">الكل</option>
+        <option value="تم">تم</option>
+        <option value="مؤجل">مؤجل</option>
+        <option value="مرتجع">مرتجع</option>
+        <option value="إلغاء">إلغاء</option>
+      </select></div>
       <button class="btn btn-secondary" onclick="fetchOrders()">تطبيق</button>
       <span id="lastUpdateTime"></span>
       <button class="btn btn-sm btn-secondary" onclick="fetchOrders()" style="margin-left:10px;">🔄 تحديث الآن</button>
@@ -65,7 +71,7 @@
       </thead>
       <tbody id="ordersTableBody"></tbody>
 
-      <tfoot id="ordersTableFoot" style="background-color: #f8f9fa; font-weight: bold;">
+      <tfoot id="ordersTableFoot" >
         <!-- صف إجمالي الليرة السورية -->
         <tr>
           <td colspan="6" style="text-align: left;">إجمالي السعر بالليرة السورية:</td>
@@ -95,7 +101,7 @@
       <h3>تعديل الطلب</h3>
       <form id="editOrderForm">
         <input type="hidden" id="editOrderId">
-        <div class="form-group"><label for="editStatus">الحالة</label><select id="editStatus" required><option value="تم">تم</option><option value="قيد التسليم">قيد التسليم</option><option value="إلغاء">إلغاء</option></select></div>
+        <div class="form-group"><label for="editStatus">الحالة</label><select id="editStatus" required><option value="تم">تم</option><option value="مؤجل">مؤجل</option><option value="مرتجع">مرتجع</option><option value="إلغاء">إلغاء</option></select></div>
         <div class="form-group"><label for="editNote">ملاحظة</label><textarea id="editNote"></textarea></div>
         <button type="submit" class="btn btn-primary">حفظ</button>
         <button type="button" class="btn btn-secondary" onclick="closeModal()">إلغاء</button>

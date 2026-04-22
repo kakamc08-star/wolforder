@@ -61,6 +61,25 @@ function showNotification(msg, type = 'info') {
   n.appendChild(closeBtn);
 }
 
+// offline notification
+function updateOnlineStatus() {
+  const offlineBar = document.getElementById('offlineBar');
+  if (!navigator.onLine) {
+    if (!offlineBar) {
+      const bar = document.createElement('div');
+      bar.id = 'offlineBar';
+      bar.style.cssText = 'background:#f39c12; color:white; text-align:center; padding:8px; margin-bottom:10px; border-radius:8px;';
+      bar.textContent = '⚠️ أنت غير متصل بالإنترنت. التغييرات ستحفظ لاحقاً.';
+      document.querySelector('.dashboard-header').after(bar);
+    }
+  } else {
+    if (offlineBar) offlineBar.remove();
+  }
+}
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+document.addEventListener('DOMContentLoaded', updateOnlineStatus);
+
 // ==================== جلب الطلبات (مع دعم الفلاتر) ====================
 async function fetchOrders() {
   try {
@@ -124,7 +143,7 @@ function renderTable(orders) {
       <td data-label="الحالة"><span class="status-badge status-${status}">${status}</span></td>
       <td data-label="ملاحظة">${note || '-'}</td>
       <td data-label="التاريخ">${formatDate(createdAt)}</td>
-      <td data-label="إجراء">
+      <td data-label="">
         <button class="btn btn-sm btn-warning" onclick='openEditRequestModal("${orderId}")'>✏️ طلب تعديل</button>
       </td>
     `;

@@ -85,7 +85,8 @@
       <select id="filterStatus">
         <option value="">الكل</option>
         <option value="تم">تم</option>
-        <option value="قيد التسليم">قيد التسليم</option>
+        <option value="مؤجل">مؤجل</option>
+        <option value="مرتجع">مرتجع</option>
         <option value="إلغاء">إلغاء</option>
       </select>
     </div>
@@ -94,8 +95,6 @@
   </div>
 
   
-      <!-- <div class="form-group"><label for="filterStatus">الحالة</label><select id="filterStatus"><option value="">الكل</option><option value="تم">تم</option><option value="قيد التسليم">قيد التسليم</option><option value="إلغاء">إلغاء</option></select></div>
-      <button class="btn btn-secondary" onclick="fetchOrders()">تطبيق الفلتر</button> -->
       <span style="flex:1"></span>
       <span id="lastUpdateTime"></span>
       <button class="btn btn-sm btn-secondary" onclick="fetchOrders()" style="margin-left:10px;">🔄 تحديث الآن</button>
@@ -165,7 +164,7 @@
     <div class="filters-section">
       <div class="form-group"><label for="reportStartDate">من تاريخ</label><input type="date" id="reportStartDate"></div>
       <div class="form-group"><label for="reportEndDate">إلى تاريخ</label><input type="date" id="reportEndDate"></div>
-      <div class="form-group"><label for="reportStatus">الحالة</label><select id="reportStatus"><option value="">الكل</option><option value="تم">تم</option><option value="قيد التسليم">قيد التسليم</option><option value="إلغاء">إلغاء</option></select></div>
+      <div class="form-group"><label for="reportStatus">الحالة</label><select id="reportStatus"><option value="">الكل</option><option value="تم">تم</option><option value="مؤجل">مؤجل</option><option value="مرتجع">مرتجع</option><option value="إلغاء">إلغاء</option></select></div>
       <div class="form-group"><label for="reportDriver">السائق</label><select id="reportDriver"><option value="">الكل</option></select></div>
       <div class="form-group"><label for="reportCompany">الشركة</label><select id="reportCompany"><option value="">الكل</option></select></div>
       <div style="display:flex; gap:10px;"><button class="btn btn-primary" onclick="generateReport()">عرض التقرير</button><button class="btn btn-secondary" onclick="exportReport()">📥 تصدير Excel</button></div>
@@ -297,8 +296,9 @@
           <div class="form-group">
             <label for="editStatus">الحالة</label>
             <select id="editStatus">
-              <option value="قيد التسليم">قيد التسليم</option>
               <option value="تم">تم</option>
+              <option value="مؤجل">مؤجل</option>
+              <option value="مرتجع">مرتجع</option>
               <option value="إلغاء">إلغاء</option>
             </select>
           </div>

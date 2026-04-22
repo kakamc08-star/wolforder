@@ -107,6 +107,7 @@ router.get('/', authenticateToken, async (req, res) => {
     const { role, id } = req.user;
     const { status, startDate, endDate, driverId, companyId } = req.query;
 
+    // 1. بناء استعلام أساسي
     let query = supabase
       .from('orders')
       .select(`
@@ -116,44 +117,73 @@ router.get('/', authenticateToken, async (req, res) => {
       `)
       .order('created_at', { ascending: false });
 
-    // فلترة حسب الدور
+    // 2. فلترة حسب الدور
     if (role === 'driver') {
       query = query.eq('driver_id', id);
     } else if (role === 'company') {
       query = query.eq('company_id', id);
     }
 
-    // فلترة حسب التاريخ
+    // 3. فلترة حسب التاريخ (إذا وُجد)
     if (startDate || endDate) {
-      if (startDate) query = query.gte('created_at', startDate);
+      if (startDate) {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        query = query.gte('created_at', start.toISOString());
+      }
       if (endDate) {
         const end = new Date(endDate);
         end.setHours(23, 59, 59, 999);
         query = query.lte('created_at', end.toISOString());
       }
-    } else {
-      // بدون فلتر تاريخ: طلبات اليوم + المؤجلات
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      query = query.or(`created_at.gte.${today.toISOString()},status.eq.قيد التسليم`);
     }
 
-    // فلترة حسب الحالة
+    // 4. فلترة حسب الحالة (إذا وُجد)
     if (status) {
       query = query.eq('status', status);
     }
 
-    // فلترة إضافية للمدير
+    // 5. فلترة إضافية للمدير
     if (role === 'admin') {
       if (driverId) query = query.eq('driver_id', driverId);
       if (companyId) query = query.eq('company_id', companyId);
     }
 
+    // 6. تنفيذ الاستعلام
     const { data: orders, error } = await query;
-
     if (error) throw error;
 
-    res.json(orders);
+    // 7. الفلترة الافتراضية (إذا لم يتم تحديد نطاق تاريخ)
+    let filteredOrders = orders;
+    if (!startDate && !endDate) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      filteredOrders = orders.filter(o => {
+        try {
+          // الحالة "قيد المتابعة" تظهر دائمًا
+          if (o.status === 'قيد المتابعة') return true;
+          
+          // الطلبات التي أنشئت اليوم تظهر
+          if (o.created_at) {
+            const createdAt = new Date(o.created_at);
+            if (!isNaN(createdAt.getTime()) && createdAt >= today) return true;
+          }
+          
+          // الطلبات التي عُدلت اليوم تظهر
+          if (o.updated_at) {
+            const updatedAt = new Date(o.updated_at);
+            if (!isNaN(updatedAt.getTime()) && updatedAt >= today) return true;
+          }
+        } catch (e) {
+          // إذا حدث خطأ في تاريخ معين، نتجاهل هذا الشرط
+          console.warn('خطأ في فلترة طلب:', e);
+        }
+        return false;
+      });
+    }
+
+    res.json(filteredOrders);
   } catch (err) {
     console.error('GET / error:', err);
     res.status(500).json({ message: err.message });
@@ -204,7 +234,7 @@ router.post('/', authenticateToken, async (req, res) => {
         driver_name: driverName,
         company_id: company,
         company_name: companyName,
-        status: 'قيد التسليم'
+        status: 'قيد المتابعة'
       }])
       .select()
       .single();
@@ -305,7 +335,7 @@ router.patch('/:id', authenticateToken, async (req, res) => {
       if (order.driver_id !== currentUser.id) {
         return res.status(403).json({ message: 'لا يمكنك تعديل هذا الطلب' });
       }
-      if (order.status !== 'قيد التسليم') {
+      if (order.status !== 'قيد المتابعة') {
         return res.status(400).json({ message: 'لا يمكن تعديل طلب تم الانتهاء منه أو إلغاؤه' });
       }
     }

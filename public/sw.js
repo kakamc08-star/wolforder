@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wolforder-v2';
+const CACHE_NAME = 'wolforder-v5'; // زيادة الإصدار لمسح الكاش القديم
 const urlsToCache = [
   '/',
   '/login.html',
@@ -16,22 +16,36 @@ const urlsToCache = [
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('Caching app shell');
-        return Promise.allSettled(
-          urlsToCache.map(url => 
-            cache.add(url).catch(err => console.warn(`Failed to cache ${url}`, err))
-          )
-        );
-      })
+      .then(cache => cache.addAll(urlsToCache).catch(err => console.warn('Cache addAll error:', err)))
   );
 });
 
 self.addEventListener('fetch', event => {
-  // تجاهل طلبات API و socket.io
-  if (event.request.url.includes('/api/') || event.request.url.includes('/socket.io/')) {
-    return; // لا نتدخل، نسمح للشبكة بالتعامل
+  const url = event.request.url;
+  const method = event.request.method;
+
+  // ✅ تجاهل طلبات POST و PUT و DELETE و PATCH (لا تخزن)
+  if (method !== 'GET') {
+    return; // دع المتصفح يتعامل معها مباشرة
   }
+
+  // ✅ تجاهل طلبات API (حتى GET) إذا أردت عدم تخزينها
+  if (url.includes('/api/')) {
+    // استراتيجية "الشبكة أولاً" لطلبات API GET
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          // تحديث الكاش بصمت
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseClone));
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // للموارد الثابتة (HTML, CSS, JS): "التخزين أولاً"
   event.respondWith(
     caches.match(event.request)
       .then(response => response || fetch(event.request))

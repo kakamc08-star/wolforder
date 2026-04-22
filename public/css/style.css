@@ -232,9 +232,18 @@ tr:hover {
   color: #22543d;
 }
 
-.status-قيد\ التسليم {
-  background-color: #fef3c7;
-  color: #92400e;
+/* شارات الحالة الجديدة */
+.status-قيد\ المتابعة {
+  background-color: #fef3c7;  /* أصفر فاتح */
+  color: #92400e;             /* بني غامق */
+}
+.status-مؤجل {
+  background-color: #fed7d7;  /* أحمر فاتح */
+  color: #822727;             /* أحمر غامق */
+}
+.status-مرتجع {
+  background-color: #e9d8fd;  /* بنفسجي فاتح */
+  color: #44337a;             /* بنفسجي غامق */
 }
 
 .status-إلغاء {
@@ -442,10 +451,8 @@ body.dark-mode .status-badge.status-تم {
   background-color: #065f46;
   color: #d1fae5;
 }
-body.dark-mode .status-badge.status-قيد\ التسليم {
-  background-color: #92400e;
-  color: #fef3c7;
-}
+
+
 body.dark-mode .status-badge.status-إلغاء {
   background-color: #374151;
   color: #e5e7eb;

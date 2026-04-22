@@ -127,20 +127,20 @@ function renderOrdersTable(orders) {
     actionButtons += `</div>`;
 
     tr.innerHTML = `
-      <td>${order.serial_number || order.serialNumber || ''}</td>
-      <td>${index + 1}</td>
-      <td>${order.order_number || order.orderNumber}</td>
-      <td>${order.customer_name || order.customerName}</td>
-      <td>${order.customer_number ? `<a href="tel:${order.customer_number}">${order.customer_number}</a>` : '-'}</td>
-      <td>${order.address}</td>
-      <td>${formatNumber(order.price)} ${order.currency || 'ل.س'}</td>
-      <td>${formatNumber(order.ratio || 0)}</td>
-      <td><span class="status-badge status-${order.status}">${order.status}</span></td>
-      <td>${order.note || '-'}</td>
-      <td>${order.driver_name || order.driverName || '-'}</td>
-      <td>${order.company_name || order.companyName || '-'}</td>
-      <td>${formatDate(order.created_at || order.createdAt)}</td>
-      <td>${actionButtons}</td>
+      <td data-label="الرقم التسلسلي :" >${order.serial_number || order.serialNumber || ''}</td>
+      <td data-label="م :" >${index + 1}</td>
+      <td data-label="رقم الطلب :" >${order.order_number || order.orderNumber}</td>
+      <td data-label="اسم العميل :" >${order.customer_name || order.customerName}</td>
+      <td data-label="رقم العميل :" >${order.customer_number ? `<a href="tel:${order.customer_number}">${order.customer_number}</a>` : '-'}</td>
+      <td data-label="العنوان :" >${order.address}</td>
+      <td data-label="السعر :" >${formatNumber(order.price)} ${order.currency || 'ل.س'}</td>
+      <td data-label="النسبة :" >${formatNumber(order.ratio || 0)}</td>
+      <td data-label="الحالة :" ><span class="status-badge status-${order.status}">${order.status}</span></td>
+      <td data-label="ملاحظة :" >${order.note || '-'}</td>
+      <td data-label="السائق :" >${order.driver_name || order.driverName || '-'}</td>
+      <td data-label="الشركة :" >${order.company_name || order.companyName || '-'}</td>
+      <td data-label="التاريخ :" >${formatDate(order.created_at || order.createdAt)}</td>
+      <td data-label="" >${actionButtons}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -766,13 +766,26 @@ async function loadUsersListForManagement() {
   }
 }
 
-function toggleDarkMode() {
-  document.body.classList.toggle('dark-mode');
-  const isDark = document.body.classList.contains('dark-mode');
-  localStorage.setItem('darkMode', isDark);
-  const btn = event.target;
-  btn.textContent = isDark ? '☀️' : '🌙';
+// offline notification
+function updateOnlineStatus() {
+  const offlineBar = document.getElementById('offlineBar');
+  if (!navigator.onLine) {
+    if (!offlineBar) {
+      const bar = document.createElement('div');
+      bar.id = 'offlineBar';
+      bar.style.cssText = 'background:#f39c12; color:white; text-align:center; padding:8px; margin-bottom:10px; border-radius:8px;';
+      bar.textContent = '⚠️ أنت غير متصل بالإنترنت. التغييرات ستحفظ لاحقاً.';
+      document.querySelector('.dashboard-header').after(bar);
+    }
+  } else {
+    if (offlineBar) offlineBar.remove();
+  }
 }
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+document.addEventListener('DOMContentLoaded', updateOnlineStatus);
+
+
 
 // تحميل التفضيل عند بدء التشغيل
 document.addEventListener('DOMContentLoaded', () => {
