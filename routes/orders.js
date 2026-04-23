@@ -210,6 +210,21 @@ router.post('/', authenticateToken, async (req, res) => {
       driver = driverId || null;
     }
 
+
+      // ✅ شرط منع تكرار رقم الطلب لنفس الشركة
+    if (company && orderNumber) {
+      const { count, error: checkError } = await supabase
+      .from('orders')
+      .select('*', { count: 'exact', head: true })
+      .eq('company_id', company)
+      .eq('order_number', orderNumber);
+
+    if (checkError) throw checkError;
+    if (count > 0) {
+      return res.status(400).json({ message: 'رقم الطلب موجود مسبقاً لهذه الشركة' });
+      }
+    }
+
     let companyName = '';
     let driverName = '';
     if (company) {
@@ -364,6 +379,7 @@ router.patch('/:id', authenticateToken, async (req, res) => {
 });
 
 // تحديث كامل للطلب (PUT /:id)
+// تحديث كامل للطلب (PUT /:id)
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
@@ -374,6 +390,35 @@ router.put('/:id', authenticateToken, async (req, res) => {
       orderNumber, customerNumber, customerName, address,
       price, currency, ratio, driverId, companyId, status, note, orderContents
     } = req.body;
+
+    // جلب الطلب الحالي لمعرفة الشركة المخزنة
+    const { data: currentOrder, error: fetchCurrentError } = await supabase
+      .from('orders')
+      .select('company_id')
+      .eq('id', req.params.id)
+      .single();
+
+    if (fetchCurrentError || !currentOrder) {
+      return res.status(404).json({ message: 'الطلب غير موجود' });
+    }
+
+    // ✅ التحقق من عدم تكرار رقم الطلب لنفس الشركة عند التعديل
+    const targetCompany = companyId || currentOrder.company_id;
+    const targetOrderNumber = orderNumber;
+
+    if (targetCompany && targetOrderNumber) {
+      const { count, error: dupError } = await supabase
+      .from('orders')
+      .select('*', { count: 'exact', head: true })
+      .eq('company_id', targetCompany)
+      .eq('order_number', targetOrderNumber)
+      .neq('id', req.params.id);
+
+    if (dupError) throw dupError;
+    if (count > 0) {
+      return res.status(400).json({ message: 'رقم الطلب موجود مسبقاً لهذه الشركة' });
+      }
+    }
 
     let driverName = '';
     let companyName = '';
@@ -389,6 +434,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
     const updates = {
       order_number: orderNumber,
+      order_contents: orderContents || '',
       customer_name: customerName,
       customer_number: customerNumber || '',
       address,
@@ -401,7 +447,6 @@ router.put('/:id', authenticateToken, async (req, res) => {
       company_name: companyName,
       status,
       note: note || '',
-      order_contents: orderContents || '',
       updated_at: new Date()
     };
 
