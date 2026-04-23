@@ -102,6 +102,59 @@ router.get('/users-list', authenticateToken, async (req, res) => {
   }
 });
 
+// تحديث جماعي (Bulk Update)
+router.patch('/bulk-update', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'غير مصرح' });
+    }
+    const { ids, updates } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'لم يتم تحديد طلبات' });
+    }
+    if (!updates || Object.keys(updates).length === 0) {
+      return res.status(400).json({ message: 'لم يتم تحديد تحديثات' });
+    }
+
+    const updateData = { updated_at: new Date() };
+    let needDriverName = false;
+    let needCompanyName = false;
+
+    if (updates.status) {
+      updateData.status = updates.status;
+    }
+    if (updates.driverId) {
+      updateData.driver_id = updates.driverId;
+      needDriverName = true;
+    }
+    if (updates.companyId) {
+      updateData.company_id = updates.companyId;
+      needCompanyName = true;
+    }
+
+    // جلب الأسماء إذا لزم الأمر
+    if (needDriverName) {
+      const { data: driver } = await supabase.from('users').select('name').eq('id', updates.driverId).single();
+      if (driver) updateData.driver_name = driver.name;
+    }
+    if (needCompanyName) {
+      const { data: company } = await supabase.from('users').select('name').eq('id', updates.companyId).single();
+      if (company) updateData.company_name = company.name;
+    }
+
+    const { error } = await supabase
+      .from('orders')
+      .update(updateData)
+      .in('id', ids);
+
+    if (error) throw error;
+
+    res.json({ message: `تم تحديث ${ids.length} طلب بنجاح` });
+  } catch (err) {
+    console.error('Bulk update error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
 // ==================== طلبات اليوم (المسار الجذري) ====================
 router.get('/', authenticateToken, async (req, res) => {
   try {
@@ -124,7 +177,7 @@ router.get('/', authenticateToken, async (req, res) => {
     } else if (role === 'company') {
       query = query.eq('company_id', id);
     }
-
+    
     // 3. فلترة حسب التاريخ (إذا وُجد)
     if (startDate || endDate) {
       if (startDate) {
@@ -482,5 +535,6 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
 
 module.exports = router;

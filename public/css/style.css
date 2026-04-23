@@ -628,3 +628,52 @@ body.dark-mode [style*="background-color: #ffffff"] {
     direction: rtl !important;
   }
 }
+
+/* تحسين حجم قوائم اختيار السائق والشركة */
+#driverSelect,
+#bulkAction,
+#bulkStatusValue,
+#editDriverSelect,
+#assignDriverSelect,
+#bulkDriverValue,
+#companySelect,
+#editCompanySelect,
+#assignCompanySelect,
+#bulkCompanyValue {
+  min-width: 200px !important;     /* عرض أدنى مناسب */
+  max-width: 100% !important;      /* لا يتجاوز عرض الشاشة */
+  padding: 10px 12px !important;   /* حشوة أكبر لتكبير المساحة القابلة للنقر */
+  font-size: 16px !important;      /* خط أوضح */
+  height: auto !important;         /* ارتفاع تلقائي */
+  min-height: 44px !important;     /* ارتفاع أدنى ملائم للمس */
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background-color: white;
+  appearance: auto;                /* استخدام مظهر المتصفح الافتراضي */
+  -webkit-appearance: auto;
+  -moz-appearance: auto;
+}
+
+/* توسيع القوائم في النوافذ المنبثقة */
+.modal .card select {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* للجوال: تكبير إضافي لسهولة اللمس */
+@media (max-width: 768px) {
+  #driverSelect,
+  #bulkAction,
+  #bulkStatusValue,
+  #editDriverSelect,
+  #assignDriverSelect,
+  #bulkDriverValue,
+  #companySelect,
+  #editCompanySelect,
+  #assignCompanySelect,
+  #bulkCompanyValue {
+    min-width: 100% !important;    /* عرض كامل على الجوال */
+    padding: 12px 15px !important;
+    font-size: 18px !important;    /* خط أكبر على الجوال */
+  }
+}

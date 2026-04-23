@@ -8,6 +8,7 @@ document.getElementById('userNameDisplay').textContent = user.name || user.usern
 // ❌ تم تعطيل Socket.IO مؤقتاً
 // const socket = io({ auth: { token } });
 let autoRefresh = setInterval(fetchOrders, 10000);
+let selectedOrderIds = new Set(); // لحفظ المحددات
 let allOrders = [];
 
 // ==================== دوال مساعدة ====================
@@ -101,6 +102,10 @@ async function fetchOrders() {
 function renderOrdersTable(orders) {
   const tbody = document.getElementById('ordersTableBody');
   if (!tbody) return;
+
+  // حفظ التحديدات الحالية
+  const currentSelected = new Set(selectedOrderIds);
+
   tbody.innerHTML = '';
   const now = new Date();
   let totalSYR = 0, totalUSD = 0, totalRatio = 0;
@@ -115,7 +120,7 @@ function renderOrdersTable(orders) {
     totalRatio += Number(order.ratio) || 0;
 
     const tr = document.createElement('tr');
-    const createdAt = new Date(order.created_at || order.createdAt); // دعم كلا الاسمين
+    const createdAt = new Date(order.created_at || order.createdAt);
     if ((now - createdAt) < 10000) tr.style.backgroundColor = '#e0f2fe';
 
     let actionButtons = `<div style="display:flex; gap:8px; flex-wrap:wrap;">`;
@@ -126,7 +131,11 @@ function renderOrdersTable(orders) {
     actionButtons += `<button class="btn btn-sm btn-danger" onclick="deleteOrder('${order.id}')">🗑️ حذف</button>`;
     actionButtons += `</div>`;
 
+    const orderId = order.id || order._id;
+    const isChecked = currentSelected.has(orderId) ? 'checked' : '';
+
     tr.innerHTML = `
+      <td><input type="checkbox" class="orderCheckbox" value="${orderId}" ${isChecked} onchange="handleCheckboxChange(this)"></td>
       <td data-label="الرقم التسلسلي :" >${order.serial_number || order.serialNumber || ''}</td>
       <td data-label="م :" >${index + 1}</td>
       <td data-label="رقم الطلب :" >${order.order_number || order.orderNumber}</td>
@@ -470,18 +479,23 @@ if (assignForm) {
 
 // ==================== تحميل قوائم المستخدمين ====================
 async function loadUsersLists() {
+  // تعريف المتغيرات قبل try لتوسيع النطاق
+  let drivers = [];
+  let allDrivers = [];
+  let companies = [];
+
   try {
     const driversRes = await fetch('/api/online-drivers', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    const drivers = driversRes.ok ? await driversRes.json() : [];
+    drivers = driversRes.ok ? await driversRes.json() : [];
 
     const usersRes = await fetch('/api/orders/users-list', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     const allData = usersRes.ok ? await usersRes.json() : { drivers: [], companies: [] };
-    const allDrivers = allData.drivers || [];
-    const companies = allData.companies || [];
+    allDrivers = allData.drivers || [];
+    companies = allData.companies || [];
 
     // عناصر HTML
     const driverSelect = document.getElementById('driverSelect');
@@ -525,6 +539,22 @@ async function loadUsersLists() {
     }
   } catch (err) {
     console.error('خطأ في loadUsersLists:', err);
+  }
+
+  // الآن allDrivers و companies معرفان ويمكن استخدامهما خارج try
+  const bulkDriver = document.getElementById('bulkDriverValue');
+  const bulkCompany = document.getElementById('bulkCompanyValue');
+  if (bulkDriver) {
+    bulkDriver.innerHTML = '<option value="">-- اختر سائق --</option>';
+    allDrivers.forEach(d => {
+      bulkDriver.innerHTML += `<option value="${d._id || d.id}">${d.name}</option>`;
+    });
+  }
+  if (bulkCompany) {
+    bulkCompany.innerHTML = '<option value="">-- اختر شركة --</option>';
+    companies.forEach(c => {
+      bulkCompany.innerHTML += `<option value="${c._id || c.id}">${c.name}</option>`;
+    });
   }
 }
 
@@ -842,6 +872,167 @@ async function deleteUser(userId) {
     alert('❌ ' + err.message);
   }
 }
+// ==================== إدارة التحديد للـ Bulk Edit ====================
+// دالة تُستدعى عند تغير أي checkbox
+function handleCheckboxChange(checkbox) {
+  const orderId = checkbox.value;
+  if (checkbox.checked) {
+    selectedOrderIds.add(orderId);
+  } else {
+    selectedOrderIds.delete(orderId);
+  }
+  updateBulkControls();
+}
+
+// تحديد الكل / إلغاء (مع تحديث selectedOrderIds)
+function toggleSelectAll() {
+  const selectAll = document.getElementById('selectAllCheckbox');
+  const isChecked = selectAll.checked;
+  document.querySelectorAll('.orderCheckbox').forEach(cb => {
+    cb.checked = isChecked;
+    if (isChecked) {
+      selectedOrderIds.add(cb.value);
+    } else {
+      selectedOrderIds.delete(cb.value);
+    }
+  });
+  updateBulkControls();
+}
+
+// تحديث شريط التحكم Bulk (إظهاره وإخفاؤه)
+function updateBulkControls() {
+  const checked = document.querySelectorAll('.orderCheckbox:checked');
+  const count = checked.length;
+  const controls = document.getElementById('bulkEditControls');
+  const selectedCount = document.getElementById('selectedCount');
+  
+  if (count > 0) {
+    controls.style.display = 'flex';
+    selectedCount.textContent = `تم تحديد ${count} طلبات`;
+  } else {
+    controls.style.display = 'none';
+  }
+}
+
+// إظهار القيمة المناسبة حسب الإجراء المختار
+document.getElementById('bulkAction').addEventListener('change', function() {
+  const action = this.value;
+  document.getElementById('bulkStatusValue').style.display = (action === 'status') ? 'inline-block' : 'none';
+  document.getElementById('bulkDriverValue').style.display = (action === 'driver') ? 'inline-block' : 'none';
+  document.getElementById('bulkCompanyValue').style.display = (action === 'company') ? 'inline-block' : 'none';
+});
+
+// تنفيذ التعديل الجماعي
+async function applyBulkEdit() {
+  const action = document.getElementById('bulkAction').value;
+  if (!action) { alert('اختر إجراءً'); return; }
+  
+  const checked = document.querySelectorAll('.orderCheckbox:checked');
+  const ids = Array.from(checked).map(cb => cb.value);
+  if (ids.length === 0) { alert('لم يتم تحديد أي طلب'); return; }
+  
+// ====== إجراء الحذف ======
+  if (action === 'delete') {
+    if (!confirm(`⚠️ هل أنت متأكد من حذف ${ids.length} طلبات نهائياً؟ لا يمكن التراجع عن هذا الإجراء.`)) return;
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (const id of ids) {
+      try {
+        const res = await fetch(`/api/orders/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      } catch (e) {
+        failCount++;
+      }
+    }
+    
+    if (failCount === 0) {
+      showNotification(`✅ تم حذف ${successCount} طلب بنجاح`, 'success');
+    } else {
+      showNotification(`⚠️ تم حذف ${successCount} طلب، فشل ${failCount}`, 'warning');
+    }
+    
+    selectedOrderIds.clear();
+    fetchOrders();
+    document.querySelectorAll('.orderCheckbox').forEach(cb => cb.checked = false);
+    document.getElementById('selectAllCheckbox').checked = false;
+    updateBulkControls();
+    return;
+  }
+
+  let updates = {};
+  if (action === 'status') {
+    const newStatus = document.getElementById('bulkStatusValue').value;
+    if (!newStatus) { alert('اختر حالة جديدة'); return; }
+    updates.status = newStatus;
+  } else if (action === 'driver') {
+    const newDriver = document.getElementById('bulkDriverValue').value;
+    if (!newDriver) { alert('اختر سائقاً'); return; }
+    updates.driverId = newDriver;
+  } else if (action === 'company') {
+    const newCompany = document.getElementById('bulkCompanyValue').value;
+    if (!newCompany) { alert('اختر شركة'); return; }
+    updates.companyId = newCompany;
+  }
+  
+  if (!confirm(`هل أنت متأكد من تطبيق التغيير على ${ids.length} طلبات؟`)) return;
+  
+  try {
+    const res = await fetch('/api/orders/bulk-update', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ ids, updates })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.message || 'فشل التحديث');
+    }
+    showNotification(`✅ تم تحديث ${ids.length} طلبات بنجاح`, 'success');
+    selectedOrderIds.clear();
+    fetchOrders(); // تحديث الجدول
+    // إعادة تعيين التحديدات
+    document.querySelectorAll('.orderCheckbox').forEach(cb => cb.checked = false);
+    document.getElementById('selectAllCheckbox').checked = false;
+    updateBulkControls();
+  } catch (err) {
+    alert('❌ ' + err.message);
+  }
+
+  // دالة تُستدعى عند تغير أي checkbox
+function handleCheckboxChange(checkbox) {
+  const orderId = checkbox.value;
+  if (checkbox.checked) {
+    selectedOrderIds.add(orderId);
+  } else {
+    selectedOrderIds.delete(orderId);
+  }
+  updateBulkControls();
+}
+
+// تعديل toggleSelectAll ليتزامن مع المجموعة
+function toggleSelectAll() {
+  const selectAll = document.getElementById('selectAllCheckbox');
+  const isChecked = selectAll.checked;
+  document.querySelectorAll('.orderCheckbox').forEach(cb => {
+    cb.checked = isChecked;
+    if (isChecked) {
+      selectedOrderIds.add(cb.value);
+    } else {
+      selectedOrderIds.delete(cb.value);
+    }
+  });
+  updateBulkControls();
+}
+  }
+
 
 // ==================== بدء التشغيل ====================
 loadUsersLists();

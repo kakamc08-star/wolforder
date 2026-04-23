@@ -105,6 +105,7 @@
       <table id="ordersTable">
         <thead>
           <tr>
+            <th><input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll()"></th>
             <th>#</th>
             <th>م</th>
             <th>رقم الطلب</th>
@@ -124,6 +125,26 @@
         </thead>
 
         <tbody id="ordersTableBody"></tbody>
+        <div id="bulkEditControls" style="display:none; margin-top:15px; padding:10px; background:#f8fafc; border-radius:8px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+    <strong>الإجراء على المحدد:</strong>
+    <select id="bulkAction" style="max-width:200px;">
+      <option value="">-- اختر الإجراء --</option>
+      <option value="status">تغيير الحالة</option>
+      <option value="driver">تعيين سائق</option>
+      <option value="company">تعيين شركة</option>
+      <option value="delete">🗑️ حذف الطلبات</option>
+    </select>
+    <select id="bulkStatusValue" style="display:none; max-width:150px;">
+      <option value="تم">تم</option>
+      <option value="مؤجل">مؤجل</option>
+      <option value="مرتجع">مرتجع</option>
+      <option value="إلغاء">إلغاء</option>
+    </select>
+    <select id="bulkDriverValue" style="display:none; max-width:150px;"></select>
+    <select id="bulkCompanyValue" style="display:none; max-width:150px;"></select>
+    <button class="btn btn-primary" onclick="applyBulkEdit()">تطبيق على المحدد</button>
+    <span id="selectedCount" style="margin-right:10px;"></span>
+    </div>
 
       <tfoot id="ordersTableFoot" style="background-color: #f8f9fa; font-weight: bold;">
         <!-- صف إجمالي الليرة السورية -->
@@ -148,7 +169,7 @@
           <td colspan="7"></td>
         </tr>
       </tfoot>
-      </table>
+    </table>
     </div>
   </div>
 
