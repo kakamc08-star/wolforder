@@ -93,7 +93,10 @@ async function fetchOrders() {
     if (endDate) url += `endDate=${endDate}&`;
 
     const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
-    if (!res.ok) throw new Error('فشل جلب الطلبات');
+    if (!res.ok) {
+      const errData = await res.json();
+      throw new Error(errData.message || 'فشل إنشاء الطلب');
+    }
     const orders = await res.json();
     // ✅ إشعار بوصول طلب جديد
       const newOrders = orders.filter(o => !previousOrderIds.has(o.id || o._id));
