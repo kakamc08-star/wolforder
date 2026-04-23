@@ -254,7 +254,10 @@ if (createForm) {
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(data)
       });
-      if (!res.ok) throw new Error('فشل الإنشاء');
+      if (!res.ok) {
+      const errData = await res.json();           // استخراج كائن الخطأ من الخادم
+      throw new Error(errData.message || 'فشل الإنشاء'); // استخدام الرسالة الأصلية
+    }
       createForm.reset();
       fetchOrders();
       showNotification('تم إنشاء الطلب');
