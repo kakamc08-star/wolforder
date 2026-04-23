@@ -1006,31 +1006,7 @@ async function applyBulkEdit() {
     alert('❌ ' + err.message);
   }
 
-  // دالة تُستدعى عند تغير أي checkbox
-function handleCheckboxChange(checkbox) {
-  const orderId = checkbox.value;
-  if (checkbox.checked) {
-    selectedOrderIds.add(orderId);
-  } else {
-    selectedOrderIds.delete(orderId);
-  }
-  updateBulkControls();
-}
-
-// تعديل toggleSelectAll ليتزامن مع المجموعة
-function toggleSelectAll() {
-  const selectAll = document.getElementById('selectAllCheckbox');
-  const isChecked = selectAll.checked;
-  document.querySelectorAll('.orderCheckbox').forEach(cb => {
-    cb.checked = isChecked;
-    if (isChecked) {
-      selectedOrderIds.add(cb.value);
-    } else {
-      selectedOrderIds.delete(cb.value);
-    }
-  });
-  updateBulkControls();
-}
+ 
   }
 
 
