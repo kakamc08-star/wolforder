@@ -130,6 +130,7 @@ function renderOrdersTable(orders) {
       <td data-label="الرقم التسلسلي :" >${order.serial_number || order.serialNumber || ''}</td>
       <td data-label="م :" >${index + 1}</td>
       <td data-label="رقم الطلب :" >${order.order_number || order.orderNumber}</td>
+      <td data-label="محتويات الطلب :">${order.order_contents || '-'}</td>
       <td data-label="اسم العميل :" >${order.customer_name || order.customerName}</td>
       <td data-label="رقم العميل :" >${order.customer_number ? `<a href="tel:${order.customer_number}">${order.customer_number}</a>` : '-'}</td>
       <td data-label="العنوان :" >${order.address}</td>
@@ -237,6 +238,7 @@ if (createForm) {
     }
     const data = {
       orderNumber: document.getElementById('orderNumber').value,
+      orderContents: document.getElementById('orderContents').value, 
       customerName,
       customerNumber,
       address: document.getElementById('address').value,
@@ -274,6 +276,7 @@ async function showEditOrderModal(orderId) {
 
     document.getElementById('editOrderId').value = order.id;
     document.getElementById('editOrderNumber').value = order.order_number || order.orderNumber;
+    document.getElementById('editOrderContents').value = order.order_contents || '';
     document.getElementById('editCustomerNumber').value = order.customer_number || '';
     document.getElementById('editCustomerName').value = order.customer_name || order.customerName;
     document.getElementById('editAddress').value = order.address;
@@ -362,6 +365,7 @@ if (editForm) {
 
     const updatedData = {
       orderNumber: document.getElementById('editOrderNumber').value,
+      orderContents: document.getElementById('editOrderContents').value,
       customerName: document.getElementById('editCustomerName').value,
       customerNumber: document.getElementById('editCustomerNumber').value.trim(),
       address: document.getElementById('editAddress').value,
@@ -554,11 +558,13 @@ async function generateReport() {
         <td>${o.serial_number || o.serialNumber}</td>
         <td>${index + 1}</td>
         <td>${o.order_number || o.orderNumber}</td>
+        <td>${o.order_contents || '-'}</td> 
         <td>${o.customer_name || o.customerName}</td>
         <td>${o.customer_number ? `<a href="tel:${o.customer_number}">${o.customer_number}</a>` : '-'}</td>
         <td>${formatNumber(o.price)} ${o.currency || 'ل.س'}</td>
         <td>${formatNumber(o.ratio || 0)}</td>
         <td>${o.status}</td>
+        <td>${o.note || '-'}</td>                   <!-- للملاحظة -->
         <td>${o.driver_name || o.driverName || '-'}</td>
         <td>${o.company_name || o.companyName || '-'}</td>
       `;

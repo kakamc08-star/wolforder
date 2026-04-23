@@ -53,10 +53,11 @@ router.get('/report', authenticateToken, async (req, res) => {
     const totalRatio = orders.reduce((sum, o) => sum + (o.ratio || 0), 0);
 
     if (req.query.export === 'excel') {
-      const headers = ['الرقم التسلسلي', 'رقم الطلب', 'اسم العميل', 'رقم العميل', 'العنوان', 'السعر', 'النسبة', 'الحالة', 'ملاحظة', 'السائق', 'الشركة', 'التاريخ'];
+      const headers = ['الرقم التسلسلي', 'رقم الطلب','محتويات الطلب', 'اسم العميل', 'رقم العميل', 'العنوان', 'السعر', 'النسبة', 'الحالة', 'ملاحظة', 'السائق', 'الشركة', 'التاريخ'];
       const rows = orders.map(o => [
         o.serial_number,
         o.order_number,
+        o.order_contents || '-', 
         o.customer_name,
         o.customer_number || '-',
         o.address,
@@ -193,7 +194,7 @@ router.get('/', authenticateToken, async (req, res) => {
 // ==================== إنشاء طلب ====================
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const { orderNumber, customerNumber, customerName, address, price, currency, ratio, driverId, companyId } = req.body;
+    const { orderNumber, customerNumber, customerName, address, price, currency, ratio, driverId, companyId, orderContents } = req.body;
     const creator = req.user;
 
     if (creator.role !== 'admin' && creator.role !== 'company') {
@@ -224,6 +225,7 @@ router.post('/', authenticateToken, async (req, res) => {
       .from('orders')
       .insert([{
         order_number: orderNumber,
+        order_contents: orderContents || '',
         customer_name: customerName,
         customer_number: customerNumber || '',
         address,
@@ -235,6 +237,7 @@ router.post('/', authenticateToken, async (req, res) => {
         company_id: company,
         company_name: companyName,
         status: 'قيد المتابعة'
+        
       }])
       .select()
       .single();
@@ -369,7 +372,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
     const {
       orderNumber, customerNumber, customerName, address,
-      price, currency, ratio, driverId, companyId, status, note
+      price, currency, ratio, driverId, companyId, status, note, orderContents
     } = req.body;
 
     let driverName = '';
@@ -398,6 +401,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
       company_name: companyName,
       status,
       note: note || '',
+      order_contents: orderContents || '',
       updated_at: new Date()
     };
 

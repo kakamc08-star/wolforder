@@ -36,6 +36,7 @@
   <form id="createOrderForm">
     <div class="form-row">
       <div class="form-group"><label for="orderNumber">رقم الطلب *</label><input type="text" id="orderNumber" required></div>
+      <div class="form-group"><label for="orderContents">محتويات الطلب *</label><input type="text" id="orderContents" required></div>
       <div class="form-group"><label for="customerName">اسم العميل *</label><input type="text" id="customerName" required></div>
       <div class="form-group"><label for="customerNumber">رقم العميل</label><input type="text" id="customerNumber" pattern="\d{10}" title="يجب إدخال 10 أرقام"></div>
       <div class="form-group"><label for="address">العنوان *</label><input type="text" id="address" required></div>
@@ -86,6 +87,7 @@
           <th>#</th>
           <th>م</th>
           <th>رقم الطلب</th>
+          <th>محتويات الطلب</th>
           <th>اسم العميل</th>
           <th>رقم العميل</th>
           <th>العنوان</th>
@@ -101,15 +103,15 @@
       <tfoot id="ordersTableFoot" >
         <!-- صف إجمالي الليرة السورية -->
         <tr>
-          <td colspan="6" style="text-align: right;">إجمالي السعر بالليرة السورية:</td>
+          <td colspan="7" style="text-align: right;">إجمالي السعر بالليرة السورية:</td>
           <td id="totalPriceSYR">0 ل.س</td>
-          <td colspan="5"></td>
+          <td colspan="6"></td>
         </tr>
         <!-- صف إجمالي الدولار -->
         <tr>
-          <td colspan="6" style="text-align: right;">إجمالي السعر بالدولار:</td>
+          <td colspan="7" style="text-align: right;">إجمالي السعر بالدولار:</td>
           <td id="totalPriceUSD">0 $</td>
-          <td colspan="5"></td>
+          <td colspan="6"></td>
         </tr>
  
       </tfoot>
@@ -126,6 +128,7 @@
       <input type="hidden" id="requestOrderId">
       <div class="form-row">
         <div class="form-group"><label for="reqOrderNumber">رقم الطلب</label><input type="text" id="reqOrderNumber"></div>
+        <div class="form-group"><label for="reqOrderContents">محتويات الطلب</label><input type="text" id="reqOrderContents"></div>
         <div class="form-group"><label for="reqCustomerNumber">رقم العميل</label><input type="text" id="reqCustomerNumber"></div>
       </div>
       <div class="form-row">

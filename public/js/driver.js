@@ -156,6 +156,7 @@ function renderTable(orders) {
       <td data-label="الرقم التسلسلي :">${serialNumber || ''}</td>
       <td data-label="م :">${index + 1}</td>
       <td data-label="رقم الطلب :">${orderNumber}</td>
+      <td data-label="محتويات الطلب :">${order.order_contents || order.orderContents || '-'}</td>
       <td data-label="اسم العميل :">${customerName}</td>
       <td data-label="رقم العميل :">${customerNumber ? `<a href="tel:${customerNumber}">${customerNumber}</a>` : '-'}</td>
       <td data-label="العنوان :">${address}</td>

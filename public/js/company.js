@@ -148,6 +148,7 @@ function renderTable(orders) {
       <td data-label="الرقم التسلسلي :">${serialNumber || ''}</td>
       <td data-label="م :">${index + 1}</td>
       <td data-label="رقم الطلب :">${orderNumber}</td>
+      <td data-label="محتويات الطلب :">${order.order_contents || order.orderContents || '-'}</td>
       <td data-label="اسم العميل :">${customerName}</td>
       <td data-label="رقم العميل :">${customerNumber ? `<a href="tel:${customerNumber}">${customerNumber}</a>` : '-'}</td>
       <td data-label="العنوان :">${address}</td>
@@ -244,6 +245,7 @@ document.getElementById('createOrderForm').addEventListener('submit', async (e) 
 
   const data = {
     orderNumber,
+    orderContents: document.getElementById('orderContents')?.value || '',
     customerNumber,
     customerName,
     address,
@@ -283,6 +285,7 @@ function openEditRequestModal(orderId) {
 
   document.getElementById('requestOrderId').value = orderId;
   document.getElementById('reqOrderNumber').value = order.order_number || order.orderNumber;
+  document.getElementById('reqOrderContents').value = order.order_contents || order.orderContents || '';
   document.getElementById('reqCustomerNumber').value = order.customer_number || order.customerNumber || '';
   document.getElementById('reqCustomerName').value = order.customer_name || order.customerName;
   document.getElementById('reqAddress').value = order.address;
@@ -300,6 +303,7 @@ document.getElementById('editRequestForm')?.addEventListener('submit', async (e)
   const orderId = document.getElementById('requestOrderId').value;
   const changes = {
     orderNumber: document.getElementById('reqOrderNumber').value,
+    orderContents: document.getElementById('reqOrderContents').value,
     customerNumber: document.getElementById('reqCustomerNumber').value,
     customerName: document.getElementById('reqCustomerName').value,
     address: document.getElementById('reqAddress').value,

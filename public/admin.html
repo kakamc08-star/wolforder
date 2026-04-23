@@ -36,6 +36,7 @@
     <form id="createOrderForm">
       <div class="form-row">
         <div class="form-group"><label for="orderNumber">رقم الطلب *</label><input type="text" id="orderNumber" required></div>
+        <div class="form-group"><label for="orderContents">محويات الطلب*</label><input type="text" id="orderContents" required></div>
         <div class="form-group"><label for="customerName">اسم العميل *</label><input type="text" id="customerName" required></div>
         <div class="form-group"><label for="customerNumber">رقم العميل *</label><input type="text" id="customerNumber" required></div>
         <div class="form-group"><label for="address">العنوان *</label><input type="text" id="address" required></div>
@@ -107,6 +108,7 @@
             <th>#</th>
             <th>م</th>
             <th>رقم الطلب</th>
+            <th>محتويات الطلب</th>
             <th>اسم العميل</th>
             <th>رقم العميل</th>
             <th>العنوان</th>
@@ -127,23 +129,23 @@
         <!-- صف إجمالي الليرة السورية -->
         <tr>
           <td style="text-align: right;">إجمالي السعر بالليرة السورية:</td>
-          <td colspan="5"></td>
+          <td colspan="6"></td>
           <td id="totalPriceSYR">0 ل.س</td>
-          <td colspan="7"></td>
+          <td colspan="8"></td>
         </tr>
         <!-- صف إجمالي الدولار -->
         <tr>
           <td style="text-align: right;">إجمالي السعر بالدولار:</td>
-          <td colspan="5"></td>
+          <td colspan="6"></td>
           <td id="totalPriceUSD">0 $</td>
-          <td colspan="7"></td>
+          <td colspan="8"></td>
         </tr>
         <!-- صف إجمالي النسبة -->
         <tr>
-          <td colspan="6" style="text-align: right;">إجمالي النسبة:</td>
+          <td colspan="7" style="text-align: right;">إجمالي النسبة:</td>
           <td></td>
           <td id="totalRatioSum" >0</td>
-          <td colspan="6"></td>
+          <td colspan="7"></td>
         </tr>
       </tfoot>
       </table>
@@ -186,11 +188,13 @@
           <th>#</th>
           <th>م</th>
           <th>رقم الطلب</th>
+          <th>محتويات الطلب</th>
           <th>اسم العميل</th>
           <th>رقم العميل</th>
           <th>السعر</th>
           <th>النسبة</th>
           <th>الحالة</th>
+          <th>ملاحظة</th>
           <th>السائق</th>
           <th>الشركة</th>
         </tr></thead>
@@ -245,6 +249,10 @@
           <div class="form-group">
             <label for="editOrderNumber">رقم الطلب *</label>
             <input type="text" id="editOrderNumber" required>
+          </div>
+          <div class="form-group">
+            <label for="orderContents">محتويات الطلب</label>
+            <input type="text" id="editOrderContents" rows="3"></input>
           </div>
           <div class="form-group">
             <label for="editCustomerNumber">رقم العميل</label>

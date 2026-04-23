@@ -119,6 +119,7 @@ router.patch('/:id/accept', authenticateToken, async (req, res) => {
     const changes = editRequest.requested_changes;
     const updates = { updated_at: new Date() };
     if (changes.orderNumber) updates.order_number = changes.orderNumber;
+    if (changes.orderContents) updates.order_contents = changes.orderContents;
     if (changes.customerNumber) updates.customer_number = changes.customerNumber;
     if (changes.customerName) updates.customer_name = changes.customerName;
     if (changes.address) updates.address = changes.address;
