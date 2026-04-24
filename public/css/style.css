@@ -563,8 +563,8 @@ body.dark-mode [style*="background-color: #ffffff"] {
   /* ORDERS FORM */
   table tbody td {
     display: flex;
-    
-    align-items: center;
+    max-width: 100%;
+    align-items: stretch;
     padding: 8px 0;
     border: none;
     text-align: right !important;
@@ -606,6 +606,7 @@ body.dark-mode [style*="background-color: #ffffff"] {
   #editRequestModal .card {
     width: 95% !important;
     max-width: 95% !important;
+    align-items: stretch;
     margin: 10px !important;
     padding: 15px !important;
     max-height: 90vh !important;
