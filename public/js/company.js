@@ -9,8 +9,13 @@ let previousOrderIds = new Set();
 let autoRefresh = setInterval(fetchOrders, 5000);
 let allOrders = [];
 let adminPhone = '';
+let currentSort = 'default'; // 'asc', 'desc', 'default'
 
 // ==================== دوال مساعدة ====================
+function setSortAndRender(direction) {
+  currentSort = direction;
+  applyFiltersAndRender();
+}
 function formatDate(date) {
   if (!date) return '-';
   const d = new Date(date);
@@ -119,6 +124,28 @@ async function fetchOrders() {
   }
 }
 
+function applyFiltersAndRender() {
+  let filtered = [...allOrders];
+  const searchText = document.getElementById('searchInput')?.value || '';
+  filtered = filterOrdersBySearch(filtered, searchText);
+      // تطبيق الترتيب
+    if (currentSort === 'asc') {
+      filtered.sort((a, b) => (a.order_number || '').localeCompare(b.order_number || '', 'ar', { numeric: true }));
+    } else if (currentSort === 'desc') {
+      filtered.sort((a, b) => (b.order_number || '').localeCompare(a.order_number || '', 'ar', { numeric: true }));
+    }
+  renderTable(filtered);
+}
+
+function clearFilters() {
+  document.getElementById('filterStatus').value = '';
+  document.getElementById('startDate').value = '';
+  document.getElementById('endDate').value = '';
+  document.getElementById('searchInput').value = '';
+  fetchOrders();
+}
+
+
 // ==================== عرض الجدول ====================
 function renderTable(orders) {
   const tbody = document.getElementById('ordersTableBody');
@@ -193,20 +220,6 @@ function filterOrdersBySearch(orders, searchText) {
   });
 }
 
-function applyFiltersAndRender() {
-  let filtered = [...allOrders];
-  const searchText = document.getElementById('searchInput')?.value || '';
-  filtered = filterOrdersBySearch(filtered, searchText);
-  renderTable(filtered);
-}
-
-function clearFilters() {
-  document.getElementById('filterStatus').value = '';
-  document.getElementById('startDate').value = '';
-  document.getElementById('endDate').value = '';
-  document.getElementById('searchInput').value = '';
-  fetchOrders();
-}
 
 // ==================== إنشاء طلب ====================
 document.getElementById('createOrderForm').addEventListener('submit', async (e) => {

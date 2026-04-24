@@ -86,7 +86,11 @@
         <thead><tr>
           <th>#</th>
           <th>م</th>
-          <th>رقم الطلب</th>
+          <th>رقم الطلب
+            <span style="cursor:pointer; margin-right:5px;" title="ترتيب تصاعدي" onclick="setSortAndRender('asc')">▲</span>
+            <span style="cursor:pointer;" title="ترتيب تنازلي" onclick="setSortAndRender('desc')">▼</span>
+            <span style="cursor:pointer;" title="الترتيب الافتراضي (تاريخ الإنشاء)" onclick="setSortAndRender('default')">↺</span>
+          </th>
           <th>محتويات الطلب</th>
           <th>اسم العميل</th>
           <th>رقم العميل</th>
