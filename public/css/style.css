@@ -233,22 +233,19 @@ tr:hover {
 }
 
 /* شارات الحالة الجديدة */
-.status-قيد\ المتابعة {
-  background-color: #fef3c7;  /* أصفر فاتح */
-  color: #92400e;             /* بني غامق */
-}
-.status-مؤجل {
+.status-إلغاء
+ {
   background-color: #fed7d7;  /* أحمر فاتح */
   color: #822727;             /* أحمر غامق */
 }
 .status-مرتجع {
-  background-color: #e9d8fd;  /* بنفسجي فاتح */
-  color: #44337a;             /* بنفسجي غامق */
+  background-color: #fe9b1a;  /* بنفسجي فاتح */
+  color: #855002;             /* بنفسجي غامق */
 }
 
-.status-إلغاء {
-  background-color: #e2e8f0;
-  color: #4a5568;
+ .status-مؤجل{
+  background-color: #fedb17;
+  color: #6a700fc7;
 }
 
 /* صفوف النموذج */
@@ -554,6 +551,8 @@ body.dark-mode [style*="background-color: #ffffff"] {
     border-radius: 12px;
     padding: 15px;
     background: white;
+    align-items: stretch !important; /* تمديد العناصر لعرض البطاقة */
+    width: 100% !important;       /* عرض كامل */
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     transition: background-color 0.2s ease;
   }
