@@ -695,4 +695,11 @@ body.dark-mode [style*="background-color: #ffffff"] {
     padding: 12px 15px !important;
     font-size: 18px !important;    /* خط أكبر على الجوال */
   }
+  #ordersTable th:first-child,
+#ordersTable td:first-child {
+  width: 250px;
+  max-width: 250px;
+  padding: 5px;
+  
+}
 }
