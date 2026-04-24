@@ -535,9 +535,10 @@ body.dark-mode [style*="background-color: #ffffff"] {
 
 
   table {
-    display: block;
+    display: table;
     overflow-x: auto;
-    white-space: nowrap;
+    width: 100%
+    
   }
 }
 
@@ -551,10 +552,11 @@ body.dark-mode [style*="background-color: #ffffff"] {
     border-radius: 12px;
     padding: 15px;
     background: white;
-    align-items: stretch !important; /* تمديد العناصر لعرض البطاقة */
+    align-items: center !important; /* تمديد العناصر لعرض البطاقة */
     width: 100% !important;       /* عرض كامل */
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     transition: background-color 0.2s ease;
+    
   }
   body.dark-mode table tbody tr {
     background: #2d3748;
