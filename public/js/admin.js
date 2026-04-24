@@ -10,8 +10,14 @@ document.getElementById('userNameDisplay').textContent = user.name || user.usern
 let autoRefresh = setInterval(fetchOrders, 10000);
 let selectedOrderIds = new Set(); // لحفظ المحددات
 let allOrders = [];
+let currentSort = 'default'; // 'asc', 'desc', 'default'
 
 // ==================== دوال مساعدة ====================
+function setSortAndRender(direction) {
+  currentSort = direction;
+  applyFiltersAndRender(); // إعادة تطبيق الفلاتر والترتيب
+}
+
 function formatDate(date) {
   if (!date) return '-';
   const d = new Date(date);
@@ -97,6 +103,34 @@ async function fetchOrders() {
     console.error('fetchOrders error:', err);
   }
 }
+
+function applyFiltersAndRender() {
+  let filtered = [...allOrders];
+  const searchText = document.getElementById('searchInput')?.value || '';
+  filtered = filterOrdersBySearch(filtered, searchText);
+
+  const status = document.getElementById('filterStatus')?.value;
+  if (status) {
+    filtered = filtered.filter(o => o.status === status);
+  }
+    // تطبيق الترتيب
+    if (currentSort === 'asc') {
+      filtered.sort((a, b) => (a.order_number || '').localeCompare(b.order_number || '', 'ar', { numeric: true }));
+    } else if (currentSort === 'desc') {
+      filtered.sort((a, b) => (b.order_number || '').localeCompare(a.order_number || '', 'ar', { numeric: true }));
+    }
+  renderOrdersTable(filtered);
+}
+
+function clearFilters() {
+  const fields = ['filterStatus', 'filterStartDate', 'filterEndDate', 'filterDriver', 'filterCompany', 'searchInput'];
+  fields.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  fetchOrders();
+}
+
 
 // ==================== عرض الجدول ====================
 function renderOrdersTable(orders) {
@@ -185,27 +219,6 @@ function filterOrdersBySearch(orders, searchText) {
   });
 }
 
-function applyFiltersAndRender() {
-  let filtered = [...allOrders];
-  const searchText = document.getElementById('searchInput')?.value || '';
-  filtered = filterOrdersBySearch(filtered, searchText);
-
-  const status = document.getElementById('filterStatus')?.value;
-  if (status) {
-    filtered = filtered.filter(o => o.status === status);
-  }
-
-  renderOrdersTable(filtered);
-}
-
-function clearFilters() {
-  const fields = ['filterStatus', 'filterStartDate', 'filterEndDate', 'filterDriver', 'filterCompany', 'searchInput'];
-  fields.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
-  });
-  fetchOrders();
-}
 
 // ==================== حذف طلب ====================
 async function deleteOrder(orderId) {
