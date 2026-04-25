@@ -858,9 +858,9 @@ function renderUsersTable(users) {
       : '<span style="color:#999;">—</span>';
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${u.username}</td>
-      <td>${u.name}</td>
-      <td>${u.role === 'driver' ? 'سائق' : (u.role === 'company' ? 'شركة' : 'مدير')}</td>
+      <td  data-label="اسم المستخدم :">${u.username}</td>
+      <td  data-label="الاسم الكامل :">${u.name}</td>
+      <td  data-label="الدور :">${u.role === 'driver' ? 'سائق' : (u.role === 'company' ? 'شركة' : 'مدير')}</td>
       <td>${deleteButton}</td>
     `;
     tbody.appendChild(tr);

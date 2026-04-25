@@ -341,6 +341,7 @@ tr:hover {
 tfoot td {
   font-weight: bold;
   background-color: #f8fafc;
+  text-align: right;
 }
 
 .hidden {
@@ -565,6 +566,7 @@ body.dark-mode [style*="background-color: #ffffff"] {
   /* ORDERS FORM */
   table tbody td {
     display: flex;
+    width: 100%;
     max-width: 100%;
     align-items: stretch;
     padding: 8px 0;
@@ -695,11 +697,11 @@ body.dark-mode [style*="background-color: #ffffff"] {
     padding: 12px 15px !important;
     font-size: 18px !important;    /* خط أكبر على الجوال */
   }
-  #ordersTable th:first-child,
+#ordersTable th:first-child,
 #ordersTable td:first-child {
-  width: 250px;
-  max-width: 250px;
-  padding: 5px;
-  
+  width: 100%;
+  max-width: 100%;
+text-align: right;
 }
+
 }
