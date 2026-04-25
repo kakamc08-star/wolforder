@@ -87,12 +87,26 @@ document.addEventListener('DOMContentLoaded', updateOnlineStatus);
 // ==================== جلب الطلبات (مع دعم الفلاتر) ====================
 async function fetchOrders() {
   try {
+    let startDate = '';
+    let endDate = '';
+    const startDateInput = document.getElementById('filterStartDate')?.value;
+    const endDateInput = document.getElementById('filterEndDate')?.value;
+    
+    if (startDateInput) {
+      // إنشاء وقت بداية اليوم محلياً ثم تحويله إلى UTC
+      const localStart = new Date(startDateInput + 'T00:00:00');
+      startDate = localStart.toISOString();
+    }
+    if (endDateInput) {
+      // إنشاء وقت نهاية اليوم محلياً ثم تحويله إلى UTC
+      const localEnd = new Date(endDateInput + 'T23:59:59');
+      endDate = localEnd.toISOString();
+    }
+
     const statusSelect = document.getElementById('filterStatus');
     const status = statusSelect ? statusSelect.value : '';
-    const startDate = document.getElementById('startDate')?.value || '';
-    const endDate = document.getElementById('endDate')?.value || '';
-
     let url = '/api/orders?';
+    
     if (status) url += `status=${status}&`;
     if (startDate) url += `startDate=${startDate}&`;
     if (endDate) url += `endDate=${endDate}&`;

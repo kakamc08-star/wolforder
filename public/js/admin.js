@@ -80,9 +80,23 @@ function validateCustomerNumber(number) {
 // ==================== جلب الطلبات ====================
 async function fetchOrders() {
   try {
+    
+    let startDate = '';
+    let endDate = '';
+    const startDateInput = document.getElementById('filterStartDate')?.value;
+    const endDateInput = document.getElementById('filterEndDate')?.value;
+    
+    if (startDateInput) {
+      // إنشاء وقت بداية اليوم محلياً ثم تحويله إلى UTC
+      const localStart = new Date(startDateInput + 'T00:00:00');
+      startDate = localStart.toISOString();
+    }
+    if (endDateInput) {
+      // إنشاء وقت نهاية اليوم محلياً ثم تحويله إلى UTC
+      const localEnd = new Date(endDateInput + 'T23:59:59');
+      endDate = localEnd.toISOString();
+    }
     const status = document.getElementById('filterStatus')?.value || '';
-    const startDate = document.getElementById('filterStartDate')?.value || '';
-    const endDate = document.getElementById('filterEndDate')?.value || '';
     const driverId = document.getElementById('filterDriver')?.value || '';
     const companyId = document.getElementById('filterCompany')?.value || '';
 

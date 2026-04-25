@@ -178,19 +178,15 @@ router.get('/', authenticateToken, async (req, res) => {
       query = query.eq('company_id', id);
     }
     
-    // 3. فلترة حسب التاريخ (إذا وُجد)
-    if (startDate || endDate) {
-      if (startDate) {
-        const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
-        query = query.gte('created_at', start.toISOString());
-      }
-      if (endDate) {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-        query = query.lte('created_at', end.toISOString());
-      }
-    }
+  // 3. فلترة حسب التاريخ (إذا وُجد)
+if (startDate || endDate) {
+  if (startDate) {
+    query = query.gte('created_at', startDate);
+  }
+  if (endDate) {
+    query = query.lte('created_at', endDate);
+  }
+}
 
     // 4. فلترة حسب الحالة (إذا وُجد)
     if (status) {
