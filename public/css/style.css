@@ -450,11 +450,22 @@ body.dark-mode .status-badge.status-تم {
   color: #d1fae5;
 }
 
-
-body.dark-mode .status-badge.status-إلغاء {
-  background-color: #374151;
-  color: #e5e7eb;
+ body.dark-mode .status-مؤجل{
+  background-color: #fedb17;
+  color: #4d4106;
 }
+
+body.dark-mode .status-مرتجع {
+  background-color: #fe9b1a;  /* بنفسجي فاتح */
+  color: #523408;             /* بنفسجي غامق */
+}
+
+
+body.dark-mode .status-إلغاء
+ {
+  background-color: #822727;  /* أحمر فاتح */
+  color: #fed7d7;    /* أحمر غامق */
+ }
 
 body.dark-mode .message.error {
   background-color: #7f1d1d;
@@ -665,14 +676,14 @@ body.dark-mode [style*="background-color: #ffffff"] {
 }
 
 /* تصغير عرض عمود الـ checkbox */
-#ordersTable th:first-child,
+/* #ordersTable th:first-child,
 #ordersTable td:first-child {
   width: 30px;
   min-width: 30px;
   max-width: 30px;
   padding: 5px;
   text-align: center;
-}
+} */
 
 /* تصغير حجم الـ checkbox نفسه */
 #ordersTable input[type="checkbox"] {
