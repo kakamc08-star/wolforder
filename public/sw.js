@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wolforder-v5'; // زيادة الإصدار لمسح الكاش القديم
+const CACHE_NAME = 'wolforder-v' + Date.now(); // إصدار فريد مع كل نشر
 const urlsToCache = [
   '/',
   '/login.html',
@@ -14,41 +14,9 @@ const urlsToCache = [
 ];
 
 self.addEventListener('install', event => {
+  self.skipWaiting(); // تفعيل الـ Service Worker الجديد فوراً دون انتظار إغلاق التبويبات
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(urlsToCache).catch(err => console.warn('Cache addAll error:', err)))
-  );
-});
-
-self.addEventListener('fetch', event => {
-  const url = event.request.url;
-  const method = event.request.method;
-
-  // ✅ تجاهل طلبات POST و PUT و DELETE و PATCH (لا تخزن)
-  if (method !== 'GET') {
-    return; // دع المتصفح يتعامل معها مباشرة
-  }
-
-  // ✅ تجاهل طلبات API (حتى GET) إذا أردت عدم تخزينها
-  if (url.includes('/api/')) {
-    // استراتيجية "الشبكة أولاً" لطلبات API GET
-    event.respondWith(
-      fetch(event.request)
-        .then(response => {
-          // تحديث الكاش بصمت
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseClone));
-          return response;
-        })
-        .catch(() => caches.match(event.request))
-    );
-    return;
-  }
-
-  // للموارد الثابتة (HTML, CSS, JS): "التخزين أولاً"
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => response || fetch(event.request))
+    caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache).catch(console.warn))
   );
 });
 
@@ -58,6 +26,21 @@ self.addEventListener('activate', event => {
       return Promise.all(
         cacheNames.filter(name => name !== CACHE_NAME).map(name => caches.delete(name))
       );
-    })
+    }).then(() => self.clients.claim()) // سيطرة فورية على جميع العملاء
   );
+});
+
+self.addEventListener('fetch', event => {
+  const url = event.request.url;
+  if (url.includes('/api/') || url.includes('/socket.io/')) return;
+  event.respondWith(
+    caches.match(event.request).then(response => response || fetch(event.request))
+  );
+});
+
+// إشعار جميع النوافذ المفتوحة بوجود تحديث
+self.addEventListener('message', event => {
+  if (event.data === 'skipWaiting') {
+    self.skipWaiting();
+  }
 });

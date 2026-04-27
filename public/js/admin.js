@@ -810,11 +810,25 @@ document.addEventListener('DOMContentLoaded', function() {
   if (endDateInput) endDateInput.value = formattedDate;
 });
 
-// ==================== PWA ====================
+// ==================== PWA مع التحديث التلقائي ====================
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function() {
+  window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').then(reg => {
-      console.log('SW registered');
+
+      
+      // التحقق من وجود تحديث جديد
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            showNotification('🔄 تحديث جديد متوفر... جاري التحديث', 'info');
+            setTimeout(() => {
+              newWorker.postMessage('skipWaiting');
+              window.location.reload();
+            }, 2000);
+          }
+        });
+      });
     }).catch(err => console.log('SW failed', err));
   });
 }

@@ -425,14 +425,26 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btn) btn.textContent = '☀️';
   }
 });
-// ==================== PWA ====================
+// ==================== PWA مع التحديث التلقائي ====================
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function() {
-    navigator.serviceWorker.register('/sw.js').then(function(registration) {
-      console.log('ServiceWorker registration successful');
-    }, function(err) {
-      console.log('ServiceWorker registration failed');
-    });
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').then(reg => {
+
+      
+      // التحقق من وجود تحديث جديد
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            showNotification('🔄 تحديث جديد متوفر... جاري التحديث', 'info');
+            setTimeout(() => {
+              newWorker.postMessage('skipWaiting');
+              window.location.reload();
+            }, 2000);
+          }
+        });
+      });
+    }).catch(err => console.log('SW failed', err));
   });
 }
 
