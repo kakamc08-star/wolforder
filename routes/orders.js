@@ -52,36 +52,57 @@ router.get('/report', authenticateToken, async (req, res) => {
     const totalUSD = orders.reduce((sum, o) => o.currency === 'دولار' ? sum + (o.price || 0) : sum, 0);
     const totalRatio = orders.reduce((sum, o) => sum + (o.ratio || 0), 0);
 
-    if (req.query.export === 'excel') {
-      const headers = ['الرقم التسلسلي', 'رقم الطلب','محتويات الطلب', 'اسم العميل', 'رقم العميل', 'العنوان', 'السعر', 'النسبة', 'الحالة', 'ملاحظة', 'السائق', 'الشركة', 'التاريخ'];
-      const rows = orders.map(o => [
-        o.serial_number,
-        o.order_number,
-        o.order_contents || '-', 
-        o.customer_name,
-        o.customer_number || '-',
-        o.address,
-        formatNumberForExcel(o.price) + ' ' + (o.currency || 'ل.س'),
-        formatNumberForExcel(o.ratio || 0),
-        o.status,
-        o.note || '-',
-        o.driver_name || '-',
-        o.company_name || '-',
-        new Date(o.created_at).toLocaleDateString('en-GB')
-      ]);
+ if (req.query.export === 'excel') {
+  const headers = ['الرقم التسلسلي', 'رقم الطلب','محتويات الطلب', 'اسم العميل', 'رقم العميل', 'العنوان', 'السعر', 'النسبة', 'الحالة', 'ملاحظة', 'السائق', 'الشركة', 'التاريخ'];
+  
+  const rows = orders.map(o => [
+    o.serial_number,
+    o.order_number,
+    o.order_contents || '-', 
+    o.customer_name,
+    o.customer_number || '-',
+    o.address,
+    o.price,                   // رقم قابل للجمع (بدون رمز العملة)
+    o.ratio || 0,              // رقم قابل للجمع
+    o.status,
+    o.note || '-',
+    o.driver_name || '-',
+    o.company_name || '-',
+    new Date(o.created_at).toLocaleDateString('en-GB')
+  ]);
 
-      const escapeCSV = (val) => {
-        const str = String(val);
-        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-          return '"' + str.replace(/"/g, '""') + '"';
-        }
-        return str;
-      };
-      const csv = '\uFEFF' + [headers.map(escapeCSV).join(','), ...rows.map(r => r.map(escapeCSV).join(','))].join('\n');
-      res.header('Content-Type', 'text/csv; charset=utf-8');
-      res.header('Content-Disposition', 'attachment; filename=report.csv');
-      return res.send(csv);
+  const escapeCSV = (val) => {
+    const str = String(val);
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+      return '"' + str.replace(/"/g, '""') + '"';
     }
+    return str;
+  };
+
+  const headerRow = headers.map(escapeCSV).join(',');
+  const dataRows = rows.map(r => r.map(escapeCSV).join(','));
+
+  // صف فارغ للفصل
+  const emptyRow = new Array(headers.length).fill('').map(escapeCSV).join(',');
+
+  // صف إجمالي المبيعات (ل.س)
+  const summarySYR = new Array(headers.length).fill('');
+  summarySYR[headers.indexOf('رقم الطلب')] = 'إجمالي المبيعات (ل.س)';
+  summarySYR[headers.indexOf('السعر')] = totalSYR;
+  const summarySYRRow = summarySYR.map(escapeCSV).join(',');
+
+  // صف إجمالي المبيعات ($)
+  const summaryUSD = new Array(headers.length).fill('');
+  summaryUSD[headers.indexOf('رقم الطلب')] = 'إجمالي المبيعات ($)';
+  summaryUSD[headers.indexOf('السعر')] = totalUSD;
+  const summaryUSDRow = summaryUSD.map(escapeCSV).join(',');
+
+  const csv = '\uFEFF' + [headerRow, ...dataRows, emptyRow, summarySYRRow, summaryUSDRow].join('\n');
+  
+  res.header('Content-Type', 'text/csv; charset=utf-8');
+  res.header('Content-Disposition', 'attachment; filename=report.csv');
+  return res.send(csv);
+}
 
     res.json({ count: orders.length, totalSYR, totalUSD, totalRatio, orders });
   } catch (err) {
