@@ -77,33 +77,45 @@ function applyFiltersAndRender() {
 // ==================== جلب الطلبات ====================
 async function fetchOrders() {
   try {
+    // 1. حفظ قيم الفلاتر الحالية
+    const savedStatus = document.getElementById('filterStatus')?.value || '';
+    const savedSearch = document.getElementById('searchInput')?.value || '';
+
+    // 2. بناء الرابط
     const statusSelect = document.getElementById('filterStatus');
     const status = statusSelect ? statusSelect.value : '';
     let url = '/api/orders';
     if (status) url += `?status=${status}`;
+
     const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
     if (!res.ok) throw new Error('فشل جلب الطلبات');
     const orders = await res.json();
+
+    // 3. إشعارات الطلبات الجديدة (المنطق الحالي يبقى كما هو)
     const newOrders = orders.filter(o => !previousOrderIds.has(o.id || o._id));
     if (newOrders.length > 0 && previousOrderIds.size > 0) {
-    // تجاهل أول تحميل للصفحة (عندما تكون previousOrderIds فارغة)
-    newOrders.forEach(order => {
-     showNotification(`🚚 طلب جديد #${order.order_number || order.orderNumber}`, 'success');
-      notificationSound.play().catch(() => {});
-    });
+      newOrders.forEach(order => {
+        showNotification(`🚚 طلب جديد #${order.order_number || order.orderNumber}`, 'success');
+        notificationSound.play().catch(() => {});
+      });
     }
-
-        // تحديث مجموعة المعرفات
+    // تحديث مجموعة المعرفات
     previousOrderIds = new Set(orders.map(o => o.id || o._id));
 
     allOrders = orders;
     applyFiltersAndRender();
+
+    // 4. إعادة تعبئة الفلاتر بالقيم المحفوظة
+    const elStatus = document.getElementById('filterStatus');
+    const elSearch = document.getElementById('searchInput');
+    if (elStatus && elStatus.value !== savedStatus) elStatus.value = savedStatus;
+    if (elSearch && elSearch.value !== savedSearch) elSearch.value = savedSearch;
+
     document.getElementById('lastUpdateTime').textContent = `آخر تحديث: ${new Date().toLocaleTimeString('ar')}`;
   } catch (err) {
     console.error('fetchOrders error:', err);
   }
 }
-
 function startHeartbeat() {
   setInterval(async () => {
     if (navigator.onLine) {

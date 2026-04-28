@@ -66,58 +66,64 @@ function validateCustomerNumber(number) {
   return /^\d{10}$/.test(number.trim());
 }
 
-// ==================== WebSocket (معطل) ====================
-// socket.on('connect', () => console.log('WS connected'));
-// socket.on('new-order-from-company', (order) => {
-//   showNotification(`طلب جديد من ${order.companyName || 'شركة'}`);
-//   fetchOrders();
-// });
-// socket.on('order-updated', fetchOrders);
-// socket.on('new-order-all-drivers', fetchOrders);
-// socket.on('drivers-status-updated', () => { loadUsersLists(); });
-// socket.on('new-edit-request', fetchEditRequests);
 
 // ==================== جلب الطلبات ====================
 async function fetchOrders() {
   try {
-    
+    // 1. حفظ قيم الفلاتر الحالية قبل أي شيء
+    const savedStatus = document.getElementById('filterStatus')?.value || '';
+    const savedStartDateInput = document.getElementById('filterStartDate')?.value || '';
+    const savedEndDateInput = document.getElementById('filterEndDate')?.value || '';
+    const savedDriverId = document.getElementById('filterDriver')?.value || '';
+    const savedCompanyId = document.getElementById('filterCompany')?.value || '';
+    const savedSearch = document.getElementById('searchInput')?.value || '';
+
+    // 2. تحويل التواريخ المحفوظة إلى صيغة UTC لاستخدامها في API
     let startDate = '';
     let endDate = '';
-    const startDateInput = document.getElementById('filterStartDate')?.value;
-    const endDateInput = document.getElementById('filterEndDate')?.value;
-    
-    if (startDateInput) {
-      // إنشاء وقت بداية اليوم محلياً ثم تحويله إلى UTC
-      const localStart = new Date(startDateInput + 'T00:00:00');
+    if (savedStartDateInput) {
+      const localStart = new Date(savedStartDateInput + 'T00:00:00');
       startDate = localStart.toISOString();
     }
-    if (endDateInput) {
-      // إنشاء وقت نهاية اليوم محلياً ثم تحويله إلى UTC
-      const localEnd = new Date(endDateInput + 'T23:59:59');
+    if (savedEndDateInput) {
+      const localEnd = new Date(savedEndDateInput + 'T23:59:59');
       endDate = localEnd.toISOString();
     }
-    const status = document.getElementById('filterStatus')?.value || '';
-    const driverId = document.getElementById('filterDriver')?.value || '';
-    const companyId = document.getElementById('filterCompany')?.value || '';
 
+    // 3. بناء رابط API
     let url = '/api/orders?';
-    if (status) url += `status=${status}&`;
+    if (savedStatus) url += `status=${savedStatus}&`;
     if (startDate) url += `startDate=${startDate}&`;
     if (endDate) url += `endDate=${endDate}&`;
-    if (driverId) url += `driverId=${driverId}&`;
-    if (companyId) url += `companyId=${companyId}&`;
+    if (savedDriverId) url += `driverId=${savedDriverId}&`;
+    if (savedCompanyId) url += `companyId=${savedCompanyId}&`;
 
     const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
     if (!res.ok) throw new Error('فشل جلب الطلبات');
     const orders = await res.json();
     allOrders = orders;
     applyFiltersAndRender();
+
+    // 4. إعادة تعبئة الحقول بالقيم المحفوظة (في حال تم مسحها)
+    const elStatus = document.getElementById('filterStatus');
+    const elStart = document.getElementById('filterStartDate');
+    const elEnd = document.getElementById('filterEndDate');
+    const elDriver = document.getElementById('filterDriver');
+    const elCompany = document.getElementById('filterCompany');
+    const elSearch = document.getElementById('searchInput');
+
+    if (elStatus && elStatus.value !== savedStatus) elStatus.value = savedStatus;
+    if (elStart && elStart.value !== savedStartDateInput) elStart.value = savedStartDateInput;
+    if (elEnd && elEnd.value !== savedEndDateInput) elEnd.value = savedEndDateInput;
+    if (elDriver && elDriver.value !== savedDriverId) elDriver.value = savedDriverId;
+    if (elCompany && elCompany.value !== savedCompanyId) elCompany.value = savedCompanyId;
+    if (elSearch && elSearch.value !== savedSearch) elSearch.value = savedSearch;
+
     document.getElementById('lastUpdateTime').textContent = `آخر تحديث: ${new Date().toLocaleTimeString('ar')}`;
   } catch (err) {
     console.error('fetchOrders error:', err);
   }
 }
-
 function applyFiltersAndRender() {
   let filtered = [...allOrders];
   const searchText = document.getElementById('searchInput')?.value || '';
@@ -525,6 +531,15 @@ async function loadUsersLists() {
     companies = allData.companies || [];
 
     // عناصر HTML
+   // حفظ القيم المختارة للفلاتر قبل إعادة بنائها
+    const savedFilterDriver = document.getElementById('filterDriver')?.value || '';
+    const savedFilterCompany = document.getElementById('filterCompany')?.value || '';
+    const savedReportDriver = document.getElementById('reportDriver')?.value || '';
+    const savedReportCompany = document.getElementById('reportCompany')?.value || '';
+    const savedDriverSelect = document.getElementById('driverSelect')?.value || '';
+    const savedCompanySelect = document.getElementById('companySelect')?.value || '';
+
+    // عناصر HTML
     const driverSelect = document.getElementById('driverSelect');
     const reportDriver = document.getElementById('reportDriver');
     const companySelect = document.getElementById('companySelect');
@@ -564,6 +579,15 @@ async function loadUsersLists() {
       filterCompany.innerHTML = '<option value="">الكل</option>';
       companies.forEach(c => { filterCompany.innerHTML += `<option value="${c._id || c.id}">${c.name}</option>`; });
     }
+
+    // استعادة القيم المختارة بعد إعادة البناء
+    if (filterDriver && savedFilterDriver) filterDriver.value = savedFilterDriver;
+    if (filterCompany && savedFilterCompany) filterCompany.value = savedFilterCompany;
+    if (reportDriver && savedReportDriver) reportDriver.value = savedReportDriver;
+    if (reportCompany && savedReportCompany) reportCompany.value = savedReportCompany;
+    if (driverSelect && savedDriverSelect) driverSelect.value = savedDriverSelect;
+    if (companySelect && savedCompanySelect) companySelect.value = savedCompanySelect;
+
   } catch (err) {
     console.error('خطأ في loadUsersLists:', err);
   }

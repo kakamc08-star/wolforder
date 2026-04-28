@@ -87,51 +87,60 @@ document.addEventListener('DOMContentLoaded', updateOnlineStatus);
 // ==================== جلب الطلبات (مع دعم الفلاتر) ====================
 async function fetchOrders() {
   try {
+    // 1. حفظ قيم الفلاتر الحالية
+    const savedStartDateInput = document.getElementById('startDate')?.value || '';
+    const savedEndDateInput = document.getElementById('endDate')?.value || '';
+    const savedStatus = document.getElementById('filterStatus')?.value || '';
+    const savedSearch = document.getElementById('searchInput')?.value || '';
+
+    // 2. تحويل التواريخ المحفوظة إلى صيغة UTC لاستخدامها في API
     let startDate = '';
     let endDate = '';
-    const startDateInput = document.getElementById('filterStartDate')?.value;
-    const endDateInput = document.getElementById('filterEndDate')?.value;
-    
-    if (startDateInput) {
-      // إنشاء وقت بداية اليوم محلياً ثم تحويله إلى UTC
-      const localStart = new Date(startDateInput + 'T00:00:00');
-      startDate = localStart.toISOString();
+    if (savedStartDateInput) {
+      startDate = new Date(savedStartDateInput + 'T00:00:00').toISOString();
     }
-    if (endDateInput) {
-      // إنشاء وقت نهاية اليوم محلياً ثم تحويله إلى UTC
-      const localEnd = new Date(endDateInput + 'T23:59:59');
-      endDate = localEnd.toISOString();
+    if (savedEndDateInput) {
+      endDate = new Date(savedEndDateInput + 'T23:59:59').toISOString();
     }
 
-    const statusSelect = document.getElementById('filterStatus');
-    const status = statusSelect ? statusSelect.value : '';
+    // 3. بناء الرابط
     let url = '/api/orders?';
-    
-    if (status) url += `status=${status}&`;
+    if (savedStatus) url += `status=${savedStatus}&`;
     if (startDate) url += `startDate=${startDate}&`;
     if (endDate) url += `endDate=${endDate}&`;
 
     const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
     if (!res.ok) {
       const errData = await res.json();
-      throw new Error(errData.message || 'فشل إنشاء الطلب');
+      throw new Error(errData.message || 'فشل جلب الطلبات');
     }
     const orders = await res.json();
-    // ✅ إشعار بوصول طلب جديد
-      const newOrders = orders.filter(o => !previousOrderIds.has(o.id || o._id));
+
+    // 4. إشعار بوصول طلب جديد (المنطق الحالي يبقى كما هو)
+    const newOrders = orders.filter(o => !previousOrderIds.has(o.id || o._id));
     if (newOrders.length > 0 && previousOrderIds.size > 0) {
-  // تجاهل أول تحميل للصفحة (عندما تكون previousOrderIds فارغة)
-    newOrders.forEach(order => {
-      showNotification(`🚚 طلب جديد #${order.order_number || order.orderNumber}`, 'success');
-    notificationSound.play().catch(() => {});
+      newOrders.forEach(order => {
+        showNotification(`🚚 طلب جديد #${order.order_number || order.orderNumber}`, 'success');
+        notificationSound.play().catch(() => {});
       });
     }
-
     // تحديث مجموعة المعرفات
     previousOrderIds = new Set(orders.map(o => o.id || o._id));
 
     allOrders = orders;
     applyFiltersAndRender();
+
+    // 5. إعادة تعبئة الفلاتر بالقيم المحفوظة
+    const elStatus = document.getElementById('filterStatus');
+    const elStart = document.getElementById('startDate');
+    const elEnd = document.getElementById('endDate');
+    const elSearch = document.getElementById('searchInput');
+
+    if (elStatus && elStatus.value !== savedStatus) elStatus.value = savedStatus;
+    if (elStart && elStart.value !== savedStartDateInput) elStart.value = savedStartDateInput;
+    if (elEnd && elEnd.value !== savedEndDateInput) elEnd.value = savedEndDateInput;
+    if (elSearch && elSearch.value !== savedSearch) elSearch.value = savedSearch;
+
     document.getElementById('lastUpdateTime').textContent = `آخر تحديث: ${new Date().toLocaleTimeString('ar')}`;
   } catch (err) {
     console.error('fetchOrders error:', err);
