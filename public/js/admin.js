@@ -182,6 +182,7 @@ function renderOrdersTable(orders) {
       actionButtons += `<button class="btn btn-sm btn-primary" onclick="showAssignDriverModal('${order.id}')">🚚 تعيين</button>`;
     }
     actionButtons += `<button class="btn btn-sm btn-secondary" onclick="showEditOrderModal('${order.id}')">✏️ تعديل</button>`;
+    actionButtons += `<button class="btn btn-sm btn-info" onclick="printOrder('${order.id || order._id}')">🖨️ طباعة</button>`;
     actionButtons += `<button class="btn btn-sm btn-danger" onclick="deleteOrder('${order.id}')">🗑️ حذف</button>`;
     actionButtons += `</div>`;
 
@@ -1070,9 +1071,115 @@ async function applyBulkEdit() {
   } catch (err) {
     alert('❌ ' + err.message);
   }
-
- 
   }
+
+function printOrder(orderId) {
+  const order = allOrders.find(o => (o.id || o._id) === orderId);
+  if (!order) { alert('الطلب غير موجود'); return; }
+
+  const orderNum = order.order_number || order.orderNumber || '-';
+  const contents = order.order_contents || order.orderContents || '-';
+  const customerName = order.customer_name || order.customerName || '';
+  const customerNumber = order.customer_number || order.customerNumber || '';
+  const address = order.address || '';
+  const price = formatNumber(order.price) || '0';
+  const currency = order.currency || 'ل.س';
+  const companyName = order.company_name || order.companyName || '-';
+  const note = order.note || '-';
+
+  const printWindow = window.open('', '_blank', 'width=600,height=400');
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html dir="rtl" lang="ar">
+    <head>
+      <meta charset="UTF-8">
+      <title>طباعة طلب</title>
+      <style>
+        @page {
+          size: 100mm 150mm;
+          margin: 3mm;
+        }
+        body {
+          width: 100mm;
+          font-family: 'Arial', sans-serif;
+          font-size: 15px;               /* تكبير الخط */
+          font-weight: bold;              /* تغميق */
+          color: #000;                   /* أسود داكن */
+          direction: rtl;
+          margin: 0 auto;
+          padding: 0;
+          background: white;
+        }
+        .card {
+          border: 2px solid #000;        /* إطار داكن */
+          padding: 4mm;
+          page-break-after: avoid;
+          page-break-inside: avoid;
+        }
+        .header {
+          text-align: center;
+          margin-left:75px;
+          font-size: 18px;
+          font-weight: bold;
+          margin-bottom: 6px;
+          border-bottom: 2px solid #000;
+          padding-bottom: 4px;
+          color: #000;
+        }
+        .detail-row {
+          display: flex;
+          justify-content: flex-start;    /* المحتوى يبدأ من اليمين */
+          padding: 4px 0;
+          border-bottom: 1px dotted #555;
+          line-height: 1.6;
+        }
+        .detail-label {
+          font-weight: bold;
+          width: 20%;
+          text-align: right;             /* محاذاة يمين */
+          color: #000;
+        }
+        .detail-value {
+          width: 60%;
+          text-align: right;             /* محاذاة يمين */
+          color: #000;
+          word-break: break-word;
+        }
+        .footer {
+          text-align: center;
+          margin-left:75px;
+          font-size: 11px;
+          margin-top: 8px;
+          border-top: 2px solid #000;
+          padding-top: 4px;
+          font-weight: bold;
+          color: #000;
+        }
+        @media print {
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <div class="header">WolfOrder</div>
+        <div class="detail-row"><span class="detail-label">رقم الطلب:</span><span class="detail-value">${orderNum}</span></div>
+        <div class="detail-row"><span class="detail-label">المحتويات:</span><span class="detail-value">${contents}</span></div>
+        <div class="detail-row"><span class="detail-label">العميل:</span><span class="detail-value">${customerName}</span></div>
+        <div class="detail-row"><span class="detail-label">رقم العميل:</span><span class="detail-value">${customerNumber || '-'}</span></div>
+        <div class="detail-row"><span class="detail-label">العنوان:</span><span class="detail-value">${address}</span></div>
+        <div class="detail-row"><span class="detail-label">السعر:</span><span class="detail-value">${price} ${currency}</span></div>
+        <div class="detail-row"><span class="detail-label">الشركة:</span><span class="detail-value">${companyName}</span></div>
+        <div class="detail-row"><span class="detail-label">ملاحظة:</span><span class="detail-value">${note}</span></div>
+        <div class="footer" style="text-align: right;">للشكاوي أو الاستعلام بالنسبة لخدمة التوصيل<br> يرجى التواصل على الرقم: 0997665442</div>
+        <div class="footer">شكراً لتعاملكم مع WolfOrder</div>
+        </div>
+      <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); };</script>
+    </body>
+    </html>
+  `);
+  printWindow.document.close();
+}
 
 
 // ==================== بدء التشغيل ====================
