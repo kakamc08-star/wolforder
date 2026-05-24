@@ -192,7 +192,7 @@ function renderOrdersTable(orders) {
     tr.innerHTML = `
       <td><input type="checkbox" class="orderCheckbox" value="${orderId}" ${isChecked} onchange="handleCheckboxChange(this)"></td>
       <td data-label="الرقم التسلسلي :" >${order.serial_number || order.serialNumber || ''}</td>
-      <td data-label="م :" >${index + 1}</td>
+      <td data-label="عداد الطلبات :" >${index + 1}</td>
       <td data-label="رقم الطلب :" >${order.order_number || order.orderNumber}</td>
       <td data-label="محتويات الطلب :">${order.order_contents || '-'}</td>
       <td data-label="اسم العميل :" >${order.customer_name || order.customerName}</td>

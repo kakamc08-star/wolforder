@@ -36,7 +36,7 @@
     <form id="createOrderForm">
       <div class="form-row">
         <div class="form-group"><label for="orderNumber">رقم الطلب *</label><input type="text" id="orderNumber" required></div>
-        <div class="form-group"><label for="orderContents">محويات الطلب*</label><input type="text" id="orderContents" ></div>
+        <div class="form-group"><label for="orderContents">محتويات الطلب*</label><input type="text" id="orderContents" required></div>
         <div class="form-group"><label for="customerName">اسم العميل *</label><input type="text" id="customerName" required></div>
         <div class="form-group"><label for="customerNumber">رقم العميل *</label><input type="text" id="customerNumber" required></div>
         <div class="form-group"><label for="address">العنوان *</label><input type="text" id="address" required></div>
@@ -46,7 +46,7 @@
         <div class="form-group" style="max-width: 100px;"><label for="currency">العملة</label><select id="currency" ><option value="ل.س" selected>ل.س</option><option value="دولار">دولار</option></select></div>
         <div class="form-group"><label for="ratio">النسبة</label><input id="ratio" value="0"></div>
         <div class="form-group"><label for="driverSelect">السائق</label><select id="driverSelect"><option value="">-- بدون سائق --</option></select></div>
-        <div class="form-group"><label for="companySelect">الشركة</label><select id="companySelect"><option value="">-- بدون شركة --</option></select></div>
+        <div class="form-group"><label for="companySelect">الشركة</label><select id="companySelect" required><option value="">-- بدون شركة --</option></select></div>
       </div>
       <button type="submit" class="btn btn-primary">إنشاء الطلب</button>
     </form>
@@ -107,7 +107,7 @@
           <tr>
             <th><input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll()" style="width: 30px max-width 30px min-width 30px  ;"></th>
             <th>#</th>
-            <th>م</th>
+            <th>عداد الطلبات</th>
             <th>رقم الطلب
               <span style="cursor:pointer; margin-right:5px;" title="ترتيب تصاعدي" onclick="setSortAndRender('asc')">▲</span>
               <span style="cursor:pointer;" title="ترتيب تنازلي" onclick="setSortAndRender('desc')">▼</span>
@@ -216,7 +216,7 @@
       <table id="reportTable">
         <thead><tr>
           <th>#</th>
-          <th>م</th>
+          <th>عداد الطلبات</th>
           <th>رقم الطلب</th>
           <th>محتويات الطلب</th>
           <th>اسم العميل</th>
