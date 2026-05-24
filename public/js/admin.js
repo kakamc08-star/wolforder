@@ -964,7 +964,147 @@ function toggleSelectAll() {
   });
   updateBulkControls();
 }
+// طباعة الطلبات المحددة دفعة واحدة
+async function printSelectedOrders() {
+  // استخدم المحددات من selectedOrderIds (أو من checkboxes مباشرة)
+  const checked = document.querySelectorAll('.orderCheckbox:checked');
+  const ids = Array.from(checked).map(cb => cb.value);
+  
+  if (ids.length === 0) {
+    alert('لم يتم تحديد أي طلب');
+    return;
+  }
+  
+  // تجهيز قائمة الطلبات
+  const ordersToPrint = allOrders.filter(o => ids.includes((o.id || o._id)));
+  if (ordersToPrint.length === 0) {
+    alert('الطلبات غير موجودة');
+    return;
+  }
 
+  // بناء محتوى HTML يحتوي على جميع البطاقات مع فاصل صفحات بين كل واحدة
+  let allCardsHtml = '';
+  ordersToPrint.forEach(order => {
+    const orderNum = order.order_number || order.orderNumber || '-';
+    const contents = order.order_contents || order.orderContents || '-';
+    const customerName = order.customer_name || order.customerName || '';
+    const customerNumber = order.customer_number || order.customerNumber || '';
+    const address = order.address || '';
+    const price = formatNumber(order.price) || '0';
+    const currency = order.currency || 'ل.س';
+    const companyName = order.company_name || order.companyName || '-';
+    const note = order.note || '-';
+
+    allCardsHtml += `
+      <div class="card">
+        <div class="header">WolfOrder</div>
+        <div class="detail-row"><span class="detail-label">رقم الطلب:</span><span class="detail-value">${orderNum}</span></div>
+        <div class="detail-row"><span class="detail-label">المحتويات:</span><span class="detail-value">${contents}</span></div>
+        <div class="detail-row"><span class="detail-label">العميل:</span><span class="detail-value">${customerName}</span></div>
+        <div class="detail-row"><span class="detail-label">رقم العميل:</span><span class="detail-value">${customerNumber || '-'}</span></div>
+        <div class="detail-row"><span class="detail-label">العنوان:</span><span class="detail-value">${address}</span></div>
+        <div class="detail-row"><span class="detail-label">السعر:</span><span class="detail-value">${price} ${currency}</span></div>
+        <div class="detail-row"><span class="detail-label">الشركة:</span><span class="detail-value">${companyName}</span></div>
+        <div class="detail-row"><span class="detail-label">ملاحظة:</span><span class="detail-value">${note}</span></div>
+        <div class="footer" style="text-align: right;">للشكاوي أو الاستعلام بالنسبة لخدمة التوصيل<br> يرجى التواصل على الرقم: 0997665442</div>
+        <div class="footer">شكراً لتعاملكم مع WolfOrder</div>
+      </div>
+    `;
+  });
+
+  const printWindow = window.open('', '_blank', 'width=600,height=400');
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html dir="rtl" lang="ar">
+    <head>
+      <meta charset="UTF-8">
+      <title>طباعة طلبات متعددة</title>
+      <style>
+        @page {
+          size: 100mm 150mm;
+          margin: 3mm;
+        }
+        body {
+          width: 100mm;
+          font-family: 'Arial', sans-serif;
+          font-size: 15px;
+          font-weight: bold;
+          color: #000;
+          direction: rtl;
+          margin: 0 auto;
+          padding: 0;
+          background: white;
+        }
+        .card {
+          border: 2px solid #000;
+          padding: 4mm;
+          page-break-after: always;   /* كل بطاقة في صفحة منفصلة */
+          page-break-inside: avoid;
+          margin-bottom: 5mm;
+        }
+        .card:last-child {
+          page-break-after: auto;
+        }
+        .header {
+          text-align: center;
+          margin-left:75px;
+          font-size: 18px;
+          font-weight: bold;
+          margin-bottom: 6px;
+          border-bottom: 2px solid #000;
+          padding-bottom: 4px;
+          color: #000;
+        }
+        .detail-row {
+          display: flex;
+          justify-content: flex-start;
+          padding: 4px 0;
+          border-bottom: 1px dotted #555;
+          line-height: 1.6;
+          gap: 15px;
+        }
+        .detail-label {
+          font-weight: bold;
+          width: 20%;
+          text-align: right;
+          color: #000;
+          white-space: nowrap;
+        }
+        .detail-value {
+          width: 60%;
+          text-align: right;
+          color: #000;
+          word-break: break-word;
+        }
+        .footer {
+          text-align: center;
+          margin-left:75px;
+          font-size: 11px;
+          margin-top: 8px;
+          border-top: 2px solid #000;
+          padding-top: 4px;
+          font-weight: bold;
+          color: #000;
+        }
+        @media print {
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
+      </style>
+    </head>
+    <body>
+      ${allCardsHtml}
+      <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); };</script>
+    </body>
+    </html>
+  `);
+  printWindow.document.close();
+
+  // بعد الطباعة، إعادة تعيين التحديدات
+  document.querySelectorAll('.orderCheckbox').forEach(cb => cb.checked = false);
+  document.getElementById('selectAllCheckbox').checked = false;
+  selectedOrderIds.clear();
+  updateBulkControls();
+}
 // تحديث شريط التحكم Bulk (إظهاره وإخفاؤه)
 function updateBulkControls() {
   const checked = document.querySelectorAll('.orderCheckbox:checked');
@@ -996,6 +1136,13 @@ async function applyBulkEdit() {
   const checked = document.querySelectorAll('.orderCheckbox:checked');
   const ids = Array.from(checked).map(cb => cb.value);
   if (ids.length === 0) { alert('لم يتم تحديد أي طلب'); return; }
+
+    // ✅ إجراء الطباعة
+  if (action === 'print') {
+    printSelectedOrders();
+    return;
+  }
+
   
 // ====== إجراء الحذف ======
   if (action === 'delete') {
