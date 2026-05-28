@@ -225,34 +225,37 @@ if (startDate || endDate) {
     if (error) throw error;
 
     // 7. الفلترة الافتراضية (إذا لم يتم تحديد نطاق تاريخ)
-    let filteredOrders = orders;
-    if (!startDate && !endDate) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      filteredOrders = orders.filter(o => {
-        try {
-          // الحالة "قيد المتابعة" تظهر دائمًا
-          if (o.status === 'قيد المتابعة') return true;
-          
-          // الطلبات التي أنشئت اليوم تظهر
-          if (o.created_at) {
-            const createdAt = new Date(o.created_at);
-            if (!isNaN(createdAt.getTime()) && createdAt >= today) return true;
-          }
-          
-          // الطلبات التي عُدلت اليوم تظهر
-          if (o.updated_at) {
-            const updatedAt = new Date(o.updated_at);
-            if (!isNaN(updatedAt.getTime()) && updatedAt >= today) return true;
-          }
-        } catch (e) {
-          // إذا حدث خطأ في تاريخ معين، نتجاهل هذا الشرط
-          console.warn('خطأ في فلترة طلب:', e);
+   // 7. الفلترة الافتراضية (إذا لم يتم تحديد نطاق تاريخ)
+let filteredOrders = orders;
+if (!startDate && !endDate) {
+  if (role === 'company') {
+    // الشركة ترى جميع طلباتها دائمًا (بدون فلترة تاريخ)
+    filteredOrders = orders;
+  } else {
+    // للسائق والمدير: طلبات اليوم + قيد المتابعة
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    filteredOrders = orders.filter(o => {
+      try {
+        if (o.status === 'قيد المتابعة') return true;
+        
+        if (o.created_at) {
+          const createdAt = new Date(o.created_at);
+          if (!isNaN(createdAt.getTime()) && createdAt >= today) return true;
         }
-        return false;
-      });
-    }
+        
+        if (o.updated_at) {
+          const updatedAt = new Date(o.updated_at);
+          if (!isNaN(updatedAt.getTime()) && updatedAt >= today) return true;
+        }
+      } catch (e) {
+        console.warn('خطأ في فلترة طلب:', e);
+      }
+      return false;
+    });
+  }
+}
 
     res.json(filteredOrders);
   } catch (err) {
