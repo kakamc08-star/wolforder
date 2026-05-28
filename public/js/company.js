@@ -87,59 +87,67 @@ document.addEventListener('DOMContentLoaded', updateOnlineStatus);
 // ==================== جلب الطلبات (مع دعم الفلاتر) ====================
 async function fetchOrders() {
   try {
-    // 1. حفظ قيم الفلاتر الحالية
-    const savedStartDateInput = document.getElementById('startDate')?.value || '';
-    const savedEndDateInput = document.getElementById('endDate')?.value || '';
-    const savedStatus = document.getElementById('filterStatus')?.value || '';
-    const savedSearch = document.getElementById('searchInput')?.value || '';
+    // 1. قراءة القيم مباشرة من الحقول (وليس من متغيرات محفوظة قديمة)
+    const statusEl = document.getElementById('filterStatus');
+    const startDateEl = document.getElementById('startDate');
+    const endDateEl = document.getElementById('endDate');
+    const searchEl = document.getElementById('searchInput');
 
-    // 2. تحويل التواريخ المحفوظة إلى صيغة UTC لاستخدامها في API
+    const status = statusEl ? statusEl.value : '';
+    const startDateInput = startDateEl ? startDateEl.value : '';
+    const endDateInput = endDateEl ? endDateEl.value : '';
+    const searchInput = searchEl ? searchEl.value : '';
+
+    // 2. تحويل التواريخ إلى UTC
     let startDate = '';
     let endDate = '';
-    if (savedStartDateInput) {
-      startDate = new Date(savedStartDateInput + 'T00:00:00').toISOString();
+    if (startDateInput) {
+      startDate = new Date(startDateInput + 'T00:00:00').toISOString();
     }
-    if (savedEndDateInput) {
-      endDate = new Date(savedEndDateInput + 'T23:59:59').toISOString();
+    if (endDateInput) {
+      endDate = new Date(endDateInput + 'T23:59:59').toISOString();
     }
 
-    // 3. بناء الرابط
-    let url = '/api/orders?';
-    if (savedStatus) url += `status=${savedStatus}&`;
+    // 3. بناء رابط API
+    let url = '/api/orders?all=true&'; // طلب جميع الطلبات للشركة
+    if (status) url += `status=${status}&`;
     if (startDate) url += `startDate=${startDate}&`;
     if (endDate) url += `endDate=${endDate}&`;
 
     const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
-    if (!res.ok) {
-      const errData = await res.json();
-      throw new Error(errData.message || 'فشل جلب الطلبات');
-    }
+    if (!res.ok) throw new Error('فشل جلب الطلبات');
     const orders = await res.json();
 
-    // 4. إشعار بوصول طلب جديد (المنطق الحالي يبقى كما هو)
+    // 4. إعادة تعيين مجموعة الطلبات السابقة لمنع الإشعارات الوهمية
+    //    فقط إذا تغيرت معايير الفلترة (الحالة، التاريخ، البحث)
+    const filterKey = `${status}|${startDateInput}|${endDateInput}|${searchInput}`;
+    if (window._lastFilterKey !== filterKey) {
+        // تغير الفلتر، نمسح الذاكرة المؤقتة للطلبات القديمة
+        previousOrderIds.clear();
+        window._lastFilterKey = filterKey;
+    }
+
+    // 5. إشعار بالطلبات الجديدة الحقيقية
     const newOrders = orders.filter(o => !previousOrderIds.has(o.id || o._id));
     if (newOrders.length > 0 && previousOrderIds.size > 0) {
       newOrders.forEach(order => {
         showNotification(`🚚 طلب جديد #${order.order_number || order.orderNumber}`, 'success');
-        notificationSound.play().catch(() => {});
+        if (typeof notificationSound !== 'undefined') notificationSound.play().catch(() => {});
       });
     }
-    // تحديث مجموعة المعرفات
+
+    // 6. تحديث مجموعة المعرفات
     previousOrderIds = new Set(orders.map(o => o.id || o._id));
 
+    // 7. تحديث البيانات وعرضها
     allOrders = orders;
     applyFiltersAndRender();
 
-    // 5. إعادة تعبئة الفلاتر بالقيم المحفوظة
-    const elStatus = document.getElementById('filterStatus');
-    const elStart = document.getElementById('startDate');
-    const elEnd = document.getElementById('endDate');
-    const elSearch = document.getElementById('searchInput');
-
-    if (elStatus && elStatus.value !== savedStatus) elStatus.value = savedStatus;
-    if (elStart && elStart.value !== savedStartDateInput) elStart.value = savedStartDateInput;
-    if (elEnd && elEnd.value !== savedEndDateInput) elEnd.value = savedEndDateInput;
-    if (elSearch && elSearch.value !== savedSearch) elSearch.value = savedSearch;
+    // 8. الحفاظ على قيم الفلاتر في الحقول (بدون تغيير)
+    if (statusEl && statusEl.value !== status) statusEl.value = status;
+    if (startDateEl && startDateEl.value !== startDateInput) startDateEl.value = startDateInput;
+    if (endDateEl && endDateEl.value !== endDateInput) endDateEl.value = endDateInput;
+    if (searchEl && searchEl.value !== searchInput) searchEl.value = searchInput;
 
     document.getElementById('lastUpdateTime').textContent = `آخر تحديث: ${new Date().toLocaleTimeString('ar')}`;
   } catch (err) {
