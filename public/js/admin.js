@@ -301,6 +301,11 @@ if (createForm) {
       const errData = await res.json();           // استخراج كائن الخطأ من الخادم
       throw new Error(errData.message || 'فشل الإنشاء'); // استخدام الرسالة الأصلية
     }
+    const orderNumberInput = document.getElementById('orderNumber');
+    const companySelect = document.getElementById('companySelect');
+    if (orderNumberInput && companySelect) {
+      saveLastOrderNumberForCompany(companySelect.value, orderNumberInput.value);
+      }
       createForm.reset();
       fetchOrders();
       showNotification('تم إنشاء الطلب');
@@ -833,6 +838,17 @@ document.addEventListener('DOMContentLoaded', function() {
   const endDateInput = document.getElementById('filterEndDate');
   if (startDateInput) startDateInput.value = formattedDate;
   if (endDateInput) endDateInput.value = formattedDate;
+
+
+
+  const companySelect = document.getElementById('companySelect');
+  if (companySelect) {
+    companySelect.addEventListener('change', loadAutoOrderNumberForCompany);
+    // تحميل أولي عند فتح الصفحة
+    loadAutoOrderNumberForCompany();
+  }
+
+
 });
 
 // ==================== PWA مع التحديث التلقائي ====================
@@ -1328,6 +1344,51 @@ function printOrder(orderId) {
   printWindow.document.close();
 }
 
+
+// ==================== الترقيم الآلي لرقم الطلب (خاص بكل شركة) ====================
+
+// الحصول على مفتاح التخزين بناءً على معرف الشركة
+function getAutoNumberKeyForCompany(companyId) {
+  return `autoOrderNumber_company_${companyId || 'no_company'}`;
+}
+
+// تحميل واقتراح الرقم التالي للشركة المحددة
+function loadAutoOrderNumberForCompany() {
+  const companySelect = document.getElementById('companySelect');
+  const companyId = companySelect ? companySelect.value : '';
+  const key = getAutoNumberKeyForCompany(companyId);
+  const lastNumber = parseInt(localStorage.getItem(key), 10);
+  const input = document.getElementById('orderNumber');
+  if (!input) return;
+
+  if (!isNaN(lastNumber) && lastNumber > 0) {
+    input.value = lastNumber + 1;
+  } else {
+    input.value = ''; // لا يوجد رقم سابق، يترك فارغًا
+  }
+}
+
+// حفظ آخر رقم طلب بعد إنشاء طلب ناجح (للشركة المختارة)
+function saveLastOrderNumberForCompany(companyId, orderNumber) {
+  const num = parseInt(orderNumber, 10);
+  if (!isNaN(num) && num > 0) {
+    const key = getAutoNumberKeyForCompany(companyId);
+    localStorage.setItem(key, num);
+  }
+}
+
+// إلغاء الترقيم الآلي للشركة الحالية (مسح الذاكرة)
+function resetAutoNumber() {
+  const companySelect = document.getElementById('companySelect');
+  const companyId = companySelect ? companySelect.value : '';
+  const key = getAutoNumberKeyForCompany(companyId);
+  localStorage.removeItem(key);
+  const input = document.getElementById('orderNumber');
+  if (input) {
+    input.value = '';
+    input.focus();
+  }
+}
 
 // ==================== بدء التشغيل ====================
 loadUsersLists();

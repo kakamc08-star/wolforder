@@ -35,7 +35,11 @@
     <h2>➕ إنشاء طلب جديد</h2>
     <form id="createOrderForm">
       <div class="form-row">
-        <div class="form-group"><label for="orderNumber">رقم الطلب *</label><input type="text" id="orderNumber" required></div>
+        <div class="form-group">
+          <label for="orderNumber">رقم الطلب *</label>
+          <input type="text" id="orderNumber" required>
+          <button type="button" class="btn btn-sm btn-secondary" onclick="resetAutoNumber()" title="إلغاء الترقيم الآلي">↺</button>
+        </div>
         <div class="form-group"><label for="orderContents">محتويات الطلب*</label><input type="text" id="orderContents" required></div>
         <div class="form-group"><label for="customerName">اسم العميل *</label><input type="text" id="customerName" required></div>
         <div class="form-group"><label for="customerNumber">رقم العميل *</label><input type="text" id="customerNumber" required></div>

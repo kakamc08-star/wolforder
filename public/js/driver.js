@@ -175,6 +175,7 @@ function renderTable(orders) {
       <td data-label="السعر :">${formatNumber(priceVal)} ${currency}</td>
       <td data-label="النسبة :">${formatNumber(ratio)}</td>
       <td data-label="الحالة :"><span class="status-badge status-${status}">${status}</span></td>
+      <td data-label="الشركة :">${order.company_name || order.companyName || '-'}</td> 
       <td data-label="ملاحظة :">${note || '-'}</td>
       <td data-label="التاريخ :">${formatDate(createdAt)}</td>
       <td data-label="إجراء :">${editButton}</td>
