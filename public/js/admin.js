@@ -5,17 +5,15 @@ const user = JSON.parse(userStr);
 if (user.role !== 'admin') { alert('غير مصرح'); window.location.href = 'login.html'; }
 document.getElementById('userNameDisplay').textContent = user.name || user.username;
 
-// ❌ تم تعطيل Socket.IO مؤقتاً
-// const socket = io({ auth: { token } });
 let autoRefresh = setInterval(fetchOrders, 10000);
-let selectedOrderIds = new Set(); // لحفظ المحددات
+let selectedOrderIds = new Set();
 let allOrders = [];
-let currentSort = 'default'; // 'asc', 'desc', 'default'
+let currentSort = 'default';
 
 // ==================== دوال مساعدة ====================
 function setSortAndRender(direction) {
   currentSort = direction;
-  applyFiltersAndRender(); // إعادة تطبيق الفلاتر والترتيب
+  applyFiltersAndRender();
 }
 
 function formatDate(date) {
@@ -37,25 +35,21 @@ function formatNumber(num) {
 function showNotification(msg, type = 'info') {
   const area = document.getElementById('notificationArea');
   if (!area) return;
-  
   const n = document.createElement('div');
   n.className = `toast-notification toast-${type}`;
   n.innerHTML = `<span>${msg}</span>`;
   area.appendChild(n);
-  
-  // إزالة تلقائية بعد 4 ثوانٍ
   setTimeout(() => {
     n.style.opacity = '0';
     setTimeout(() => n.remove(), 300);
   }, 4000);
-  
-  // يمكن إضافة زر إغلاق
   const closeBtn = document.createElement('button');
   closeBtn.innerHTML = '✕';
   closeBtn.style.cssText = 'background:none;border:none;color:inherit;margin-left:10px;cursor:pointer;font-size:16px;';
   closeBtn.onclick = () => n.remove();
   n.appendChild(closeBtn);
 }
+
 function validateCustomerName(name) {
   if (!name || name.trim() === '') return true;
   return /[^\d]/.test(name.trim());
@@ -66,11 +60,9 @@ function validateCustomerNumber(number) {
   return /^\d{10}$/.test(number.trim());
 }
 
-
 // ==================== جلب الطلبات ====================
 async function fetchOrders() {
   try {
-    // 1. حفظ قيم الفلاتر الحالية قبل أي شيء
     const savedStatus = document.getElementById('filterStatus')?.value || '';
     const savedStartDateInput = document.getElementById('filterStartDate')?.value || '';
     const savedEndDateInput = document.getElementById('filterEndDate')?.value || '';
@@ -78,7 +70,6 @@ async function fetchOrders() {
     const savedCompanyId = document.getElementById('filterCompany')?.value || '';
     const savedSearch = document.getElementById('searchInput')?.value || '';
 
-    // 2. تحويل التواريخ المحفوظة إلى صيغة UTC لاستخدامها في API
     let startDate = '';
     let endDate = '';
     if (savedStartDateInput) {
@@ -90,7 +81,6 @@ async function fetchOrders() {
       endDate = localEnd.toISOString();
     }
 
-    // 3. بناء رابط API
     let url = '/api/orders?';
     if (savedStatus) url += `status=${savedStatus}&`;
     if (startDate) url += `startDate=${startDate}&`;
@@ -104,7 +94,6 @@ async function fetchOrders() {
     allOrders = orders;
     applyFiltersAndRender();
 
-    // 4. إعادة تعبئة الحقول بالقيم المحفوظة (في حال تم مسحها)
     const elStatus = document.getElementById('filterStatus');
     const elStart = document.getElementById('filterStartDate');
     const elEnd = document.getElementById('filterEndDate');
@@ -124,6 +113,7 @@ async function fetchOrders() {
     console.error('fetchOrders error:', err);
   }
 }
+
 function applyFiltersAndRender() {
   let filtered = [...allOrders];
   const searchText = document.getElementById('searchInput')?.value || '';
@@ -133,12 +123,12 @@ function applyFiltersAndRender() {
   if (status) {
     filtered = filtered.filter(o => o.status === status);
   }
-    // تطبيق الترتيب
-    if (currentSort === 'asc') {
-      filtered.sort((a, b) => (a.order_number || '').localeCompare(b.order_number || '', 'ar', { numeric: true }));
-    } else if (currentSort === 'desc') {
-      filtered.sort((a, b) => (b.order_number || '').localeCompare(a.order_number || '', 'ar', { numeric: true }));
-    }
+
+  if (currentSort === 'asc') {
+    filtered.sort((a, b) => (a.order_number || '').localeCompare(b.order_number || '', 'ar', { numeric: true }));
+  } else if (currentSort === 'desc') {
+    filtered.sort((a, b) => (b.order_number || '').localeCompare(a.order_number || '', 'ar', { numeric: true }));
+  }
   renderOrdersTable(filtered);
 }
 
@@ -151,15 +141,11 @@ function clearFilters() {
   fetchOrders();
 }
 
-
 // ==================== عرض الجدول ====================
 function renderOrdersTable(orders) {
   const tbody = document.getElementById('ordersTableBody');
   if (!tbody) return;
-
-  // حفظ التحديدات الحالية
   const currentSelected = new Set(selectedOrderIds);
-
   tbody.innerHTML = '';
   const now = new Date();
   let totalSYR = 0, totalUSD = 0, totalRatio = 0;
@@ -191,21 +177,21 @@ function renderOrdersTable(orders) {
 
     tr.innerHTML = `
       <td><input type="checkbox" class="orderCheckbox" value="${orderId}" ${isChecked} onchange="handleCheckboxChange(this)"></td>
-      <td data-label="الرقم التسلسلي :" >${order.serial_number || order.serialNumber || ''}</td>
-      <td data-label="عداد الطلبات :" >${index + 1}</td>
-      <td data-label="رقم الطلب :" >${order.order_number || order.orderNumber}</td>
+      <td data-label="الرقم التسلسلي :">${order.serial_number || order.serialNumber || ''}</td>
+      <td data-label="عداد الطلبات :">${index + 1}</td>
+      <td data-label="رقم الطلب :">${order.order_number || order.orderNumber}</td>
       <td data-label="محتويات الطلب :">${order.order_contents || '-'}</td>
-      <td data-label="اسم العميل :" >${order.customer_name || order.customerName}</td>
-      <td data-label="رقم العميل :" >${order.customer_number ? `<a href="tel:${order.customer_number}">${order.customer_number}</a>` : '-'}</td>
-      <td data-label="العنوان :" >${order.address}</td>
-      <td data-label="السعر :" >${formatNumber(order.price)} ${order.currency || 'ل.س'}</td>
-      <td data-label="النسبة :" >${formatNumber(order.ratio || 0)}</td>
-      <td data-label="الحالة :" ><span class="status-badge status-${order.status}">${order.status}</span></td>
-      <td data-label="ملاحظة :" >${order.note || '-'}</td>
-      <td data-label="السائق :" >${order.driver_name || order.driverName || '-'}</td>
-      <td data-label="الشركة :" >${order.company_name || order.companyName || '-'}</td>
-      <td data-label="التاريخ :" >${formatDate(order.created_at || order.createdAt)}</td>
-      <td data-label="" >${actionButtons}</td>
+      <td data-label="اسم العميل :">${order.customer_name || order.customerName}</td>
+      <td data-label="رقم العميل :">${order.customer_number ? `<a href="tel:${order.customer_number}">${order.customer_number}</a>` : '-'}</td>
+      <td data-label="العنوان :">${order.address}</td>
+      <td data-label="السعر :">${formatNumber(order.price)} ${order.currency || 'ل.س'}</td>
+      <td data-label="النسبة :">${formatNumber(order.ratio || 0)}</td>
+      <td data-label="الحالة :"><span class="status-badge status-${order.status}">${order.status}</span></td>
+      <td data-label="ملاحظة :">${order.note || '-'}</td>
+      <td data-label="السائق :">${order.driver_name || order.driverName || '-'}</td>
+      <td data-label="الشركة :">${order.company_name || order.companyName || '-'}</td>
+      <td data-label="التاريخ :">${formatDate(order.created_at || order.createdAt)}</td>
+      <td data-label="">${actionButtons}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -239,7 +225,6 @@ function filterOrdersBySearch(orders, searchText) {
     );
   });
 }
-
 
 // ==================== حذف طلب ====================
 async function deleteOrder(orderId) {
@@ -281,7 +266,7 @@ if (createForm) {
     }
     const data = {
       orderNumber: document.getElementById('orderNumber').value,
-      orderContents: document.getElementById('orderContents').value, 
+      orderContents: document.getElementById('orderContents').value,
       customerName,
       customerNumber,
       address: document.getElementById('address').value,
@@ -298,13 +283,13 @@ if (createForm) {
         body: JSON.stringify(data)
       });
       if (!res.ok) {
-      const errData = await res.json();           // استخراج كائن الخطأ من الخادم
-      throw new Error(errData.message || 'فشل الإنشاء'); // استخدام الرسالة الأصلية
-    }
-    const orderNumberInput = document.getElementById('orderNumber');
-    const companySelect = document.getElementById('companySelect');
-    if (orderNumberInput && companySelect) {
-      saveLastOrderNumberForCompany(companySelect.value, orderNumberInput.value);
+        const errData = await res.json();
+        throw new Error(errData.message || 'فشل الإنشاء');
+      }
+      const orderNumberInput = document.getElementById('orderNumber');
+      const companySelect = document.getElementById('companySelect');
+      if (orderNumberInput && companySelect) {
+        saveLastOrderNumberForCompany(companySelect.value, orderNumberInput.value);
       }
       createForm.reset();
       fetchOrders();
@@ -518,7 +503,6 @@ if (assignForm) {
 
 // ==================== تحميل قوائم المستخدمين ====================
 async function loadUsersLists() {
-  // تعريف المتغيرات قبل try لتوسيع النطاق
   let drivers = [];
   let allDrivers = [];
   let companies = [];
@@ -536,8 +520,6 @@ async function loadUsersLists() {
     allDrivers = allData.drivers || [];
     companies = allData.companies || [];
 
-    // عناصر HTML
-   // حفظ القيم المختارة للفلاتر قبل إعادة بنائها
     const savedFilterDriver = document.getElementById('filterDriver')?.value || '';
     const savedFilterCompany = document.getElementById('filterCompany')?.value || '';
     const savedReportDriver = document.getElementById('reportDriver')?.value || '';
@@ -545,7 +527,6 @@ async function loadUsersLists() {
     const savedDriverSelect = document.getElementById('driverSelect')?.value || '';
     const savedCompanySelect = document.getElementById('companySelect')?.value || '';
 
-    // عناصر HTML
     const driverSelect = document.getElementById('driverSelect');
     const reportDriver = document.getElementById('reportDriver');
     const companySelect = document.getElementById('companySelect');
@@ -586,7 +567,6 @@ async function loadUsersLists() {
       companies.forEach(c => { filterCompany.innerHTML += `<option value="${c._id || c.id}">${c.name}</option>`; });
     }
 
-    // استعادة القيم المختارة بعد إعادة البناء
     if (filterDriver && savedFilterDriver) filterDriver.value = savedFilterDriver;
     if (filterCompany && savedFilterCompany) filterCompany.value = savedFilterCompany;
     if (reportDriver && savedReportDriver) reportDriver.value = savedReportDriver;
@@ -598,7 +578,6 @@ async function loadUsersLists() {
     console.error('خطأ في loadUsersLists:', err);
   }
 
-  // الآن allDrivers و companies معرفان ويمكن استخدامهما خارج try
   const bulkDriver = document.getElementById('bulkDriverValue');
   const bulkCompany = document.getElementById('bulkCompanyValue');
   if (bulkDriver) {
@@ -648,13 +627,13 @@ async function generateReport() {
         <td>${o.serial_number || o.serialNumber}</td>
         <td>${index + 1}</td>
         <td>${o.order_number || o.orderNumber}</td>
-        <td>${o.order_contents || '-'}</td> 
+        <td>${o.order_contents || '-'}</td>
         <td>${o.customer_name || o.customerName}</td>
         <td>${o.customer_number ? `<a href="tel:${o.customer_number}">${o.customer_number}</a>` : '-'}</td>
         <td>${formatNumber(o.price)} ${o.currency || 'ل.س'}</td>
         <td>${formatNumber(o.ratio || 0)}</td>
         <td>${o.status}</td>
-        <td>${o.note || '-'}</td>                   <!-- للملاحظة -->
+        <td>${o.note || '-'}</td>
         <td>${o.driver_name || o.driverName || '-'}</td>
         <td>${o.company_name || o.companyName || '-'}</td>
       `;
@@ -690,7 +669,7 @@ async function exportReport() {
   }
 }
 
-// ==================== طلبات التعديل (مؤقتاً فارغة) ====================
+// ==================== طلبات التعديل ====================
 async function fetchEditRequests() {
   try {
     const res = await fetch('/api/edit-requests/pending', {
@@ -769,6 +748,33 @@ async function loadAdminPhone() {
   } catch (err) { console.error('فشل تحميل رقم المدير', err); }
 }
 
+async function loadMessageTemplate() {
+  try {
+    const res = await fetch('/api/auth/message-template', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const textarea = document.getElementById('messageTemplate');
+      if (textarea) textarea.value = data.template || '';
+    }
+  } catch (err) { console.error('فشل تحميل القالب', err); }
+}
+
+async function saveMessageTemplate() {
+  const template = document.getElementById('messageTemplate')?.value || '';
+  try {
+    const res = await fetch('/api/auth/message-template', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ template })
+    });
+    if (res.ok) {
+      showNotification('✅ تم حفظ القالب', 'success');
+    }
+  } catch (err) { console.error('فشل حفظ القالب', err); }
+}
+
 const settingsForm = document.getElementById('adminSettingsForm');
 if (settingsForm) {
   settingsForm.addEventListener('submit', async (e) => {
@@ -777,14 +783,13 @@ if (settingsForm) {
     const msgDiv = document.getElementById('settingsMessage');
     msgDiv.innerHTML = '<div class="loading"></div> جاري الحفظ...';
     try {
-      const res = await fetch('/api/auth/update-phone', {
+      await fetch('/api/auth/update-phone', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ phone })
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'فشل الحفظ');
-      msgDiv.textContent = '✅ تم حفظ الرقم بنجاح';
+      await saveMessageTemplate();
+      msgDiv.textContent = '✅ تم حفظ الإعدادات بنجاح';
       msgDiv.classList.add('success');
     } catch (err) {
       msgDiv.textContent = '❌ ' + err.message;
@@ -828,7 +833,6 @@ document.addEventListener('DOMContentLoaded', function() {
   const searchInput = document.getElementById('searchInput');
   if (searchInput) searchInput.addEventListener('input', applyFiltersAndRender);
 
-  // تعيين تاريخ اليوم افتراضيًا
   const today = new Date();
   const yyyy = today.getFullYear();
   const mm = String(today.getMonth() + 1).padStart(2, '0');
@@ -839,25 +843,17 @@ document.addEventListener('DOMContentLoaded', function() {
   if (startDateInput) startDateInput.value = formattedDate;
   if (endDateInput) endDateInput.value = formattedDate;
 
-
-
   const companySelect = document.getElementById('companySelect');
   if (companySelect) {
     companySelect.addEventListener('change', loadAutoOrderNumberForCompany);
-    // تحميل أولي عند فتح الصفحة
     loadAutoOrderNumberForCompany();
   }
-
-
 });
 
-// ==================== PWA مع التحديث التلقائي ====================
+// ==================== PWA ====================
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').then(reg => {
-
-      
-      // التحقق من وجود تحديث جديد
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing;
         newWorker.addEventListener('statechange', () => {
@@ -874,7 +870,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// ==================== إدارة المستخدمين (حذف) ====================
+// ==================== إدارة المستخدمين ====================
 async function loadUsersListForManagement() {
   try {
     const res = await fetch('/api/auth/users', {
@@ -887,7 +883,6 @@ async function loadUsersListForManagement() {
   }
 }
 
-// offline notification
 function updateOnlineStatus() {
   const offlineBar = document.getElementById('offlineBar');
   if (!navigator.onLine) {
@@ -906,9 +901,6 @@ window.addEventListener('online', updateOnlineStatus);
 window.addEventListener('offline', updateOnlineStatus);
 document.addEventListener('DOMContentLoaded', updateOnlineStatus);
 
-
-
-// تحميل التفضيل عند بدء التشغيل
 document.addEventListener('DOMContentLoaded', () => {
   if (localStorage.getItem('darkMode') === 'true') {
     document.body.classList.add('dark-mode');
@@ -927,9 +919,9 @@ function renderUsersTable(users) {
       : '<span style="color:#999;">—</span>';
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td  data-label="اسم المستخدم :">${u.username}</td>
-      <td  data-label="الاسم الكامل :">${u.name}</td>
-      <td  data-label="الدور :">${u.role === 'driver' ? 'سائق' : (u.role === 'company' ? 'شركة' : 'مدير')}</td>
+      <td data-label="اسم المستخدم :">${u.username}</td>
+      <td data-label="الاسم الكامل :">${u.name}</td>
+      <td data-label="الدور :">${u.role === 'driver' ? 'سائق' : (u.role === 'company' ? 'شركة' : 'مدير')}</td>
       <td>${deleteButton}</td>
     `;
     tbody.appendChild(tr);
@@ -954,8 +946,8 @@ async function deleteUser(userId) {
     alert('❌ ' + err.message);
   }
 }
-// ==================== إدارة التحديد للـ Bulk Edit ====================
-// دالة تُستدعى عند تغير أي checkbox
+
+// ==================== Bulk Edit ====================
 function handleCheckboxChange(checkbox) {
   const orderId = checkbox.value;
   if (checkbox.checked) {
@@ -966,7 +958,6 @@ function handleCheckboxChange(checkbox) {
   updateBulkControls();
 }
 
-// تحديد الكل / إلغاء (مع تحديث selectedOrderIds)
 function toggleSelectAll() {
   const selectAll = document.getElementById('selectAllCheckbox');
   const isChecked = selectAll.checked;
@@ -980,25 +971,171 @@ function toggleSelectAll() {
   });
   updateBulkControls();
 }
-// طباعة الطلبات المحددة دفعة واحدة
-async function printSelectedOrders() {
-  // استخدم المحددات من selectedOrderIds (أو من checkboxes مباشرة)
+
+function updateBulkControls() {
+  const checked = document.querySelectorAll('.orderCheckbox:checked');
+  const count = checked.length;
+  const controls = document.getElementById('bulkEditControls');
+  const selectedCount = document.getElementById('selectedCount');
+  if (count > 0) {
+    controls.style.display = 'flex';
+    selectedCount.textContent = `تم تحديد ${count} طلبات`;
+  } else {
+    controls.style.display = 'none';
+  }
+}
+
+document.getElementById('bulkAction').addEventListener('change', function() {
+  const action = this.value;
+  document.getElementById('bulkStatusValue').style.display = (action === 'status') ? 'inline-block' : 'none';
+  document.getElementById('bulkDriverValue').style.display = (action === 'driver') ? 'inline-block' : 'none';
+  document.getElementById('bulkCompanyValue').style.display = (action === 'company') ? 'inline-block' : 'none';
+});
+
+async function applyBulkEdit() {
+  const action = document.getElementById('bulkAction').value;
+  if (!action) { alert('اختر إجراءً'); return; }
+
   const checked = document.querySelectorAll('.orderCheckbox:checked');
   const ids = Array.from(checked).map(cb => cb.value);
-  
-  if (ids.length === 0) {
-    alert('لم يتم تحديد أي طلب');
-    return;
-  }
-  
-  // تجهيز قائمة الطلبات
-  const ordersToPrint = allOrders.filter(o => ids.includes((o.id || o._id)));
-  if (ordersToPrint.length === 0) {
-    alert('الطلبات غير موجودة');
+  if (ids.length === 0) { alert('لم يتم تحديد أي طلب'); return; }
+
+  // --- إجراء الواتساب ---
+  if (action === 'whatsapp') {
+    sendBulkWhatsApp();
     return;
   }
 
-  // بناء محتوى HTML يحتوي على جميع البطاقات مع فاصل صفحات بين كل واحدة
+  // --- إجراء الطباعة ---
+  if (action === 'print') {
+    printSelectedOrders();
+    return;
+  }
+
+  // --- إجراء الحذف ---
+  if (action === 'delete') {
+    if (!confirm(`⚠️ هل أنت متأكد من حذف ${ids.length} طلبات نهائياً؟ لا يمكن التراجع عن هذا الإجراء.`)) return;
+    let successCount = 0, failCount = 0;
+    for (const id of ids) {
+      try {
+        const res = await fetch(`/api/orders/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+        if (res.ok) successCount++; else failCount++;
+      } catch (e) { failCount++; }
+    }
+    showNotification(`✅ تم حذف ${successCount} طلب` + (failCount ? `، فشل ${failCount}` : ''), 'success');
+    selectedOrderIds.clear();
+    fetchOrders();
+    document.querySelectorAll('.orderCheckbox').forEach(cb => cb.checked = false);
+    document.getElementById('selectAllCheckbox').checked = false;
+    updateBulkControls();
+    return;
+  }
+
+  // --- باقي الإجراءات (status, driver, company) ---
+  let updates = {};
+  if (action === 'status') {
+    const newStatus = document.getElementById('bulkStatusValue').value;
+    if (!newStatus) { alert('اختر حالة جديدة'); return; }
+    updates.status = newStatus;
+  } else if (action === 'driver') {
+    const newDriver = document.getElementById('bulkDriverValue').value;
+    if (!newDriver) { alert('اختر سائقاً'); return; }
+    updates.driverId = newDriver;
+  } else if (action === 'company') {
+    const newCompany = document.getElementById('bulkCompanyValue').value;
+    if (!newCompany) { alert('اختر شركة'); return; }
+    updates.companyId = newCompany;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    alert('❌ لم يتم تحديد تحديثات');
+    return;
+  }
+
+  if (!confirm(`هل أنت متأكد من تطبيق التغيير على ${ids.length} طلبات؟`)) return;
+
+  try {
+    const res = await fetch('/api/orders/bulk-update', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ ids, updates })
+    });
+    if (!res.ok) throw new Error((await res.json()).message || 'فشل التحديث');
+    showNotification(`✅ تم تحديث ${ids.length} طلبات بنجاح`, 'success');
+    selectedOrderIds.clear();
+    fetchOrders();
+    document.querySelectorAll('.orderCheckbox').forEach(cb => cb.checked = false);
+    document.getElementById('selectAllCheckbox').checked = false;
+    updateBulkControls();
+  } catch (err) {
+    alert('❌ ' + err.message);
+  }
+}
+
+// ==================== طباعة ====================
+function printOrder(orderId) {
+  const order = allOrders.find(o => (o.id || o._id) === orderId);
+  if (!order) { alert('الطلب غير موجود'); return; }
+
+  const orderNum = order.order_number || order.orderNumber || '-';
+  const contents = order.order_contents || order.orderContents || '-';
+  const customerName = order.customer_name || order.customerName || '';
+  const customerNumber = order.customer_number || order.customerNumber || '';
+  const address = order.address || '';
+  const price = formatNumber(order.price) || '0';
+  const currency = order.currency || 'ل.س';
+  const companyName = order.company_name || order.companyName || '-';
+  const note = order.note || '-';
+
+  const printWindow = window.open('', '_blank', 'width=600,height=400');
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html dir="rtl" lang="ar">
+    <head>
+      <meta charset="UTF-8">
+      <title>طباعة طلب</title>
+      <style>
+        @page { size: 100mm 150mm; margin: 3mm; }
+        body { width: 100mm; font-family: 'Arial', sans-serif; font-size: 15px; font-weight: bold; color: #000; direction: rtl; margin: 0 auto; padding: 0; background: white; }
+        .card { border: 2px solid #000; padding: 4mm; page-break-after: avoid; page-break-inside: avoid; }
+        .header { text-align: center; margin-left:75px; font-size: 18px; font-weight: bold; margin-bottom: 6px; border-bottom: 2px solid #000; padding-bottom: 4px; color: #000; }
+        .detail-row { display: flex; justify-content: flex-start; padding: 4px 0; border-bottom: 1px dotted #555; line-height: 1.6; }
+        .detail-label { font-weight: bold; width: 20%; text-align: right; color: #000; }
+        .detail-value { width: 60%; text-align: right; color: #000; word-break: break-word; }
+        .footer { text-align: center; margin-left:75px; font-size: 11px; margin-top: 8px; border-top: 2px solid #000; padding-top: 4px; font-weight: bold; color: #000; }
+        @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <div class="header">WolfOrder</div>
+        <div class="detail-row"><span class="detail-label">رقم الطلب:</span><span class="detail-value">${orderNum}</span></div>
+        <div class="detail-row"><span class="detail-label">المحتويات:</span><span class="detail-value">${contents}</span></div>
+        <div class="detail-row"><span class="detail-label">العميل:</span><span class="detail-value">${customerName}</span></div>
+        <div class="detail-row"><span class="detail-label">رقم العميل:</span><span class="detail-value">${customerNumber || '-'}</span></div>
+        <div class="detail-row"><span class="detail-label">العنوان:</span><span class="detail-value">${address}</span></div>
+        <div class="detail-row"><span class="detail-label">السعر:</span><span class="detail-value">${price} ${currency}</span></div>
+        <div class="detail-row"><span class="detail-label">أجور التوصيل:</span><span class="detail-value">ضمن دمشق 20,000 <br> خارج دمشق 40,000</span></div>
+        <div class="detail-row"><span class="detail-label">الشركة:</span><span class="detail-value">${companyName}</span></div>
+        <div class="detail-row"><span class="detail-label">ملاحظة:</span><span class="detail-value">${note}</span></div>
+        <div class="footer" style="text-align: right;">للشكاوي أو الاستعلام بالنسبة لخدمة التوصيل<br> يرجى التواصل على الرقم: 0997665442</div>
+        <div class="footer">شكراً لتعاملكم مع WolfOrder</div>
+        </div>
+      <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); };</script>
+    </body>
+    </html>
+  `);
+  printWindow.document.close();
+}
+
+async function printSelectedOrders() {
+  const checked = document.querySelectorAll('.orderCheckbox:checked');
+  const ids = Array.from(checked).map(cb => cb.value);
+  if (ids.length === 0) { alert('لم يتم تحديد أي طلب'); return; }
+
+  const ordersToPrint = allOrders.filter(o => ids.includes((o.id || o._id)));
+  if (ordersToPrint.length === 0) { alert('الطلبات غير موجودة'); return; }
+
   let allCardsHtml = '';
   ordersToPrint.forEach(order => {
     const orderNum = order.order_number || order.orderNumber || '-';
@@ -1037,75 +1174,16 @@ async function printSelectedOrders() {
       <meta charset="UTF-8">
       <title>طباعة طلبات متعددة</title>
       <style>
-        @page {
-          size: 100mm 150mm;
-          margin: 3mm;
-        }
-        body {
-          width: 100mm;
-          font-family: 'Arial', sans-serif;
-          font-size: 15px;
-          font-weight: bold;
-          color: #000;
-          direction: rtl;
-          margin: 0 auto;
-          padding: 0;
-          background: white;
-        }
-        .card {
-          border: 2px solid #000;
-          padding: 4mm;
-          page-break-after: always;   /* كل بطاقة في صفحة منفصلة */
-          page-break-inside: avoid;
-          margin-bottom: 5mm;
-        }
-        .card:last-child {
-          page-break-after: auto;
-        }
-        .header {
-          text-align: center;
-          margin-left:75px;
-          font-size: 18px;
-          font-weight: bold;
-          margin-bottom: 6px;
-          border-bottom: 2px solid #000;
-          padding-bottom: 4px;
-          color: #000;
-        }
-        .detail-row {
-          display: flex;
-          justify-content: flex-start;
-          padding: 4px 0;
-          border-bottom: 1px dotted #555;
-          line-height: 1.6;
-          gap: 15px;
-        }
-        .detail-label {
-          font-weight: bold;
-          width: 20%;
-          text-align: right;
-          color: #000;
-          white-space: nowrap;
-        }
-        .detail-value {
-          width: 60%;
-          text-align: right;
-          color: #000;
-          word-break: break-word;
-        }
-        .footer {
-          text-align: center;
-          margin-left:75px;
-          font-size: 11px;
-          margin-top: 8px;
-          border-top: 2px solid #000;
-          padding-top: 4px;
-          font-weight: bold;
-          color: #000;
-        }
-        @media print {
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        }
+        @page { size: 100mm 150mm; margin: 3mm; }
+        body { width: 100mm; font-family: 'Arial', sans-serif; font-size: 15px; font-weight: bold; color: #000; direction: rtl; margin: 0 auto; padding: 0; background: white; }
+        .card { border: 2px solid #000; padding: 4mm; page-break-after: always; page-break-inside: avoid; margin-bottom: 5mm; }
+        .card:last-child { page-break-after: auto; }
+        .header { text-align: center; margin-left:75px; font-size: 18px; font-weight: bold; margin-bottom: 6px; border-bottom: 2px solid #000; padding-bottom: 4px; color: #000; }
+        .detail-row { display: flex; justify-content: flex-start; padding: 4px 0; border-bottom: 1px dotted #555; line-height: 1.6; gap: 15px; }
+        .detail-label { font-weight: bold; width: 20%; text-align: right; color: #000; white-space: nowrap; }
+        .detail-value { width: 60%; text-align: right; color: #000; word-break: break-word; }
+        .footer { text-align: center; margin-left:75px; font-size: 11px; margin-top: 8px; border-top: 2px solid #000; padding-top: 4px; font-weight: bold; color: #000; }
+        @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
       </style>
     </head>
     <body>
@@ -1116,341 +1194,18 @@ async function printSelectedOrders() {
   `);
   printWindow.document.close();
 
-  // بعد الطباعة، إعادة تعيين التحديدات
   document.querySelectorAll('.orderCheckbox').forEach(cb => cb.checked = false);
   document.getElementById('selectAllCheckbox').checked = false;
   selectedOrderIds.clear();
   updateBulkControls();
 }
-// تحديث شريط التحكم Bulk (إظهاره وإخفاؤه)
-function updateBulkControls() {
-  const checked = document.querySelectorAll('.orderCheckbox:checked');
-  const count = checked.length;
-  const controls = document.getElementById('bulkEditControls');
-  const selectedCount = document.getElementById('selectedCount');
-  
-  if (count > 0) {
-    controls.style.display = 'flex';
-    selectedCount.textContent = `تم تحديد ${count} طلبات`;
-  } else {
-    controls.style.display = 'none';
-  }
-}
 
-// إظهار القيمة المناسبة حسب الإجراء المختار
-document.getElementById('bulkAction').addEventListener('change', function() {
-  const action = this.value;
-  document.getElementById('bulkStatusValue').style.display = (action === 'status') ? 'inline-block' : 'none';
-  document.getElementById('bulkDriverValue').style.display = (action === 'driver') ? 'inline-block' : 'none';
-  document.getElementById('bulkCompanyValue').style.display = (action === 'company') ? 'inline-block' : 'none';
-});
-
-// تنفيذ التعديل الجماعي
-async function applyBulkEdit() {
-  const action = document.getElementById('bulkAction').value;
-  if (!action) { alert('اختر إجراءً'); return; }
-  
-  const checked = document.querySelectorAll('.orderCheckbox:checked');
-  const ids = Array.from(checked).map(cb => cb.value);
-  if (ids.length === 0) { alert('لم يتم تحديد أي طلب'); return; }
-
-    // ✅ إجراء الطباعة
-  if (action === 'print') {
-    printSelectedOrders();
-    return;
-  }
-
-  
-// ====== إجراء الحذف ======
-  if (action === 'delete') {
-    if (!confirm(`⚠️ هل أنت متأكد من حذف ${ids.length} طلبات نهائياً؟ لا يمكن التراجع عن هذا الإجراء.`)) return;
-    
-    let successCount = 0;
-    let failCount = 0;
-    
-    for (const id of ids) {
-      try {
-        const res = await fetch(`/api/orders/${id}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-          successCount++;
-        } else {
-          failCount++;
-        }
-      } catch (e) {
-        failCount++;
-      }
-    }
-    
-    if (failCount === 0) {
-      showNotification(`✅ تم حذف ${successCount} طلب بنجاح`, 'success');
-    } else {
-      showNotification(`⚠️ تم حذف ${successCount} طلب، فشل ${failCount}`, 'warning');
-    }
-    
-    selectedOrderIds.clear();
-    fetchOrders();
-    document.querySelectorAll('.orderCheckbox').forEach(cb => cb.checked = false);
-    document.getElementById('selectAllCheckbox').checked = false;
-    updateBulkControls();
-    return;
-  }
-
-  let updates = {};
-  if (action === 'status') {
-    const newStatus = document.getElementById('bulkStatusValue').value;
-    if (!newStatus) { alert('اختر حالة جديدة'); return; }
-    updates.status = newStatus;
-  } else if (action === 'driver') {
-    const newDriver = document.getElementById('bulkDriverValue').value;
-    if (!newDriver) { alert('اختر سائقاً'); return; }
-    updates.driverId = newDriver;
-  } else if (action === 'company') {
-    const newCompany = document.getElementById('bulkCompanyValue').value;
-    if (!newCompany) { alert('اختر شركة'); return; }
-    updates.companyId = newCompany;
-  }
-  
-  if (!confirm(`هل أنت متأكد من تطبيق التغيير على ${ids.length} طلبات؟`)) return;
-  
-  try {
-    const res = await fetch('/api/orders/bulk-update', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ ids, updates })
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.message || 'فشل التحديث');
-    }
-    showNotification(`✅ تم تحديث ${ids.length} طلبات بنجاح`, 'success');
-    selectedOrderIds.clear();
-    fetchOrders(); // تحديث الجدول
-    // إعادة تعيين التحديدات
-    document.querySelectorAll('.orderCheckbox').forEach(cb => cb.checked = false);
-    document.getElementById('selectAllCheckbox').checked = false;
-    updateBulkControls();
-  } catch (err) {
-    alert('❌ ' + err.message);
-  }
-  }
-
-function printOrder(orderId) {
-  const order = allOrders.find(o => (o.id || o._id) === orderId);
-  if (!order) { alert('الطلب غير موجود'); return; }
-
-  const orderNum = order.order_number || order.orderNumber || '-';
-  const contents = order.order_contents || order.orderContents || '-';
-  const customerName = order.customer_name || order.customerName || '';
-  const customerNumber = order.customer_number || order.customerNumber || '';
-  const address = order.address || '';
-  const price = formatNumber(order.price) || '0';
-  const currency = order.currency || 'ل.س';
-  const companyName = order.company_name || order.companyName || '-';
-  const note = order.note || '-';
-
-  const printWindow = window.open('', '_blank', 'width=600,height=400');
-  printWindow.document.write(`
-    <!DOCTYPE html>
-    <html dir="rtl" lang="ar">
-    <head>
-      <meta charset="UTF-8">
-      <title>طباعة طلب</title>
-      <style>
-        @page {
-          size: 100mm 150mm;
-          margin: 3mm;
-        }
-        body {
-          width: 100mm;
-          font-family: 'Arial', sans-serif;
-          font-size: 15px;               /* تكبير الخط */
-          font-weight: bold;              /* تغميق */
-          color: #000;                   /* أسود داكن */
-          direction: rtl;
-          margin: 0 auto;
-          padding: 0;
-          background: white;
-        }
-        .card {
-          border: 2px solid #000;        /* إطار داكن */
-          padding: 4mm;
-          page-break-after: avoid;
-          page-break-inside: avoid;
-        }
-        .header {
-          text-align: center;
-          margin-left:75px;
-          font-size: 18px;
-          font-weight: bold;
-          margin-bottom: 6px;
-          border-bottom: 2px solid #000;
-          padding-bottom: 4px;
-          color: #000;
-        }
-        .detail-row {
-          display: flex;
-          justify-content: flex-start;    /* المحتوى يبدأ من اليمين */
-          padding: 4px 0;
-          border-bottom: 1px dotted #555;
-          line-height: 1.6;
-        }
-        .detail-label {
-          font-weight: bold;
-          width: 20%;
-          text-align: right;             /* محاذاة يمين */
-          color: #000;
-        }
-        .detail-value {
-          width: 60%;
-          text-align: right;             /* محاذاة يمين */
-          color: #000;
-          word-break: break-word;
-        }
-        .footer {
-          text-align: center;
-          margin-left:75px;
-          font-size: 11px;
-          margin-top: 8px;
-          border-top: 2px solid #000;
-          padding-top: 4px;
-          font-weight: bold;
-          color: #000;
-        }
-        @media print {
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="card">
-        <div class="header">WolfOrder</div>
-        <div class="detail-row"><span class="detail-label">رقم الطلب:</span><span class="detail-value">${orderNum}</span></div>
-        <div class="detail-row"><span class="detail-label">المحتويات:</span><span class="detail-value">${contents}</span></div>
-        <div class="detail-row"><span class="detail-label">العميل:</span><span class="detail-value">${customerName}</span></div>
-        <div class="detail-row"><span class="detail-label">رقم العميل:</span><span class="detail-value">${customerNumber || '-'}</span></div>
-        <div class="detail-row"><span class="detail-label">العنوان:</span><span class="detail-value">${address}</span></div>
-        <div class="detail-row"><span class="detail-label">السعر:</span><span class="detail-value">${price} ${currency}</span></div>
-        <div class="detail-row"><span class="detail-label">أجور التوصيل:</span><span class="detail-value">ضمن دمشق 20,000 <br> خارج دمشق 40,000</span></div>
-        <div class="detail-row"><span class="detail-label">الشركة:</span><span class="detail-value">${companyName}</span></div>
-        <div class="detail-row"><span class="detail-label">ملاحظة:</span><span class="detail-value">${note}</span></div>
-        <div class="footer" style="text-align: right;">للشكاوي أو الاستعلام بالنسبة لخدمة التوصيل<br> يرجى التواصل على الرقم: 0997665442</div>
-        <div class="footer">شكراً لتعاملكم مع WolfOrder</div>
-        </div>
-      <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); };</script>
-    </body>
-    </html>
-  `);
-  printWindow.document.close();
-}
-
-
-// ==================== الترقيم الآلي لرقم الطلب (خاص بكل شركة) ====================
-
-// الحصول على مفتاح التخزين بناءً على معرف الشركة
-function getAutoNumberKeyForCompany(companyId) {
-  return `autoOrderNumber_company_${companyId || 'no_company'}`;
-}
-
-// تحميل واقتراح الرقم التالي للشركة المحددة
-function loadAutoOrderNumberForCompany() {
-  const companySelect = document.getElementById('companySelect');
-  const companyId = companySelect ? companySelect.value : '';
-  const key = getAutoNumberKeyForCompany(companyId);
-  const lastNumber = parseInt(localStorage.getItem(key), 10);
-  const input = document.getElementById('orderNumber');
-  if (!input) return;
-
-  if (!isNaN(lastNumber) && lastNumber > 0) {
-    input.value = lastNumber + 1;
-  } else {
-    input.value = ''; // لا يوجد رقم سابق، يترك فارغًا
-  }
-}
-
-// حفظ آخر رقم طلب بعد إنشاء طلب ناجح (للشركة المختارة)
-function saveLastOrderNumberForCompany(companyId, orderNumber) {
-  const num = parseInt(orderNumber, 10);
-  if (!isNaN(num) && num > 0) {
-    const key = getAutoNumberKeyForCompany(companyId);
-    localStorage.setItem(key, num);
-  }
-}
-
-// إلغاء الترقيم الآلي للشركة الحالية (مسح الذاكرة)
-function resetAutoNumber() {
-  const companySelect = document.getElementById('companySelect');
-  const companyId = companySelect ? companySelect.value : '';
-  const key = getAutoNumberKeyForCompany(companyId);
-  localStorage.removeItem(key);
-  const input = document.getElementById('orderNumber');
-  if (input) {
-    input.value = '';
-    input.focus();
-  }
-}
-
-
-
-// تحميل قالب الرسالة من الخادم
-async function loadMessageTemplate() {
-  try {
-    const res = await fetch('/api/auth/message-template', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (res.ok) {
-      const data = await res.json();
-      const textarea = document.getElementById('messageTemplate');
-      if (textarea) textarea.value = data.template || '';
-    }
-  } catch (err) { console.error('فشل تحميل القالب', err); }
-}
-
-// حفظ قالب الرسالة
-async function saveMessageTemplate() {
-  const template = document.getElementById('messageTemplate')?.value || '';
-  try {
-    const res = await fetch('/api/auth/message-template', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ template })
-    });
-    if (res.ok) {
-      showNotification('✅ تم حفظ القالب', 'success');
-    }
-  } catch (err) { console.error('فشل حفظ القالب', err); }
-}
-
-
-
-function insertVariable(variable) {
-  const textarea = document.getElementById('messageTemplate');
-  if (!textarea) return;
-  const start = textarea.selectionStart;
-  const end = textarea.selectionEnd;
-  const text = textarea.value;
-  textarea.value = text.substring(0, start) + variable + text.substring(end);
-  textarea.focus();
-  textarea.setSelectionRange(start + variable.length, start + variable.length);
-}
-
-
-
-if (action === 'whatsapp') {
-  sendBulkWhatsApp();
-  return;
-}
-
-
-
+// ==================== واتساب ====================
 async function sendBulkWhatsApp() {
   const checked = document.querySelectorAll('.orderCheckbox:checked');
   const ids = Array.from(checked).map(cb => cb.value);
   if (ids.length === 0) { alert('لم يتم تحديد أي طلب'); return; }
 
-  // جلب القالب من الإعدادات أو استخدام الافتراضي
   const template = document.getElementById('messageTemplate')?.value?.trim() ||
     'عزيزي {customerName}،\nطلبك رقم {orderNumber}\nالمحتويات: {orderContents}\nقيد التوصيل.\nWolfOrder - {companyName}';
 
@@ -1466,13 +1221,11 @@ async function sendBulkWhatsApp() {
       console.warn('رقم غير صالح:', phone);
       continue;
     }
-    // إضافة مفتاح سوريا
     let fullPhone = phone;
     if (fullPhone.length === 10 && !fullPhone.startsWith('963')) {
       fullPhone = '963' + fullPhone;
     }
 
-    // تخصيص الرسالة
     const message = template
       .replace(/{customerName}/g, order.customer_name || order.customerName || '')
       .replace(/{companyName}/g, order.company_name || order.companyName || '')
@@ -1485,26 +1238,72 @@ async function sendBulkWhatsApp() {
     const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
     count++;
-    // تأخير بين النوافذ لتجنب الحظر
     await new Promise(resolve => setTimeout(resolve, 1200));
   }
 
   showNotification(`✅ تم فتح واتساب لـ ${count} عميل`, 'success');
-  // إعادة تعيين التحديدات
   document.querySelectorAll('.orderCheckbox').forEach(cb => cb.checked = false);
   document.getElementById('selectAllCheckbox') && (document.getElementById('selectAllCheckbox').checked = false);
   selectedOrderIds.clear();
   updateBulkControls();
 }
 
+// ==================== الترقيم الآلي ====================
+function getAutoNumberKeyForCompany(companyId) {
+  return `autoOrderNumber_company_${companyId || 'no_company'}`;
+}
 
+function loadAutoOrderNumberForCompany() {
+  const companySelect = document.getElementById('companySelect');
+  const companyId = companySelect ? companySelect.value : '';
+  const key = getAutoNumberKeyForCompany(companyId);
+  const lastNumber = parseInt(localStorage.getItem(key), 10);
+  const input = document.getElementById('orderNumber');
+  if (!input) return;
 
+  if (!isNaN(lastNumber) && lastNumber > 0) {
+    input.value = lastNumber + 1;
+  } else {
+    input.value = '';
+  }
+}
+
+function saveLastOrderNumberForCompany(companyId, orderNumber) {
+  const num = parseInt(orderNumber, 10);
+  if (!isNaN(num) && num > 0) {
+    const key = getAutoNumberKeyForCompany(companyId);
+    localStorage.setItem(key, num);
+  }
+}
+
+function resetAutoNumber() {
+  const companySelect = document.getElementById('companySelect');
+  const companyId = companySelect ? companySelect.value : '';
+  const key = getAutoNumberKeyForCompany(companyId);
+  localStorage.removeItem(key);
+  const input = document.getElementById('orderNumber');
+  if (input) {
+    input.value = '';
+    input.focus();
+  }
+}
+
+function insertVariable(variable) {
+  const textarea = document.getElementById('messageTemplate');
+  if (!textarea) return;
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const text = textarea.value;
+  textarea.value = text.substring(0, start) + variable + text.substring(end);
+  textarea.focus();
+  textarea.setSelectionRange(start + variable.length, start + variable.length);
+}
 
 // ==================== بدء التشغيل ====================
 loadUsersLists();
 fetchOrders();
-fetchEditRequests(); // الآن تعيد مصفوفة فارغة
+fetchEditRequests();
 loadAdminPhone();
+loadMessageTemplate();
 loadUsersListForManagement();
-// تحديث حالة السائقين كل 30 ثانية
 setInterval(loadUsersLists, 30000);
