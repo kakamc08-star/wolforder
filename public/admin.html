@@ -137,6 +137,7 @@
     <strong>الإجراء على المحدد:</strong>
     <select id="bulkAction" style="max-width:200px;">
       <option value="">-- اختر الإجراء --</option>
+      <option value="whatsapp">📲 إرسال واتساب</option>
       <option value="print">🖨️ طباعة المحدد</option>
       <option value="status">تغيير الحالة</option>
       <option value="driver">تعيين سائق</option>
@@ -378,6 +379,7 @@
     </div>
   </div>
 
+
 <!-- إعدادات المدير -->  
 <div class="card">
   <h2>⚙️ إعدادات المدير</h2>
@@ -388,11 +390,29 @@
         <input type="text" id="adminPhone" placeholder="963xxxxxxxxx" style="direction: ltr;">
         <small>أدخل الرقم مع مفتاح الدولة بدون + أو مسافات (مثال: 963123456789)</small>
       </div>  
-    </div>  
+    </div>
+    
+    <!-- ✅ حقل قالب الرسالة الجديد -->
+    <div class="form-group">
+      <label for="messageTemplate">📄 قالب رسالة واتساب</label>
+      <textarea id="messageTemplate" rows="4" placeholder="اكتب قالب الرسالة..."></textarea>
+      <small>يمكنك استخدام المتغيرات: {customerName}, {companyName}, {orderNumber}, {orderContents}, {address}, {price}, {currency}</small>
+      <div style="margin-top:5px;">
+        <button type="button" class="btn btn-sm btn-secondary" onclick="insertVariable('{customerName}')">اسم العميل</button>
+        <button type="button" class="btn btn-sm btn-secondary" onclick="insertVariable('{companyName}')">الشركة</button>
+        <button type="button" class="btn btn-sm btn-secondary" onclick="insertVariable('{orderNumber}')">رقم الطلب</button>
+        <button type="button" class="btn btn-sm btn-secondary" onclick="insertVariable('{orderContents}')">المحتويات</button>
+        <button type="button" class="btn btn-sm btn-secondary" onclick="insertVariable('{address}')">العنوان</button>
+        <button type="button" class="btn btn-sm btn-secondary" onclick="insertVariable('{price}')">السعر</button>
+      </div>
+    </div>
+    
     <button type="submit" class="btn btn-primary">حفظ الإعدادات</button>
     <div id="settingsMessage" class="message"></div>
   </form>  
-</div>  
+</div>
+
+
 
 
 

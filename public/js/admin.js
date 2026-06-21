@@ -1392,6 +1392,114 @@ function resetAutoNumber() {
   }
 }
 
+
+
+// تحميل قالب الرسالة من الخادم
+async function loadMessageTemplate() {
+  try {
+    const res = await fetch('/api/auth/message-template', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const textarea = document.getElementById('messageTemplate');
+      if (textarea) textarea.value = data.template || '';
+    }
+  } catch (err) { console.error('فشل تحميل القالب', err); }
+}
+
+// حفظ قالب الرسالة
+async function saveMessageTemplate() {
+  const template = document.getElementById('messageTemplate')?.value || '';
+  try {
+    const res = await fetch('/api/auth/message-template', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ template })
+    });
+    if (res.ok) {
+      showNotification('✅ تم حفظ القالب', 'success');
+    }
+  } catch (err) { console.error('فشل حفظ القالب', err); }
+}
+
+
+
+function insertVariable(variable) {
+  const textarea = document.getElementById('messageTemplate');
+  if (!textarea) return;
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const text = textarea.value;
+  textarea.value = text.substring(0, start) + variable + text.substring(end);
+  textarea.focus();
+  textarea.setSelectionRange(start + variable.length, start + variable.length);
+}
+
+
+
+if (action === 'whatsapp') {
+  sendBulkWhatsApp();
+  return;
+}
+
+
+
+async function sendBulkWhatsApp() {
+  const checked = document.querySelectorAll('.orderCheckbox:checked');
+  const ids = Array.from(checked).map(cb => cb.value);
+  if (ids.length === 0) { alert('لم يتم تحديد أي طلب'); return; }
+
+  // جلب القالب من الإعدادات أو استخدام الافتراضي
+  const template = document.getElementById('messageTemplate')?.value?.trim() ||
+    'عزيزي {customerName}،\nطلبك رقم {orderNumber}\nالمحتويات: {orderContents}\nقيد التوصيل.\nWolfOrder - {companyName}';
+
+  const ordersToSend = allOrders.filter(o => ids.includes(o.id || o._id));
+  if (ordersToSend.length === 0) { alert('الطلبات غير موجودة'); return; }
+
+  if (!confirm(`سيتم فتح واتساب لـ ${ordersToSend.length} طلب. استمر؟`)) return;
+
+  let count = 0;
+  for (const order of ordersToSend) {
+    const phone = (order.customer_number || order.customerNumber || '').replace(/\D/g, '');
+    if (phone.length < 10) {
+      console.warn('رقم غير صالح:', phone);
+      continue;
+    }
+    // إضافة مفتاح سوريا
+    let fullPhone = phone;
+    if (fullPhone.length === 10 && !fullPhone.startsWith('963')) {
+      fullPhone = '963' + fullPhone;
+    }
+
+    // تخصيص الرسالة
+    const message = template
+      .replace(/{customerName}/g, order.customer_name || order.customerName || '')
+      .replace(/{companyName}/g, order.company_name || order.companyName || '')
+      .replace(/{orderNumber}/g, order.order_number || order.orderNumber || '')
+      .replace(/{orderContents}/g, order.order_contents || order.orderContents || '')
+      .replace(/{address}/g, order.address || '')
+      .replace(/{price}/g, formatNumber(order.price) || '0')
+      .replace(/{currency}/g, order.currency || 'ل.س');
+
+    const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+    count++;
+    // تأخير بين النوافذ لتجنب الحظر
+    await new Promise(resolve => setTimeout(resolve, 1200));
+  }
+
+  showNotification(`✅ تم فتح واتساب لـ ${count} عميل`, 'success');
+  // إعادة تعيين التحديدات
+  document.querySelectorAll('.orderCheckbox').forEach(cb => cb.checked = false);
+  document.getElementById('selectAllCheckbox') && (document.getElementById('selectAllCheckbox').checked = false);
+  selectedOrderIds.clear();
+  updateBulkControls();
+}
+
+
+
+
 // ==================== بدء التشغيل ====================
 loadUsersLists();
 fetchOrders();

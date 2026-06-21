@@ -188,4 +188,29 @@ router.patch('/heartbeat', authenticateToken, async (req, res) => {
   }
 });
 
+// جلب قالب الرسالة (للمدير)
+router.get('/message-template', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') return res.sendStatus(403);
+  const { data: user, error } = await supabase
+    .from('users')
+    .select('message_template')
+    .eq('id', req.user.id)
+    .single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json({ template: user?.message_template || '' });
+});
+
+// تحديث قالب الرسالة (للمدير)
+router.patch('/message-template', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') return res.sendStatus(403);
+  const { template } = req.body;
+  const { error } = await supabase
+    .from('users')
+    .update({ message_template: template })
+    .eq('id', req.user.id);
+  if (error) return res.status(500).json({ message: error.message });
+  res.json({ message: 'تم تحديث القالب' });
+});
+
+
 module.exports = router;
