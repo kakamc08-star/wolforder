@@ -1211,6 +1211,7 @@ async function sendBulkWhatsApp() {
   const ordersToSend = allOrders.filter(o => ids.includes(o.id || o._id));
   if (ordersToSend.length === 0) { alert('الطلبات غير موجودة'); return; }
 
+  // بناء مصفوفة الروابط
   const linksArray = ordersToSend.map(order => {
     const phone = (order.customer_number || order.customerNumber || '').replace(/\D/g, '');
     if (phone.length < 10) return null;
@@ -1235,10 +1236,9 @@ async function sendBulkWhatsApp() {
 
   if (linksArray.length === 0) { alert('لا توجد أرقام صالحة'); return; }
 
-  const linksJson = JSON.stringify(linksArray).replace(/"/g, '&quot;');
-
-  const printWindow = window.open('', '_blank', 'width=900,height=700');
-  printWindow.document.write(`
+  // إنشاء نافذة واحدة مع قائمة الروابط
+  const w = window.open('', '', 'width=900,height=700');
+  w.document.write(`
     <!DOCTYPE html>
     <html dir="rtl" lang="ar">
     <head>
@@ -1249,9 +1249,7 @@ async function sendBulkWhatsApp() {
         .header { background: #25D366; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
         .toolbar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
         .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; text-decoration: none; display: inline-block; }
-        .btn-primary { background: #3498db; color: white; }
         .btn-success { background: #25D366; color: white; }
-        .btn-secondary { background: #718096; color: white; }
         .btn-warning { background: #f39c12; color: white; }
         .customer-card { background: white; border-radius: 8px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         .customer-info { margin-bottom: 10px; font-size: 16px; }
@@ -1272,22 +1270,30 @@ async function sendBulkWhatsApp() {
         <button id="startAutoBtn" class="btn btn-success" onclick="startAutoSend()">🚀 بدء الإرسال التلقائي</button>
         <button class="btn btn-warning" onclick="stopAutoSend()">⏹️ إيقاف</button>
       </div>
-      <div id="cardsContainer">${linksArray.map((link, index) => `
-        <div class="customer-card" id="card-${index}">
-          <div class="customer-info">
-            <strong>${index + 1}. ${link.name}</strong>
-            <span style="color:#666; margin-right:10px;">📞 ${link.phone}</span>
-            <span style="color:#666; margin-right:10px;">🏢 ${link.company}</span>
-            <span id="status-${index}" style="color: #f39c12; margin-right:10px;">⏳ في الانتظار</span>
-          </div>
-          <div class="message-preview">${link.preview}</div>
-        </div>
-      `).join('')}</div>
+      <div id="cardsContainer"></div>
       <script>
-        const links = JSON.parse('${linksJson}'.replace(/&quot;/g, '"'));
+        const links = ${JSON.stringify(linksArray)};
         let currentIndex = 0;
         let autoInterval = null;
         let isRunning = false;
+
+        // بناء البطاقات
+        const container = document.getElementById('cardsContainer');
+        links.forEach((link, i) => {
+          const card = document.createElement('div');
+          card.className = 'customer-card';
+          card.id = 'card-' + i;
+          card.innerHTML = \`
+            <div class="customer-info">
+              <strong>\${i + 1}. \${link.name}</strong>
+              <span style="color:#666; margin-right:10px;">📞 \${link.phone}</span>
+              <span style="color:#666; margin-right:10px;">🏢 \${link.company}</span>
+              <span id="status-\${i}" style="color: #f39c12; margin-right:10px;">⏳ في الانتظار</span>
+            </div>
+            <div class="message-preview">\${link.preview}</div>
+          \`;
+          container.appendChild(card);
+        });
 
         function updateProgress() {
           const percent = Math.round((currentIndex / links.length) * 100);
@@ -1296,11 +1302,8 @@ async function sendBulkWhatsApp() {
         }
 
         function markStatus(index, status, color) {
-          const statusEl = document.getElementById('status-' + index);
-          if (statusEl) {
-            statusEl.textContent = status;
-            statusEl.style.color = color;
-          }
+          const el = document.getElementById('status-' + index);
+          if (el) { el.textContent = status; el.style.color = color; }
         }
 
         function startAutoSend() {
@@ -1314,18 +1317,25 @@ async function sendBulkWhatsApp() {
               clearInterval(autoInterval);
               isRunning = false;
               document.getElementById('startAutoBtn').textContent = '✅ تم الانتهاء';
+              updateProgress();
               return;
             }
             const link = links[currentIndex];
             markStatus(currentIndex, '📤 جاري الفتح...', '#f39c12');
-            window.open(link.url, '_blank');
+            const newWindow = window.open(link.url, '_blank');
+            
+            // محاولة إغلاق النافذة المنبثقة بعد 4 ثوانٍ (إذا سمح المتصفح)
+            setTimeout(() => {
+              try { if (newWindow && !newWindow.closed) newWindow.close(); } catch(e) {}
+            }, 4000);
+            
             setTimeout(() => {
               markStatus(currentIndex, '✅ تم', '#27ae60');
-              updateProgress();
             }, 5000);
+            
             currentIndex++;
             updateProgress();
-          }, 6000);
+          }, 7000);
         }
 
         function stopAutoSend() {
@@ -1338,13 +1348,14 @@ async function sendBulkWhatsApp() {
     </body>
     </html>
   `);
-  printWindow.document.close();
+  w.document.close();
 
+  // إعادة تعيين التحديدات
   document.querySelectorAll('.orderCheckbox').forEach(cb => cb.checked = false);
-  document.getElementById('selectAllCheckbox') && (document.getElementById('selectAllCheckbox').checked = false);
+  if (document.getElementById('selectAllCheckbox')) document.getElementById('selectAllCheckbox').checked = false;
   selectedOrderIds.clear();
   updateBulkControls();
-  showNotification(`✅ تم تجهيز ${linksArray.length} رابط واتساب في صفحة واحدة`, 'success');
+  showNotification(`✅ تم تجهيز ${linksArray.length} رابط واتساب`, 'success');
 }
 
 // ==================== الترقيم الآلي ====================
