@@ -1200,7 +1200,6 @@ async function printSelectedOrders() {
   updateBulkControls();
 }
 
-// ==================== واتساب ====================
 async function sendBulkWhatsApp() {
   const checked = document.querySelectorAll('.orderCheckbox:checked');
   const ids = Array.from(checked).map(cb => cb.value);
@@ -1212,20 +1211,11 @@ async function sendBulkWhatsApp() {
   const ordersToSend = allOrders.filter(o => ids.includes(o.id || o._id));
   if (ordersToSend.length === 0) { alert('الطلبات غير موجودة'); return; }
 
-  if (!confirm(`سيتم فتح واتساب لـ ${ordersToSend.length} طلب. استمر؟`)) return;
-
-  let count = 0;
-  for (const order of ordersToSend) {
+  const linksArray = ordersToSend.map(order => {
     const phone = (order.customer_number || order.customerNumber || '').replace(/\D/g, '');
-    if (phone.length < 10) {
-      console.warn('رقم غير صالح:', phone);
-      continue;
-    }
+    if (phone.length < 10) return null;
     let fullPhone = phone;
-    if (fullPhone.length === 10 && !fullPhone.startsWith('963')) {
-      fullPhone = '963' + fullPhone;
-    }
-
+    if (fullPhone.length === 10 && !fullPhone.startsWith('963')) fullPhone = '963' + fullPhone;
     const message = template
       .replace(/{customerName}/g, order.customer_name || order.customerName || '')
       .replace(/{companyName}/g, order.company_name || order.companyName || '')
@@ -1234,18 +1224,127 @@ async function sendBulkWhatsApp() {
       .replace(/{address}/g, order.address || '')
       .replace(/{price}/g, formatNumber(order.price) || '0')
       .replace(/{currency}/g, order.currency || 'ل.س');
+    return {
+      name: order.customer_name || order.customerName,
+      phone: fullPhone,
+      company: order.company_name || order.companyName || '-',
+      url: `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`,
+      preview: message
+    };
+  }).filter(link => link !== null);
 
-    const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`;
-    window.open(url, '_blank');
-    count++;
-    await new Promise(resolve => setTimeout(resolve, 1200));
-  }
+  if (linksArray.length === 0) { alert('لا توجد أرقام صالحة'); return; }
 
-  showNotification(`✅ تم فتح واتساب لـ ${count} عميل`, 'success');
+  const linksJson = JSON.stringify(linksArray).replace(/"/g, '&quot;');
+
+  const printWindow = window.open('', '_blank', 'width=900,height=700');
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html dir="rtl" lang="ar">
+    <head>
+      <meta charset="UTF-8">
+      <title>روابط واتساب جاهزة</title>
+      <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f5f7fa; margin: 0; padding: 20px; }
+        .header { background: #25D366; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
+        .toolbar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; text-decoration: none; display: inline-block; }
+        .btn-primary { background: #3498db; color: white; }
+        .btn-success { background: #25D366; color: white; }
+        .btn-secondary { background: #718096; color: white; }
+        .btn-warning { background: #f39c12; color: white; }
+        .customer-card { background: white; border-radius: 8px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .customer-info { margin-bottom: 10px; font-size: 16px; }
+        .message-preview { background: #f0f0f0; padding: 10px; border-radius: 5px; white-space: pre-wrap; font-family: monospace; font-size: 13px; margin-top: 8px; }
+        .progress-bar { background: #e0e0e0; border-radius: 10px; margin: 15px 0; height: 20px; }
+        .progress-fill { background: #25D366; height: 100%; border-radius: 10px; width: 0%; transition: width 0.3s; text-align: center; color: white; font-size: 12px; line-height: 20px; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h2>📲 جاهز للإرسال الآلي</h2>
+        <p>عدد العملاء: <strong>${linksArray.length}</strong></p>
+        <div class="progress-bar">
+          <div id="progressFill" class="progress-fill" style="width:0%">0 / ${linksArray.length}</div>
+        </div>
+      </div>
+      <div class="toolbar">
+        <button id="startAutoBtn" class="btn btn-success" onclick="startAutoSend()">🚀 بدء الإرسال التلقائي</button>
+        <button class="btn btn-warning" onclick="stopAutoSend()">⏹️ إيقاف</button>
+      </div>
+      <div id="cardsContainer">${linksArray.map((link, index) => `
+        <div class="customer-card" id="card-${index}">
+          <div class="customer-info">
+            <strong>${index + 1}. ${link.name}</strong>
+            <span style="color:#666; margin-right:10px;">📞 ${link.phone}</span>
+            <span style="color:#666; margin-right:10px;">🏢 ${link.company}</span>
+            <span id="status-${index}" style="color: #f39c12; margin-right:10px;">⏳ في الانتظار</span>
+          </div>
+          <div class="message-preview">${link.preview}</div>
+        </div>
+      `).join('')}</div>
+      <script>
+        const links = JSON.parse('${linksJson}'.replace(/&quot;/g, '"'));
+        let currentIndex = 0;
+        let autoInterval = null;
+        let isRunning = false;
+
+        function updateProgress() {
+          const percent = Math.round((currentIndex / links.length) * 100);
+          document.getElementById('progressFill').style.width = percent + '%';
+          document.getElementById('progressFill').textContent = currentIndex + ' / ' + links.length;
+        }
+
+        function markStatus(index, status, color) {
+          const statusEl = document.getElementById('status-' + index);
+          if (statusEl) {
+            statusEl.textContent = status;
+            statusEl.style.color = color;
+          }
+        }
+
+        function startAutoSend() {
+          if (isRunning) return;
+          isRunning = true;
+          document.getElementById('startAutoBtn').disabled = true;
+          document.getElementById('startAutoBtn').textContent = '⏳ جاري الإرسال...';
+
+          autoInterval = setInterval(() => {
+            if (currentIndex >= links.length) {
+              clearInterval(autoInterval);
+              isRunning = false;
+              document.getElementById('startAutoBtn').textContent = '✅ تم الانتهاء';
+              return;
+            }
+            const link = links[currentIndex];
+            markStatus(currentIndex, '📤 جاري الفتح...', '#f39c12');
+            window.open(link.url, '_blank');
+            setTimeout(() => {
+              markStatus(currentIndex, '✅ تم', '#27ae60');
+              updateProgress();
+            }, 5000);
+            currentIndex++;
+            updateProgress();
+          }, 6000);
+        }
+
+        function stopAutoSend() {
+          if (autoInterval) clearInterval(autoInterval);
+          isRunning = false;
+          document.getElementById('startAutoBtn').disabled = false;
+          document.getElementById('startAutoBtn').textContent = '🚀 بدء الإرسال التلقائي';
+        }
+      </script>
+    </body>
+    </html>
+  `);
+  printWindow.document.close();
+
   document.querySelectorAll('.orderCheckbox').forEach(cb => cb.checked = false);
   document.getElementById('selectAllCheckbox') && (document.getElementById('selectAllCheckbox').checked = false);
   selectedOrderIds.clear();
   updateBulkControls();
+  showNotification(`✅ تم تجهيز ${linksArray.length} رابط واتساب في صفحة واحدة`, 'success');
 }
 
 // ==================== الترقيم الآلي ====================
