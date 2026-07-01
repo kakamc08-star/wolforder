@@ -1200,64 +1200,53 @@ async function printSelectedOrders() {
   updateBulkControls();
 }
 
-// ==================== إرسال واتساب عبر API ====================
+
+// ==================== إرسال واتساب عبر API (آمن) ====================
 async function sendBulkWhatsApp() {
   const checked = document.querySelectorAll('.orderCheckbox:checked');
   const ids = Array.from(checked).map(cb => cb.value);
   if (ids.length === 0) { alert('لم يتم تحديد أي طلب'); return; }
 
-  const template = document.getElementById('messageTemplate')?.value?.trim() ||
-    'عزيزي {customerName}،\nطلبك رقم {orderNumber}\nالمحتويات: {orderContents}\nقيد التوصيل.\nWolfOrder - {companyName}';
-
   const ordersToSend = allOrders.filter(o => ids.includes(o.id || o._id));
   if (ordersToSend.length === 0) { alert('الطلبات غير موجودة'); return; }
 
-  // ====== مفتاح API الخاص بك ======
-  const API_KEY = 'eyJuYW1lIjoi2LnYqNivINin2YTYsdit2YXZhiDYrdiz2YPZiiIsInNlcmlhbCI6Ijk5MjE0NTc1ODhmNzljIiwiaWF0IjoxNzgyODI0MDI0LCJleHAiOjE5NTU2MjQwMjR9.EME9M9cSy9FvfHvcx2gMPkp1H5Dj4YaKufPRsAyon8Tf';
-  const API_URL = 'https://business.enjazatik.com/api/v1/send-message';
-
-  // تحويل الأرقام إلى الصيغة المطلوبة
+  // ====== تحويل الأرقام إلى الصيغة المطلوبة ======
   const sendList = ordersToSend.map(order => {
     let phone = (order.customer_number || order.customerNumber || '').replace(/\D/g, '');
-    if (phone.length < 10) return null;
-    // إنجازاتك تتوقع الرقم بدون + أو 00
+    if (phone.length < 9) return null; // أقل من 9 أرقام (بدون رمز الدولة)
     if (phone.startsWith('0')) phone = phone.substring(1);
+    if (phone.length === 9 && !phone.startsWith('963')) phone = '963' + phone;
     if (phone.length === 10 && !phone.startsWith('963')) phone = '963' + phone;
     
-    const message = template
-      .replace(/{customerName}/g, order.customer_name || order.customerName || '')
-      .replace(/{companyName}/g, order.company_name || order.companyName || '')
-      .replace(/{orderNumber}/g, order.order_number || order.orderNumber || '')
-      .replace(/{orderContents}/g, order.order_contents || order.orderContents || '')
-      .replace(/{address}/g, order.address || '')
-      .replace(/{price}/g, formatNumber(order.price) || '0')
-      .replace(/{currency}/g, order.currency || 'ل.س');
-      
     return {
       name: order.customer_name || order.customerName,
       phone: phone,
       company: order.company_name || order.companyName || '-',
-      message: message
+      customerName: order.customer_name || order.customerName || 'عميل',
+      orderNumber: order.order_number || order.orderNumber || 'N/A',
+      orderContents: order.order_contents || order.orderContents || '',
+      currency: order.currency || 'ل.س',
+      price: formatNumber(order.price) || '0',
+      companyName: order.company_name || order.companyName || 'متجرنا'
     };
   }).filter(item => item !== null);
 
   if (sendList.length === 0) { alert('لا توجد أرقام صالحة'); return; }
 
   // ====== تأكيد الإرسال ======
-  if (!confirm(`هل أنت متأكد من إرسال رسائل واتساب إلى ${sendList.length} عميل عبر منصة إنجازاتك؟`)) {
+  if (!confirm(`هل أنت متأكد من إرسال رسائل واتساب إلى ${sendList.length} عميل عبر منصة راسل؟`)) {
     return;
   }
 
   // ====== نافذة التقدم ======
   const w = window.open('', '', 'width=900,height=700');
-  let results = [];
 
   w.document.write(`
     <!DOCTYPE html>
     <html dir="rtl" lang="ar">
     <head>
       <meta charset="UTF-8">
-      <title>إرسال واتساب عبر إنجازاتك</title>
+      <title>إرسال واتساب عبر راسل</title>
       <style>
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f5f7fa; margin: 0; padding: 20px; }
         .header { background: #25D366; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
@@ -1276,15 +1265,11 @@ async function sendBulkWhatsApp() {
         .progress-fill { background: #25D366; height: 100%; border-radius: 10px; width: 0%; transition: width 0.5s; text-align: center; color: white; font-size: 14px; line-height: 25px; }
         .stats { display: flex; gap: 20px; justify-content: center; margin: 15px 0; font-size: 16px; }
         .stats span { background: white; padding: 8px 20px; border-radius: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .badge { display: inline-block; padding: 2px 12px; border-radius: 12px; font-size: 12px; }
-        .badge-success { background: #2ecc71; color: white; }
-        .badge-error { background: #e74c3c; color: white; }
-        .badge-pending { background: #f39c12; color: white; }
       </style>
     </head>
     <body>
       <div class="header">
-        <h2>📲 إرسال عبر منصة إنجازاتك</h2>
+        <h2>📲 إرسال عبر منصة راسل (Rasel)</h2>
         <p>عدد العملاء: <strong>${sendList.length}</strong></p>
         <div class="progress-bar">
           <div id="progressFill" class="progress-fill" style="width:0%">0 / ${sendList.length}</div>
@@ -1305,12 +1290,11 @@ async function sendBulkWhatsApp() {
       </div>
       <script>
         const sendList = ${JSON.stringify(sendList)};
-        const API_URL = '${API_URL}';
-        const API_KEY = '${API_KEY}';
+        const API_URL = '/api/send-whatsapp';
+
         let currentIndex = 0;
         let isRunning = false;
         let isStopped = false;
-        let intervalId = null;
         let successCount = 0;
         let errorCount = 0;
 
@@ -1339,32 +1323,52 @@ async function sendBulkWhatsApp() {
           try {
             addLog(\`\${index + 1}. جاري إرسال رسالة إلى \${item.name} (\${item.phone})...\`, 'pending');
             
+            const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+            
+            if (!token) {
+              addLog(\`❌ \${item.name} - أنت غير مسجل الدخول.\`, 'error');
+              errorCount++;
+              return false;
+            }
+
             const response = await fetch(API_URL, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + API_KEY
+                'Authorization': \`Bearer \${token}\`
               },
               body: JSON.stringify({
-                message: item.message,
-                number: item.phone
+                phone: item.phone,
+                customerName: item.customerName,
+                orderNumber: item.orderNumber,
+                orderContents: item.orderContents,
+                currency: item.currency,
+                price: item.price,
+                companyName: item.companyName
               })
             });
 
-            const data = await response.json();
+            let data;
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+              data = await response.json();
+            } else {
+              const text = await response.text();
+              throw new Error(text || 'خطأ غير معروف من السيرفر');
+            }
             
             if (response.ok && data.success !== false) {
               addLog(\`✅ \${item.name} - تم الإرسال بنجاح\`, 'success');
               successCount++;
               return true;
             } else {
-              const errMsg = data.message || data.error || 'خطأ غير معروف';
+              const errMsg = data.error || data.message || 'فشل الإرسال';
               addLog(\`❌ \${item.name} - فشل: \${errMsg}\`, 'error');
               errorCount++;
               return false;
             }
           } catch (error) {
-            addLog(\`❌ \${item.name} - خطأ في الاتصال: \${error.message}\`, 'error');
+            addLog(\`❌ \${item.name} - خطأ: \${error.message}\`, 'error');
             errorCount++;
             return false;
           }
@@ -1383,20 +1387,11 @@ async function sendBulkWhatsApp() {
           document.getElementById('startBtn').textContent = '⏳ جاري الإرسال...';
           addLog('🚀 بدء عملية الإرسال...', 'info');
 
-          // تأخير عشوائي بين 8-15 ثانية لتقليل خطر الحظر
-          const delay = () => Math.floor(Math.random() * 7000) + 8000;
-
           while (currentIndex < sendList.length && !isStopped) {
             const item = sendList[currentIndex];
             await sendSingleMessage(item, currentIndex);
             currentIndex++;
             updateProgress();
-
-            if (currentIndex < sendList.length && !isStopped) {
-              const waitTime = delay();
-              addLog(\`⏳ انتظار \${Math.round(waitTime/1000)} ثانية قبل التالي...\`, 'info');
-              await new Promise(resolve => setTimeout(resolve, waitTime));
-            }
           }
 
           isRunning = false;
@@ -1420,10 +1415,9 @@ async function sendBulkWhatsApp() {
           addLog('⏹️ تم إيقاف الإرسال... يمكنك استئنافه لاحقاً', 'info');
         }
 
-        // إضافة رسالة ترحيب
         addLog('📋 تم تجهيز ' + sendList.length + ' رسالة للعملاء', 'info');
-        addLog('🔑 تم التحقق من مفتاح API', 'info');
-        addLog('💡 اضغط "بدء الإرسال" لبدء عملية الإرسال عبر إنجازاتك', 'info');
+        addLog('🔑 سيتم الإرسال عبر السيرفر (آمن)', 'info');
+        addLog('💡 اضغط "بدء الإرسال" لبدء عملية الإرسال', 'info');
       </script>
     </body>
     </html>
@@ -1435,8 +1429,9 @@ async function sendBulkWhatsApp() {
   if (document.getElementById('selectAllCheckbox')) document.getElementById('selectAllCheckbox').checked = false;
   selectedOrderIds.clear();
   updateBulkControls();
-  showNotification(`✅ تم تجهيز ${sendList.length} رسالة للإرسال عبر API`, 'success');
+  showNotification(`✅ تم تجهيز ${sendList.length} رسالة للإرسال عبر السيرفر`, 'success');
 }
+
 
 // ==================== الترقيم الآلي ====================
 function getAutoNumberKeyForCompany(companyId) {
