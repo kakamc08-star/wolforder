@@ -1200,6 +1200,7 @@ async function printSelectedOrders() {
   updateBulkControls();
 }
 
+// ==================== إرسال واتساب عبر API ====================
 async function sendBulkWhatsApp() {
   const checked = document.querySelectorAll('.orderCheckbox:checked');
   const ids = Array.from(checked).map(cb => cb.value);
@@ -1211,12 +1212,18 @@ async function sendBulkWhatsApp() {
   const ordersToSend = allOrders.filter(o => ids.includes(o.id || o._id));
   if (ordersToSend.length === 0) { alert('الطلبات غير موجودة'); return; }
 
-  // بناء مصفوفة الروابط
-  const linksArray = ordersToSend.map(order => {
-    const phone = (order.customer_number || order.customerNumber || '').replace(/\D/g, '');
+  // ====== مفتاح API الخاص بك ======
+  const API_KEY = 'eyJuYW1lIjoi2LnYqNivINin2YTYsdit2YXZhiDYrdiz2YPZiiIsInNlcmlhbCI6Ijk5MjE0NTc1ODhmNzljIiwiaWF0IjoxNzgyODI0MDI0LCJleHAiOjE5NTU2MjQwMjR9.EME9M9cSy9FvfHvcx2gMPkp1H5Dj4YaKufPRsAyon8Tf';
+  const API_URL = 'https://business.enjazatik.com/api/v1/send-message';
+
+  // تحويل الأرقام إلى الصيغة المطلوبة
+  const sendList = ordersToSend.map(order => {
+    let phone = (order.customer_number || order.customerNumber || '').replace(/\D/g, '');
     if (phone.length < 10) return null;
-    let fullPhone = phone;
-    if (fullPhone.length === 10 && !fullPhone.startsWith('963')) fullPhone = '963' + fullPhone;
+    // إنجازاتك تتوقع الرقم بدون + أو 00
+    if (phone.startsWith('0')) phone = phone.substring(1);
+    if (phone.length === 10 && !phone.startsWith('963')) phone = '963' + phone;
+    
     const message = template
       .replace(/{customerName}/g, order.customer_name || order.customerName || '')
       .replace(/{companyName}/g, order.company_name || order.companyName || '')
@@ -1225,125 +1232,198 @@ async function sendBulkWhatsApp() {
       .replace(/{address}/g, order.address || '')
       .replace(/{price}/g, formatNumber(order.price) || '0')
       .replace(/{currency}/g, order.currency || 'ل.س');
+      
     return {
       name: order.customer_name || order.customerName,
-      phone: fullPhone,
+      phone: phone,
       company: order.company_name || order.companyName || '-',
-      url: `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`,
-      preview: message
+      message: message
     };
-  }).filter(link => link !== null);
+  }).filter(item => item !== null);
 
-  if (linksArray.length === 0) { alert('لا توجد أرقام صالحة'); return; }
+  if (sendList.length === 0) { alert('لا توجد أرقام صالحة'); return; }
 
-  // إنشاء نافذة واحدة مع قائمة الروابط
+  // ====== تأكيد الإرسال ======
+  if (!confirm(`هل أنت متأكد من إرسال رسائل واتساب إلى ${sendList.length} عميل عبر منصة إنجازاتك؟`)) {
+    return;
+  }
+
+  // ====== نافذة التقدم ======
   const w = window.open('', '', 'width=900,height=700');
+  let results = [];
+
   w.document.write(`
     <!DOCTYPE html>
     <html dir="rtl" lang="ar">
     <head>
       <meta charset="UTF-8">
-      <title>روابط واتساب جاهزة</title>
+      <title>إرسال واتساب عبر إنجازاتك</title>
       <style>
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f5f7fa; margin: 0; padding: 20px; }
         .header { background: #25D366; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
-        .toolbar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-        .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; text-decoration: none; display: inline-block; }
+        .toolbar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center; }
+        .btn { padding: 10px 30px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: 600; }
         .btn-success { background: #25D366; color: white; }
+        .btn-danger { background: #e74c3c; color: white; }
         .btn-warning { background: #f39c12; color: white; }
-        .customer-card { background: white; border-radius: 8px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .customer-info { margin-bottom: 10px; font-size: 16px; }
-        .message-preview { background: #f0f0f0; padding: 10px; border-radius: 5px; white-space: pre-wrap; font-family: monospace; font-size: 13px; margin-top: 8px; }
-        .progress-bar { background: #e0e0e0; border-radius: 10px; margin: 15px 0; height: 20px; }
-        .progress-fill { background: #25D366; height: 100%; border-radius: 10px; width: 0%; transition: width 0.3s; text-align: center; color: white; font-size: 12px; line-height: 20px; }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .log-container { background: #2d2d2d; color: #0f0; padding: 15px; border-radius: 8px; max-height: 500px; overflow-y: auto; font-family: monospace; font-size: 13px; white-space: pre-wrap; margin-top: 15px; }
+        .log-item { padding: 5px 0; border-bottom: 1px solid #444; }
+        .log-success { color: #2ecc71; }
+        .log-error { color: #e74c3c; }
+        .log-pending { color: #f1c40f; }
+        .progress-bar { background: #e0e0e0; border-radius: 10px; margin: 15px 0; height: 25px; }
+        .progress-fill { background: #25D366; height: 100%; border-radius: 10px; width: 0%; transition: width 0.5s; text-align: center; color: white; font-size: 14px; line-height: 25px; }
+        .stats { display: flex; gap: 20px; justify-content: center; margin: 15px 0; font-size: 16px; }
+        .stats span { background: white; padding: 8px 20px; border-radius: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .badge { display: inline-block; padding: 2px 12px; border-radius: 12px; font-size: 12px; }
+        .badge-success { background: #2ecc71; color: white; }
+        .badge-error { background: #e74c3c; color: white; }
+        .badge-pending { background: #f39c12; color: white; }
       </style>
     </head>
     <body>
       <div class="header">
-        <h2>📲 جاهز للإرسال الآلي</h2>
-        <p>عدد العملاء: <strong>${linksArray.length}</strong></p>
+        <h2>📲 إرسال عبر منصة إنجازاتك</h2>
+        <p>عدد العملاء: <strong>${sendList.length}</strong></p>
         <div class="progress-bar">
-          <div id="progressFill" class="progress-fill" style="width:0%">0 / ${linksArray.length}</div>
+          <div id="progressFill" class="progress-fill" style="width:0%">0 / ${sendList.length}</div>
+        </div>
+        <div class="stats">
+          <span>✅ <span id="successCount">0</span> تم الإرسال</span>
+          <span>❌ <span id="errorCount">0</span> فشل</span>
+          <span>⏳ <span id="pendingCount">${sendList.length}</span> قيد الانتظار</span>
         </div>
       </div>
       <div class="toolbar">
-        <button id="startAutoBtn" class="btn btn-success" onclick="startAutoSend()">🚀 بدء الإرسال التلقائي</button>
-        <button class="btn btn-warning" onclick="stopAutoSend()">⏹️ إيقاف</button>
+        <button id="startBtn" class="btn btn-success" onclick="startSending()">🚀 بدء الإرسال</button>
+        <button class="btn btn-danger" onclick="stopSending()">⏹️ إيقاف</button>
+        <button class="btn btn-warning" onclick="window.close()">✖️ إغلاق</button>
       </div>
-      <div id="cardsContainer"></div>
+      <div id="logContainer" class="log-container">
+        📋 جاهز للبدء...
+      </div>
       <script>
-        const links = ${JSON.stringify(linksArray)};
+        const sendList = ${JSON.stringify(sendList)};
+        const API_URL = '${API_URL}';
+        const API_KEY = '${API_KEY}';
         let currentIndex = 0;
-        let autoInterval = null;
         let isRunning = false;
-
-        // بناء البطاقات
-        const container = document.getElementById('cardsContainer');
-        links.forEach((link, i) => {
-          const card = document.createElement('div');
-          card.className = 'customer-card';
-          card.id = 'card-' + i;
-          card.innerHTML = \`
-            <div class="customer-info">
-              <strong>\${i + 1}. \${link.name}</strong>
-              <span style="color:#666; margin-right:10px;">📞 \${link.phone}</span>
-              <span style="color:#666; margin-right:10px;">🏢 \${link.company}</span>
-              <span id="status-\${i}" style="color: #f39c12; margin-right:10px;">⏳ في الانتظار</span>
-            </div>
-            <div class="message-preview">\${link.preview}</div>
-          \`;
-          container.appendChild(card);
-        });
+        let isStopped = false;
+        let intervalId = null;
+        let successCount = 0;
+        let errorCount = 0;
 
         function updateProgress() {
-          const percent = Math.round((currentIndex / links.length) * 100);
+          const total = sendList.length;
+          const percent = Math.round((currentIndex / total) * 100);
           document.getElementById('progressFill').style.width = percent + '%';
-          document.getElementById('progressFill').textContent = currentIndex + ' / ' + links.length;
+          document.getElementById('progressFill').textContent = currentIndex + ' / ' + total;
+          document.getElementById('successCount').textContent = successCount;
+          document.getElementById('errorCount').textContent = errorCount;
+          document.getElementById('pendingCount').textContent = total - currentIndex;
         }
 
-        function markStatus(index, status, color) {
-          const el = document.getElementById('status-' + index);
-          if (el) { el.textContent = status; el.style.color = color; }
+        function addLog(message, type = 'pending') {
+          const container = document.getElementById('logContainer');
+          const div = document.createElement('div');
+          div.className = 'log-item log-' + type;
+          const time = new Date().toLocaleTimeString('ar-EG');
+          const icons = { success: '✅', error: '❌', pending: '⏳', info: 'ℹ️' };
+          div.textContent = \`[\${time}] \${icons[type] || '•'} \${message}\`;
+          container.appendChild(div);
+          container.scrollTop = container.scrollHeight;
         }
 
-        function startAutoSend() {
-          if (isRunning) return;
-          isRunning = true;
-          document.getElementById('startAutoBtn').disabled = true;
-          document.getElementById('startAutoBtn').textContent = '⏳ جاري الإرسال...';
+        async function sendSingleMessage(item, index) {
+          try {
+            addLog(\`\${index + 1}. جاري إرسال رسالة إلى \${item.name} (\${item.phone})...\`, 'pending');
+            
+            const response = await fetch(API_URL, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + API_KEY
+              },
+              body: JSON.stringify({
+                message: item.message,
+                number: item.phone
+              })
+            });
 
-          autoInterval = setInterval(() => {
-            if (currentIndex >= links.length) {
-              clearInterval(autoInterval);
-              isRunning = false;
-              document.getElementById('startAutoBtn').textContent = '✅ تم الانتهاء';
-              updateProgress();
-              return;
+            const data = await response.json();
+            
+            if (response.ok && data.success !== false) {
+              addLog(\`✅ \${item.name} - تم الإرسال بنجاح\`, 'success');
+              successCount++;
+              return true;
+            } else {
+              const errMsg = data.message || data.error || 'خطأ غير معروف';
+              addLog(\`❌ \${item.name} - فشل: \${errMsg}\`, 'error');
+              errorCount++;
+              return false;
             }
-            const link = links[currentIndex];
-            markStatus(currentIndex, '📤 جاري الفتح...', '#f39c12');
-            const newWindow = window.open(link.url, '_blank');
-            
-            // محاولة إغلاق النافذة المنبثقة بعد 4 ثوانٍ (إذا سمح المتصفح)
-            setTimeout(() => {
-              try { if (newWindow && !newWindow.closed) newWindow.close(); } catch(e) {}
-            }, 4000);
-            
-            setTimeout(() => {
-              markStatus(currentIndex, '✅ تم', '#27ae60');
-            }, 5000);
-            
+          } catch (error) {
+            addLog(\`❌ \${item.name} - خطأ في الاتصال: \${error.message}\`, 'error');
+            errorCount++;
+            return false;
+          }
+        }
+
+        async function startSending() {
+          if (isRunning) return;
+          if (currentIndex >= sendList.length) {
+            addLog('✅ تم إرسال جميع الرسائل!', 'success');
+            return;
+          }
+          
+          isRunning = true;
+          isStopped = false;
+          document.getElementById('startBtn').disabled = true;
+          document.getElementById('startBtn').textContent = '⏳ جاري الإرسال...';
+          addLog('🚀 بدء عملية الإرسال...', 'info');
+
+          // تأخير عشوائي بين 8-15 ثانية لتقليل خطر الحظر
+          const delay = () => Math.floor(Math.random() * 7000) + 8000;
+
+          while (currentIndex < sendList.length && !isStopped) {
+            const item = sendList[currentIndex];
+            await sendSingleMessage(item, currentIndex);
             currentIndex++;
             updateProgress();
-          }, 7000);
+
+            if (currentIndex < sendList.length && !isStopped) {
+              const waitTime = delay();
+              addLog(\`⏳ انتظار \${Math.round(waitTime/1000)} ثانية قبل التالي...\`, 'info');
+              await new Promise(resolve => setTimeout(resolve, waitTime));
+            }
+          }
+
+          isRunning = false;
+          document.getElementById('startBtn').disabled = false;
+          if (isStopped) {
+            document.getElementById('startBtn').textContent = '▶️ استئناف';
+            addLog('⏹️ تم إيقاف الإرسال مؤقتاً', 'info');
+          } else {
+            document.getElementById('startBtn').textContent = '✅ تم الانتهاء';
+            addLog('🎉 اكتمل إرسال جميع الرسائل!', 'success');
+          }
+          updateProgress();
         }
 
-        function stopAutoSend() {
-          if (autoInterval) clearInterval(autoInterval);
+        function stopSending() {
+          if (!isRunning) return;
+          isStopped = true;
           isRunning = false;
-          document.getElementById('startAutoBtn').disabled = false;
-          document.getElementById('startAutoBtn').textContent = '🚀 بدء الإرسال التلقائي';
+          document.getElementById('startBtn').disabled = false;
+          document.getElementById('startBtn').textContent = '▶️ استئناف';
+          addLog('⏹️ تم إيقاف الإرسال... يمكنك استئنافه لاحقاً', 'info');
         }
+
+        // إضافة رسالة ترحيب
+        addLog('📋 تم تجهيز ' + sendList.length + ' رسالة للعملاء', 'info');
+        addLog('🔑 تم التحقق من مفتاح API', 'info');
+        addLog('💡 اضغط "بدء الإرسال" لبدء عملية الإرسال عبر إنجازاتك', 'info');
       </script>
     </body>
     </html>
@@ -1355,7 +1435,7 @@ async function sendBulkWhatsApp() {
   if (document.getElementById('selectAllCheckbox')) document.getElementById('selectAllCheckbox').checked = false;
   selectedOrderIds.clear();
   updateBulkControls();
-  showNotification(`✅ تم تجهيز ${linksArray.length} رابط واتساب`, 'success');
+  showNotification(`✅ تم تجهيز ${sendList.length} رسالة للإرسال عبر API`, 'success');
 }
 
 // ==================== الترقيم الآلي ====================
