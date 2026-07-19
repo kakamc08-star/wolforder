@@ -650,22 +650,67 @@ async function exportReport() {
   const driverId = document.getElementById('reportDriver').value;
   const companyId = document.getElementById('reportCompany').value;
 
-  let url = '/api/orders/report?export=excel&';
+  // بناء URL لجلب البيانات كـ JSON (بدون export=excel)
+  let url = '/api/orders/report?';
   if (status) url += `status=${status}&`;
   if (driverId) url += `driverId=${driverId}&`;
   if (companyId) url += `companyId=${companyId}&`;
 
   try {
     const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
-    if (!res.ok) throw new Error('فشل تصدير التقرير');
-    const blob = await res.blob();
+    if (!res.ok) throw new Error('فشل جلب البيانات للتصدير');
+    const data = await res.json();
+    const orders = data.orders || [];
+
+    if (orders.length === 0) {
+      alert('لا توجد بيانات للتصدير');
+      return;
+    }
+
+    // أسماء الأعمدة (بنفس ترتيب العينة)
+    const headers = ['الرقم التسلسلي', 'رقم الطلب', 'محتويات الطلب', 'اسم العميل', 'رقم العميل', 'العنوان', 'السعر', 'النسبة', 'الحالة', 'ملاحظة', 'السائق', 'الشركة', 'التاريخ'];
+
+    // بناء صفوف البيانات
+    const rows = orders.map((o, index) => {
+      const serial = o.serial_number || o.serialNumber || '';
+      const orderNumber = o.order_number || o.orderNumber || '';
+      const contents = o.order_contents || o.orderContents || '';
+      const customerName = o.customer_name || o.customerName || '';
+      const customerNumber = o.customer_number || o.customerNumber || '';
+      const address = o.address || '';
+      const price = formatNumber(o.price) || '0';
+      const ratio = formatNumber(o.ratio || 0) || '0';
+      const statusVal = o.status || '';
+      const note = o.note || '';
+      const driver = o.driver_name || o.driverName || '';
+      const company = o.company_name || o.companyName || '';
+      const date = formatDate(o.created_at || o.createdAt) || '';
+      return [serial, orderNumber, contents, customerName, customerNumber, address, price, ratio, statusVal, note, driver, company, date];
+    });
+
+    // دالة لتنسيق الحقل لـ CSV (بين علامات اقتباس، وتضاعف علامات الاقتباس الداخلية)
+    function escapeCsvField(field) {
+      if (field === null || field === undefined) return '""';
+      const str = String(field);
+      // نضع كل الحقول بين علامات اقتباس لتجنب مشاكل الفواصل والفواصل المنقوطة
+      return '"' + str.replace(/"/g, '""') + '"';
+    }
+
+    // إنشاء المحتوى النهائي
+    const headerRow = headers.map(h => escapeCsvField(h)).join(';');
+    const dataRows = rows.map(row => row.map(field => escapeCsvField(field)).join(';'));
+    const csvContent = [headerRow, ...dataRows].join('\n');
+
+    // إضافة BOM (علامة ترتيب البايت) لدعم الترميز العربي
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = `تقرير_الطلبات_${formatDate(new Date()).replace(/\//g, '-')}.csv`;
     a.click();
     showNotification('✅ تم تصدير التقرير بنجاح');
   } catch (err) {
-    alert('❌ خطأ في تصدير التقرير');
+    alert('❌ خطأ في تصدير التقرير: ' + err.message);
   }
 }
 
