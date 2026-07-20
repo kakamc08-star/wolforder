@@ -14,7 +14,7 @@ const urlsToCache = [
 ];
 
 self.addEventListener('install', event => {
-  self.skipWaiting(); // تفعيل الـ Service Worker الجديد فوراً دون انتظار إغلاق التبويبات
+  // تم إزالة self.skipWaiting() من هنا لكي ينتظر الإذن من رسالة الواجهة الأمامية
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache).catch(console.warn))
   );

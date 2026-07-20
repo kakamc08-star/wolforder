@@ -465,5 +465,122 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+// ==================== الترقيم الآلي للشركة ====================
+
+// الحصول على معرف الشركة الحالية المسجلة دخولاً
+function getCurrentCompanyId() {
+  // استبدل هذا السطر بالطريقة التي تخزن بها معرف الشركة الحالية في الجلسة لديك (مثلاً localStorage أو متغير عام)
+  const user = JSON.parse(localStorage.getItem('currentUser')) || {};
+  return user.companyId || user.id || 'default_company';
+}
+
+function getAutoNumberKeyForCurrentCompany() {
+  const companyId = getCurrentCompanyId();
+  return `autoOrderNumber_company_${companyId}`;
+}
+
+function getAutoToggleKeyForCurrentCompany() {
+  const companyId = getCurrentCompanyId();
+  return `autoToggle_company_${companyId}`;
+}
+
+function loadAutoOrderNumberForCompany() {
+  const input = document.getElementById('orderNumber');
+  const manualToggle = document.getElementById('manualOrderToggle');
+  
+  if (!input) return;
+
+  const toggleKey = getAutoToggleKeyForCurrentCompany();
+  const isManual = localStorage.getItem(toggleKey) === 'true';
+
+  if (manualToggle) manualToggle.checked = isManual;
+
+  if (isManual) {
+    input.readOnly = false; // السماح بالكتابة اليدوية الكاملة
+    return;
+  }
+
+  input.readOnly = true; // قفل الحقل للترقيم الآلي
+  const key = getAutoNumberKeyForCurrentCompany();
+  const lastNumber = parseInt(localStorage.getItem(key), 10);
+
+  if (!isNaN(lastNumber) && lastNumber > 0) {
+    input.value = lastNumber + 1;
+  } else {
+    input.value = 1; // نقطة بداية افتراضية
+  }
+}
+
+// تحديد رقم بداية مخصص للشركة
+function setCustomStartNumberForCompany() {
+  const input = document.getElementById('orderNumber');
+  if (!input) return;
+  
+  const customVal = prompt("أدخل رقم البداية الجديد للطلبات:", input.value || "1");
+  const num = parseInt(customVal, 10);
+  
+  if (!isNaN(num) && num > 0) {
+    const key = getAutoNumberKeyForCurrentCompany();
+    localStorage.setItem(key, num - 1); // نحفظ الرقم السابق لكي يبدأ العد من الرقم المدخل تماماً
+    input.value = num;
+  }
+}
+
+// تبديل وضع الإدخال اليدوي أو الآلي
+function toggleManualOrderInput(checkbox) {
+  const input = document.getElementById('orderNumber');
+  if (!input) return;
+
+  const toggleKey = getAutoToggleKeyForCurrentCompany();
+  
+  if (checkbox.checked) {
+    localStorage.setItem(toggleKey, 'true');
+    input.readOnly = false;
+    input.value = '';
+    input.focus();
+  } else {
+    localStorage.setItem(toggleKey, 'false');
+    loadAutoOrderNumberForCompany();
+  }
+}
+
+// حفظ آخر رقم طلب تم إنشاؤه لتحديث العداد
+function saveLastOrderNumberForCompany(orderNumber) {
+  const num = parseInt(orderNumber, 10);
+  if (!isNaN(num) && num > 0) {
+    const key = getAutoNumberKeyForCurrentCompany();
+    localStorage.setItem(key, num);
+  }
+}
+
+function resetAutoNumber() {
+  const key = getAutoNumberKeyForCurrentCompany();
+  localStorage.removeItem(key);
+  const input = document.getElementById('orderNumber');
+  if (input) {
+    input.value = '';
+    input.focus();
+  }
+}
+
+// استدعاء الدالة تلقائياً عند فتح الصفحة أو تحميل لوحة التحكم
+document.addEventListener('DOMContentLoaded', () => {
+  loadAutoOrderNumberForCompany();
+  
+  // عند نجاح إنشاء طلب جديد، تأكد من حفظ الرقم الحالي للعداد
+  const form = document.getElementById('createOrderForm');
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      const orderNumInput = document.getElementById('orderNumber');
+      const manualToggle = document.getElementById('manualOrderToggle');
+      
+      // إذا لم يكن الوضع يدوياً، احفظ الرقم الحالي كآخر رقم مستخدم
+      if (orderNumInput && (!manualToggle || !manualToggle.checked)) {
+        saveLastOrderNumberForCompany(orderNumInput.value);
+      }
+    });
+  }
+});
+
 // ==================== بدء التطبيق ====================
 fetchOrders();

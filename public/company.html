@@ -31,23 +31,41 @@
     </div>
   </div>
   
+
+<!-- إنشاء طلب جديد في لوحة الشركة -->
 <div class="card">
   <h2>➕ إنشاء طلب جديد</h2>
   <form id="createOrderForm">
     <div class="form-row">
-      <div class="form-group"><label for="orderNumber">رقم الطلب *</label><input type="text" id="orderNumber" required></div>
-      <div class="form-group"><label for="orderContents">محتويات الطلب *</label><input type="text" id="orderContents" required ></div>
+      <div class="form-group">
+        <label for="orderNumber">رقم الطلب *</label>
+        <div style="display: flex; gap: 5px; align-items: center; flex-wrap: wrap;">
+          <input type="text" id="orderNumber" required style="flex: 1; min-width: 120px;">
+          <!-- زر لتحديد رقم البداية المخصص -->
+          <button type="button" class="btn btn-sm btn-secondary" onclick="setCustomStartNumberForCompany()" title="تحديد رقم البداية">🎯 البداية</button>
+          <!-- زر إعادة تعيين أو مسح العداد -->
+          <button type="button" class="btn btn-sm btn-secondary" onclick="resetAutoNumber()" title="إعادة تعيين العداد">↺</button>
+        </div>
+        <!-- خانة تفعيل/إلغاء الترقيم الآلي -->
+        <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
+          <input type="checkbox" id="manualOrderToggle" onchange="toggleManualOrderInput(this)" style="width: auto; margin: 0;">
+          <label for="manualOrderToggle" style="margin-bottom: 0; font-size: 13px; cursor: pointer;">إدخال يدوي (إلغاء الترقيم الآلي)</label>
+        </div>
+      </div>
+      <div class="form-group"><label for="orderContents">محتويات الطلب*</label><input type="text" id="orderContents" required></div>
       <div class="form-group"><label for="customerName">اسم العميل *</label><input type="text" id="customerName" required></div>
-      <div class="form-group"><label for="customerNumber">رقم العميل</label><input type="text" id="customerNumber" pattern="\d{10}" title="يجب إدخال 10 أرقام" required></div>
+      <div class="form-group"><label for="customerNumber">رقم العميل *</label><input type="text" id="customerNumber" required></div>
       <div class="form-group"><label for="address">العنوان *</label><input type="text" id="address" required></div>
     </div>
     <div class="form-row">
-      <div class="form-group" style="max-width: 150px;"><label for="price">السعر *</label><input id="price" required ></div>
+      <div class="form-group"><label for="price">السعر *</label><input id="price" required></div>
       <div class="form-group" style="max-width: 100px;"><label for="currency">العملة</label><select id="currency" ><option value="ل.س" selected>ل.س</option><option value="دولار">دولار</option></select></div>
+      <div class="form-group"><label for="ratio">النسبة</label><input id="ratio" value="0"></div>
     </div>
     <button type="submit" class="btn btn-primary">إنشاء الطلب</button>
   </form>
 </div>
+
 
   <div class="card">
     <h2>📋 طلبات الشركة</h2>

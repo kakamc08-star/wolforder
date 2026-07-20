@@ -1,14 +1,214 @@
+// ==================== 1. تعريف المتغيرات والاتصال الفوري (WebSocket) أولاً ====================
+const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const wsUrl = `${wsProtocol}//${window.location.host}`;
+
+let socket;
+
+function connectWebSocket() {
+  socket = new WebSocket(wsUrl);
+
+  socket.onopen = () => {
+    console.log('🟢 تم الاتصال الفوري بالسيرفر بنجاح');
+  };
+
+  socket.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      if (data.type === 'ORDER_UPDATED' || data.type === 'ORDER_CREATED' || data.type === 'ORDER_DELETED') {
+        console.log('🔄 جاري تحديث الطلبات فوراً...');
+        if (typeof fetchOrders === 'function') fetchOrders();
+      }
+    } catch (err) {
+      console.error('❌ خطأ في قراءة بيانات WebSocket:', err);
+    }
+  };
+
+  socket.onclose = () => {
+    console.log('⚠️ انقطع الاتصال الفوري، جاري المحاولة بعد 5 ثوانٍ...');
+    setTimeout(connectWebSocket, 5000); 
+  };
+
+  socket.onerror = (error) => {
+    console.error('❌ خطأ في الاتصال الفوري:', error);
+    socket.close();
+  };
+}
+
+
+// ==================== 2. المصادقة والتحقق من الصلاحيات ====================
 const token = localStorage.getItem('token');
 const userStr = localStorage.getItem('user');
-if (!token || !userStr) window.location.href = 'login.html';
-const user = JSON.parse(userStr);
-if (user.role !== 'admin') { alert('غير مصرح'); window.location.href = 'login.html'; }
-document.getElementById('userNameDisplay').textContent = user.name || user.username;
 
-let autoRefresh = setInterval(fetchOrders, 10000);
+if (!token || !userStr) {
+  window.location.href = 'login.html';
+}
+
+const user = JSON.parse(userStr);
+if (user.role !== 'admin') {
+  alert('غير مصرح');
+  window.location.href = 'login.html';
+}
+
+// عرض اسم المستخدم بعد التأكد من تحميل العناصر أو استخدام DOMContentLoaded
+document.addEventListener('DOMContentLoaded', () => {
+  const userNameDisplay = document.getElementById('userNameDisplay');
+  if (userNameDisplay) {
+    userNameDisplay.textContent = user.name || user.username;
+  }
+});
+
+
+// ==================== 3. المتغيرات العامة وتشغيل الاتصال ====================
 let selectedOrderIds = new Set();
 let allOrders = [];
 let currentSort = 'default';
+
+// تشغيل الاتصال الفوري الآن بأمان بعد تعريف المتغيرات والدالة
+connectWebSocket();
+
+
+// ==================== الترقيم الآلي المطور لكل شركة ====================
+function getAutoNumberKeyForCompany(companyId) {
+  return `autoOrderNumber_company_${companyId || 'no_company'}`;
+}
+
+function getAutoToggleKeyForCompany(companyId) {
+  return `autoToggle_company_${companyId || 'no_company'}`;
+}
+
+function loadAutoOrderNumberForCompany() {
+  const companySelect = document.getElementById('companySelect');
+  const companyId = companySelect ? companySelect.value : '';
+  const input = document.getElementById('orderNumber');
+  const manualToggle = document.getElementById('manualOrderToggle');
+  
+  if (!input) return;
+
+  const toggleKey = getAutoToggleKeyForCompany(companyId);
+  const isManual = localStorage.getItem(toggleKey) === 'true';
+
+  if (manualToggle) manualToggle.checked = isManual;
+
+  if (isManual) {
+    input.readOnly = false; // السماح بالكتابة اليدوية الكاملة
+    return;
+  }
+
+  input.readOnly = true; // قفل الحقل للترقيم الآلي
+  const key = getAutoNumberKeyForCompany(companyId);
+  const lastNumber = parseInt(localStorage.getItem(key), 10);
+
+  if (!isNaN(lastNumber) && lastNumber > 0) {
+    input.value = lastNumber + 1;
+  } else {
+    input.value = 1; // نقطة بداية افتراضية
+  }
+}
+
+// تحديد رقم بداية مخصص للشركة
+function setCustomStartNumberForCompany() {
+  const companySelect = document.getElementById('companySelect');
+  const companyId = companySelect ? companySelect.value : '';
+  const input = document.getElementById('orderNumber');
+  
+  if (!input) return;
+  
+  const customVal = prompt("أدخل رقم البداية الجديد لهذه الشركة:", input.value || "1");
+  const num = parseInt(customVal, 10);
+  
+  if (!isNaN(num) && num > 0) {
+    const key = getAutoNumberKeyForCompany(companyId);
+    localStorage.setItem(key, num - 1); // نحفظ الرقم السابق لكي يبدأ العد من الرقم المدخل تماماً
+    input.value = num;
+  }
+}
+
+// تبديل وضع الإدخال اليدوي أو الآلي
+function toggleManualOrderInput(checkbox) {
+  const companySelect = document.getElementById('companySelect');
+  const companyId = companySelect ? companySelect.value : '';
+  const input = document.getElementById('orderNumber');
+  
+  if (!input) return;
+
+  const toggleKey = getAutoToggleKeyForCompany(companyId);
+  
+  if (checkbox.checked) {
+    localStorage.setItem(toggleKey, 'true');
+    input.readOnly = false;
+    input.value = '';
+    input.focus();
+  } else {
+    localStorage.setItem(toggleKey, 'false');
+    loadAutoOrderNumberForCompany();
+  }
+}
+
+// حفظ آخر رقم طلب تم إنشاؤه لتحديث العداد
+function saveLastOrderNumberForCompany(companyId, orderNumber) {
+  const num = parseInt(orderNumber, 10);
+  if (!isNaN(num) && num > 0) {
+    const key = getAutoNumberKeyForCompany(companyId);
+    localStorage.setItem(key, num);
+  }
+}
+
+function resetAutoNumber() {
+  const companySelect = document.getElementById('companySelect');
+  const companyId = companySelect ? companySelect.value : '';
+  const key = getAutoNumberKeyForCompany(companyId);
+  localStorage.removeItem(key);
+  const input = document.getElementById('orderNumber');
+  if (input) {
+    input.value = '';
+    input.focus();
+  }
+}
+
+
+// ==================== إدراج المتغيرات في قالب الرسائل ====================
+function insertVariable(variable) {
+  const textarea = document.getElementById('messageTemplate');
+  if (!textarea) return;
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const text = textarea.value;
+  textarea.value = text.substring(0, start) + variable + text.substring(end);
+  textarea.focus();
+  textarea.setSelectionRange(start + variable.length, start + variable.length);
+}
+
+
+// ==================== تهيئة الأحداث عند تحميل الصفحة ====================
+document.addEventListener('DOMContentLoaded', () => {
+  // تشغيل الاتصال الفوري
+  connectWebSocket();
+
+  // ربط تغير الشركة بدالة جلب رقم الطلب الآلي
+  const companySelect = document.getElementById('companySelect');
+  if (companySelect) {
+    companySelect.addEventListener('change', loadAutoOrderNumberForCompany);
+    loadAutoOrderNumberForCompany(); // تحميل أولي عند فتح الصفحة
+  }
+
+  // حفظ الرقم عند إرسال النموذج بنجاح
+  const createOrderForm = document.getElementById('createOrderForm');
+  if (createOrderForm) {
+    createOrderForm.addEventListener('submit', () => {
+      const compSelect = document.getElementById('companySelect');
+      const orderNumInput = document.getElementById('orderNumber');
+      const manualToggle = document.getElementById('manualOrderToggle');
+      
+      const compId = compSelect ? compSelect.value : '';
+      
+      // إذا لم يكن الوضع يدوياً، نقوم بحفظ الرقم الحالي كآخر رقم مستخدم لهذه الشركة
+      if (orderNumInput && (!manualToggle || !manualToggle.checked)) {
+        saveLastOrderNumberForCompany(compId, orderNumInput.value);
+      }
+    });
+  }
+});
+
 
 // ==================== دوال مساعدة ====================
 function setSortAndRender(direction) {
@@ -208,20 +408,30 @@ function renderOrdersTable(orders) {
 function filterOrdersBySearch(orders, searchText) {
   if (!searchText.trim()) return orders;
   const searchLower = searchText.trim().toLowerCase();
+  
   return orders.filter(o => {
     return (
-      (o.order_number && o.order_number.toLowerCase().includes(searchLower)) ||
-      (o.orderNumber && o.orderNumber.toLowerCase().includes(searchLower)) ||
-      (o.customer_name && o.customer_name.toLowerCase().includes(searchLower)) ||
-      (o.customerName && o.customerName.toLowerCase().includes(searchLower)) ||
-      (o.customer_number && o.customer_number.toString().includes(searchLower)) ||
-      (o.customerNumber && o.customerNumber.toString().includes(searchLower)) ||
-      (o.address && o.address.toLowerCase().includes(searchLower)) ||
-      (o.driver_name && o.driver_name.toLowerCase().includes(searchLower)) ||
-      (o.driverName && o.driverName.toLowerCase().includes(searchLower)) ||
-      (o.company_name && o.company_name.toLowerCase().includes(searchLower)) ||
-      (o.companyName && o.companyName.toLowerCase().includes(searchLower)) ||
-      (o.note && o.note.toLowerCase().includes(searchLower))
+      // 1. رقم الطلب (أساسي)
+      (o.order_number && String(o.order_number).toLowerCase().includes(searchLower)) ||
+      (o.orderNumber && String(o.orderNumber).toLowerCase().includes(searchLower)) ||
+      
+      // 2. محتويات الطلب (الإضافة الجديدة)
+      (o.order_contents && String(o.order_contents).toLowerCase().includes(searchLower)) ||
+      (o.orderContents && String(o.orderContents).toLowerCase().includes(searchLower)) ||
+      
+      // 3. اسم العميل
+      (o.customer_name && String(o.customer_name).toLowerCase().includes(searchLower)) ||
+      (o.customerName && String(o.customerName).toLowerCase().includes(searchLower)) ||
+      
+      // 4. رقم العميل
+      (o.customer_number && String(o.customer_number).toLowerCase().includes(searchLower)) ||
+      (o.customerNumber && String(o.customerNumber).toLowerCase().includes(searchLower)) ||
+      
+      // 5. العنوان
+      (o.address && String(o.address).toLowerCase().includes(searchLower)) ||
+      
+      // 6. الملاحظات
+      (o.note && String(o.note).toLowerCase().includes(searchLower))
     );
   });
 }
@@ -873,10 +1083,20 @@ if (userForm) {
   });
 }
 
+
 // ==================== تهيئة الصفحة ====================
+let searchTimeout;
+
 document.addEventListener('DOMContentLoaded', function() {
   const searchInput = document.getElementById('searchInput');
-  if (searchInput) searchInput.addEventListener('input', applyFiltersAndRender);
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        applyFiltersAndRender();
+      }, 300);
+    });
+  }
 
   const today = new Date();
   const yyyy = today.getFullYear();
@@ -894,6 +1114,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadAutoOrderNumberForCompany();
   }
 });
+
 
 // ==================== PWA ====================
 if ('serviceWorker' in navigator) {
@@ -1478,23 +1699,85 @@ async function sendBulkWhatsApp() {
 }
 
 
-// ==================== الترقيم الآلي ====================
+// ==================== الترقيم الآلي المطور ====================
 function getAutoNumberKeyForCompany(companyId) {
   return `autoOrderNumber_company_${companyId || 'no_company'}`;
+}
+
+// مفتاح حالة الترقيم الآلي (هل هو مفعل أم معطل يدوياً لهذه الشركة)
+function getAutoToggleKeyForCompany(companyId) {
+  return `autoToggle_company_${companyId || 'no_company'}`;
 }
 
 function loadAutoOrderNumberForCompany() {
   const companySelect = document.getElementById('companySelect');
   const companyId = companySelect ? companySelect.value : '';
+  const input = document.getElementById('orderNumber');
+  const manualToggle = document.getElementById('manualOrderToggle'); // زر تفعيل/إلغاء الترقيم الآلي (إن وجد)
+  
+  if (!input) return;
+
+  const toggleKey = getAutoToggleKeyForCompany(companyId);
+  const isManual = localStorage.getItem(toggleKey) === 'true';
+
+  // إذا كان المستخدم مفعل الوضع اليدوي
+  if (manualToggle) manualToggle.checked = isManual;
+
+  if (isManual) {
+    input.readOnly = false; // السماح بالكتابة اليدوية الكاملة
+    return;
+  }
+
+  // وضع الترقيم الآلي
+  input.readOnly = true; // جعل الحقل للقراءة فقط لعدم التلاعب بالترقيم الآلي
   const key = getAutoNumberKeyForCompany(companyId);
   const lastNumber = parseInt(localStorage.getItem(key), 10);
-  const input = document.getElementById('orderNumber');
-  if (!input) return;
 
   if (!isNaN(lastNumber) && lastNumber > 0) {
     input.value = lastNumber + 1;
   } else {
-    input.value = '';
+    // إذا لم يكن هناك رقم مخزن سابقاً، يمكنك تعيين رقم بداية افتراضي (مثلاً يبدأ من 1 أو بناءً على رغبتك)
+    input.value = 1; 
+  }
+}
+
+// دالة لتحديد رقم بداية معين للشركة يدوياً
+function setCustomStartNumberForCompany() {
+  const companySelect = document.getElementById('companySelect');
+  const companyId = companySelect ? companySelect.value : '';
+  const input = document.getElementById('orderNumber');
+  
+  if (!input) return;
+  
+  const customVal = prompt("أدخل رقم البداية الجديد لهذه الشركة:", input.value || "1");
+  const num = parseInt(customVal, 10);
+  
+  if (!isNaN(num) && num > 0) {
+    // نحفظ الرقم السابق للرقم المدخل بحيث لو زاد يعطي الرقم المدخل تماماً
+    const key = getAutoNumberKeyForCompany(companyId);
+    localStorage.setItem(key, num - 1);
+    input.value = num;
+  }
+}
+
+// تبديل وضع الترقيم (آلي أو يدوي)
+function toggleManualOrderInput(checkbox) {
+  const companySelect = document.getElementById('companySelect');
+  const companyId = companySelect ? companySelect.value : '';
+  const input = document.getElementById('orderNumber');
+  
+  if (!input) return;
+
+  const toggleKey = getAutoToggleKeyForCompany(companyId);
+  
+  if (checkbox.checked) {
+    localStorage.setItem(toggleKey, 'true');
+    input.readOnly = false; // السماح بالكتابة اليدوية
+    input.value = ''; // تفريغ الحقل لتكتبه يدوياً
+    input.focus();
+  } else {
+    localStorage.setItem(toggleKey, 'false');
+    loadAutoOrderNumberForCompany(); // إعادة تحميل الترقيم الآلي
   }
 }
 
@@ -1536,4 +1819,3 @@ fetchEditRequests();
 loadAdminPhone();
 loadMessageTemplate();
 loadUsersListForManagement();
-setInterval(loadUsersLists, 30000);

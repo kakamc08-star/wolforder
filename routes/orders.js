@@ -170,12 +170,17 @@ router.patch('/bulk-update', authenticateToken, async (req, res) => {
 
     if (error) throw error;
 
+    // ✅ إشعار المتصفحات بحدوث تحديث على الطلبات
+    const broadcast = req.app.get('broadcast');
+    if (broadcast) broadcast({ type: 'ORDER_UPDATED' });
+
     res.json({ message: `تم تحديث ${ids.length} طلب بنجاح` });
   } catch (err) {
     console.error('Bulk update error:', err);
     res.status(500).json({ message: err.message });
   }
 });
+
 // ==================== طلبات اليوم (المسار الجذري) ====================
 router.get('/', authenticateToken, async (req, res) => {
   try {
@@ -225,7 +230,6 @@ if (startDate || endDate) {
     if (error) throw error;
 
     // 7. الفلترة الافتراضية (إذا لم يتم تحديد نطاق تاريخ)
-   // 7. الفلترة الافتراضية (إذا لم يتم تحديد نطاق تاريخ)
 let filteredOrders = orders;
 if (!startDate && !endDate) {
   if (role === 'company') {
@@ -332,6 +336,10 @@ router.post('/', authenticateToken, async (req, res) => {
 
     if (error) throw error;
 
+    // ✅ إشعار المتصفحات بإنشاء طلب جديد
+    const broadcast = req.app.get('broadcast');
+    if (broadcast) broadcast({ type: 'ORDER_CREATED' });
+
     res.status(201).json(newOrder);
   } catch (err) {
     console.error('POST / error:', err);
@@ -369,6 +377,10 @@ router.patch('/:id/assign-driver', authenticateToken, async (req, res) => {
       .single();
 
     if (error) throw error;
+
+    // ✅ إشعار المتصفحات بتحديث الطلب (تعيين سائق)
+    const broadcast = req.app.get('broadcast');
+    if (broadcast) broadcast({ type: 'ORDER_UPDATED' });
 
     res.json(order);
   } catch (err) {
@@ -444,6 +456,10 @@ router.patch('/:id', authenticateToken, async (req, res) => {
 
     if (updateError) throw updateError;
 
+    // ✅ إشعار المتصفحات بتغيير حالة الطلب أو الملاحظة
+    const broadcast = req.app.get('broadcast');
+    if (broadcast) broadcast({ type: 'ORDER_UPDATED' });
+
     res.json(updatedOrder);
   } catch (err) {
     console.error('PATCH /:id error:', err);
@@ -451,7 +467,6 @@ router.patch('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// تحديث كامل للطلب (PUT /:id)
 // تحديث كامل للطلب (PUT /:id)
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
@@ -532,6 +547,10 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
     if (error) throw error;
 
+    // ✅ إشعار المتصفحات بالتحديث الكامل للطلب
+    const broadcast = req.app.get('broadcast');
+    if (broadcast) broadcast({ type: 'ORDER_UPDATED' });
+
     res.json(updatedOrder);
   } catch (err) {
     console.error('PUT /:id error:', err);
@@ -549,12 +568,15 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     const { error } = await supabase.from('orders').delete().eq('id', req.params.id);
     if (error) throw error;
 
+    // ✅ إشعار المتصفحات بحذف الطلب
+    const broadcast = req.app.get('broadcast');
+    if (broadcast) broadcast({ type: 'ORDER_DELETED' });
+
     res.json({ message: 'تم حذف الطلب بنجاح' });
   } catch (err) {
     console.error('DELETE /:id error:', err);
     res.status(500).json({ message: err.message });
   }
 });
-
 
 module.exports = router;

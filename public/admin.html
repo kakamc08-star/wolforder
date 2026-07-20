@@ -28,16 +28,24 @@
     </div>
   </div>
 
-  <!-- إنشاء طلب جديد -->
+ <!-- إنشاء طلب جديد -->
   <div class="card">
     <h2>➕ إنشاء طلب جديد</h2>
     <form id="createOrderForm">
       <div class="form-row">
         <div class="form-group">
           <label for="orderNumber">رقم الطلب *</label>
-          <div style="display: flex; gap: 5px; align-items: center;">
-            <input type="text" id="orderNumber" required style="flex: 1;">
-            <button type="button" class="btn btn-sm btn-secondary" onclick="resetAutoNumber()" title="إلغاء الترقيم الآلي">↺</button>
+          <div style="display: flex; gap: 5px; align-items: center; flex-wrap: wrap;">
+            <input type="text" id="orderNumber" required style="flex: 1; min-width: 120px;">
+            <!-- زر لتحديد رقم البداية المخصص -->
+            <button type="button" class="btn btn-sm btn-secondary" onclick="setCustomStartNumberForCompany()" title="تحديد رقم البداية">🎯 البداية</button>
+            <!-- زر إعادة تعيين أو مسح العداد -->
+            <button type="button" class="btn btn-sm btn-secondary" onclick="resetAutoNumber()" title="إعادة تعيين العداد">↺</button>
+          </div>
+          <!-- خانة تفعيل/إلغاء الترقيم الآلي -->
+          <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
+            <input type="checkbox" id="manualOrderToggle" onchange="toggleManualOrderInput(this)" style="width: auto; margin: 0;">
+            <label for="manualOrderToggle" style="margin-bottom: 0; font-size: 13px; cursor: pointer;">إدخال يدوي (إلغاء الترقيم الآلي)</label>
           </div>
         </div>
         <div class="form-group"><label for="orderContents">محتويات الطلب*</label><input type="text" id="orderContents" required></div>

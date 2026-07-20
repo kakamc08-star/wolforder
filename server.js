@@ -1,16 +1,39 @@
 require('dotenv').config();
 const express = require('express');
 const http = require('http');
+const WebSocket = require('ws'); // ✅ إضافة مكتبة WebSockets
 const authenticateToken = require('./middleware/auth');
 const supabase = require('./config/db'); // ✅ اتصال Supabase
 
 const app = express();
 const server = http.createServer(app);
 
+// ============================================================
+// ⭐ ⭐ ⭐ إعداد WebSockets للاتصال الفوري ⭐ ⭐ ⭐
+// ============================================================
+const wss = new WebSocket.Server({ server });
+
+// دالة لبث الرسائل لجميع المتصلين
+function broadcast(data) {
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify(data));
+    }
+  });
+}
+
+// إتاحة دالة البث لجميع ملفات الراوتر (مثل routes/orders.js)
+app.set('broadcast', broadcast);
+
+wss.on('connection', (ws) => {
+  console.log('🔗 عميل جديد متصل بلوحة التحكم عبر WebSocket');
+});
+// ============================================================
+
 app.use(express.json());
 app.use(express.static('public'));
 
-// ✅ تعطيل Socket.IO مؤقتاً (سنعيده لاحقاً مع Supabase Realtime)
+// ✅ تعطيل Socket.IO مؤقتاً
 // const io = socketIo(server);
 // app.set('io', io);
 // const onlineUsers = new Map();
@@ -116,9 +139,9 @@ app.post('/api/send-whatsapp', authenticateToken, async (req, res) => {
   const API_URL = 'https://raselsms.com/api/v2/messages/send';
 
   // ====== القناة (اختر whatsapp أو local_sms حسب احتياجك) ======
-  const CHANNEL = 'whatsapp'; // أو 'local_sms' للرسائل النصية
+  const CHANNEL = 'whatsapp';
 
-  // ====== بناء نص الرسالة (إذا لم يتم إرسال message، نبنيها من البيانات) ======
+  // ====== بناء نص الرسالة ======
   let messageText = message;
   if (!messageText) {
     messageText = `مرحبًا ${customerName || 'عميل'}
@@ -148,32 +171,27 @@ WolfOrder`;
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-API-Key': API_KEY, // ⭐ طريقة المصادقة في راسل
+            'X-API-Key': API_KEY,
           },
           body: JSON.stringify({
             to: finalPhone,
             channel: CHANNEL,
             messageType: 'free_text',
-            content: {
-              text: messageText
-            }
+            content: { text: messageText }
           })
         });
 
-        // قراءة الرد الخام
         const rawResponse = await response.text();
         console.log(`📩 محاولة ${attempt} - الرد الخام من راسل:`, rawResponse);
 
-        // إذا كان الرد 502 أو 504 أو 500، نعيد المحاولة
         if (response.status === 502 || response.status === 504 || response.status === 500) {
           console.log(`⚠️ خطأ ${response.status} - إعادة المحاولة بعد ${delay/1000} ثانية...`);
           if (attempt < retries) {
             await new Promise(resolve => setTimeout(resolve, delay));
-            continue; // نعيد المحاولة
+            continue;
           }
         }
 
-        // معالجة الرد الطبيعي
         let data;
         try {
           data = JSON.parse(rawResponse);
@@ -181,13 +199,12 @@ WolfOrder`;
           return { success: false, error: `استجابة غير متوقعة: ${rawResponse.substring(0, 100)}...` };
         }
 
-       // تحقق من نجاح الإرسال (راسل ترجع status = 'sent' أو 'success' أو 'queued')
-if (response.ok && (data.status === 'success' || data.status === 'sent' || data.status === 'queued')) {
-  return { success: true, data };
-} else {
-  const errorMsg = data.message || data.error || data.status || 'فشل الإرسال';
-  return { success: false, error: errorMsg };
-}
+        if (response.ok && (data.status === 'success' || data.status === 'sent' || data.status === 'queued')) {
+          return { success: true, data };
+        } else {
+          const errorMsg = data.message || data.error || data.status || 'فشل الإرسال';
+          return { success: false, error: errorMsg };
+        }
 
       } catch (error) {
         console.error(`❌ محاولة ${attempt} - خطأ في الاتصال:`, error.message);
@@ -201,8 +218,7 @@ if (response.ok && (data.status === 'success' || data.status === 'sent' || data.
     return { success: false, error: 'فشل الإرسال بعد عدة محاولات' };
   }
 
-  // ====== تنفيذ الإرسال مع إعادة المحاولة ======
-  const result = await sendWithRetry(3, 30000); // 3 محاولات، انتظار 30 ثانية بين كل محاولة
+  const result = await sendWithRetry(3, 30000);
 
   if (result.success) {
     res.json({ success: true, data: result.data });
