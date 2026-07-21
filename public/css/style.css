@@ -72,6 +72,17 @@ body {
   box-shadow: 0 0 0 3px rgba(52,152,219,0.1);
 }
 
+/* إزالة الأسهم من حقول الأرقام */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
 /* حقول معطلة */
 input:disabled,
 select:disabled,
@@ -235,12 +246,11 @@ tr:hover {
 /* شارات الحالة الجديدة */
 .status-إلغاء {
   background-color: #fed7d7;  /* أحمر فاتح */
-  color: #822727;             /* أحمر غامق */
+  color: #822727;              /* أحمر غامق */
 }
-
 .status-مرتجع {
-  background-color: #fe9b1a;  /* برتقالي فاتح */
-  color: #855002;             /* برتقالي غامق */
+  background-color: #fe9b1a;  /* بنفسجي فاتح */
+  color: #855002;              /* بنفسجي غامق */
 }
 
 .status-مؤجل {
@@ -348,7 +358,7 @@ tfoot td {
   display: none !important;
 }
 
-/* ========== الوضع الليلي ========== */
+/* ========== الوضع الليلي - تغطية شاملة ========== */
 body.dark-mode {
   background-color: #121826;
   color: #e2e8f0;
@@ -455,13 +465,13 @@ body.dark-mode .status-مؤجل {
 }
 
 body.dark-mode .status-مرتجع {
-  background-color: #fe9b1a;
-  color: #523408;
+  background-color: #fe9b1a;  /* بنفسجي فاتح */
+  color: #523408;              /* بنفسجي غامق */
 }
 
 body.dark-mode .status-إلغاء {
-  background-color: #822727;
-  color: #fed7d7;
+  background-color: #822727;  /* أحمر فاتح */
+  color: #fed7d7;    /* أحمر غامق */
 }
 
 body.dark-mode .message.error {
@@ -585,6 +595,9 @@ body.dark-mode [style*="background-color: #ffffff"] {
     color: #4a5568;
     text-align: right !important;
   }
+  table tbody td::after {
+    content: attr(data-cell);
+  }
   body.dark-mode table tbody td::before {
     color: #a0aec0;
   }
@@ -653,20 +666,17 @@ body.dark-mode [style*="background-color: #ffffff"] {
   -moz-appearance: auto;
 }
 
-/* توسيع القوائم في النوافذ المنبثقة */
 .modal .card select {
   width: 100% !important;
   max-width: 100% !important;
 }
 
-/* تصغير حجم الـ checkbox نفسه */
 #ordersTable input[type="checkbox"] {
   transform: scale(0.7);
   margin: 0;
   cursor: pointer;
 }
 
-/* للجوال: تكبير إضافي لسهولة اللمس */
 @media (max-width: 768px) {
   #driverSelect,
   #bulkAction,
