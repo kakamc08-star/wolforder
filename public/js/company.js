@@ -1,3 +1,4 @@
+// ==================== التحقق من الجلسة ====================
 const token = localStorage.getItem('token');
 const userStr = localStorage.getItem('user');
 if (!token || !userStr) window.location.href = 'login.html';
@@ -5,608 +6,557 @@ const user = JSON.parse(userStr);
 if (user.role !== 'company') window.location.href = 'login.html';
 document.getElementById('userNameDisplay').textContent = user.name || user.username;
 
+// ==================== تعريف معرف الشركة مرة واحدة (ثابت) ====================
+const COMPANY_ID = user.id || 'default_company';
+console.log('[Company ID]', COMPANY_ID);
+
+// ==================== دوال الترقيم (تعتمد على COMPANY_ID الثابت) ====================
+function getAutoNumberKey() {
+    return `autoOrderNumber_company_${COMPANY_ID}`;
+}
+
+function getAutoToggleKey() {
+    return `autoToggle_company_${COMPANY_ID}`;
+}
+
+function loadAutoOrderNumber() {
+    const input = document.getElementById('orderNumber');
+    const manualToggle = document.getElementById('manualOrderToggle');
+    if (!input) return;
+
+    const isManual = localStorage.getItem(getAutoToggleKey()) === 'true';
+    if (manualToggle) manualToggle.checked = isManual;
+
+    if (isManual) {
+        input.readOnly = false;
+        return;
+    }
+
+    input.readOnly = true;
+    const key = getAutoNumberKey();
+    const lastNumber = parseInt(localStorage.getItem(key), 10);
+    console.log(`[loadAutoOrderNumber] المفتاح: ${key}, القيمة المخزنة: ${localStorage.getItem(key)}`);
+
+    if (!isNaN(lastNumber) && lastNumber > 0) {
+        input.value = lastNumber + 1;
+    } else {
+        input.value = 1;
+    }
+    console.log(`[loadAutoOrderNumber] الرقم المعروض: ${input.value}`);
+}
+
+function setCustomStartNumberForCompany() {
+    const input = document.getElementById('orderNumber');
+    if (!input) {
+        console.error('حقل رقم الطلب غير موجود');
+        return;
+    }
+
+    const customVal = prompt("أدخل رقم البداية الجديد للطلبات:", input.value || "1");
+    if (customVal === null) return;
+
+    const num = parseInt(customVal, 10);
+    if (!isNaN(num) && num > 0) {
+        const key = getAutoNumberKey();
+        localStorage.setItem(key, num - 1);
+        input.value = num;
+        showNotification(`✅ تم تعيين رقم البداية إلى ${num}`, 'success');
+        console.log(`[setCustomStartNumberForCompany] تم حفظ: ${num - 1} في المفتاح ${key}`);
+    } else {
+        showNotification('❌ الرقم غير صالح، يرجى إدخال رقم صحيح', 'error');
+    }
+}
+
+function toggleManualOrderInput(checkbox) {
+    const input = document.getElementById('orderNumber');
+    if (!input) return;
+    if (checkbox.checked) {
+        localStorage.setItem(getAutoToggleKey(), 'true');
+        input.readOnly = false;
+        input.value = '';
+        input.focus();
+    } else {
+        localStorage.setItem(getAutoToggleKey(), 'false');
+        loadAutoOrderNumber();
+    }
+}
+
+function saveLastOrderNumber(orderNumber) {
+    const num = parseInt(orderNumber, 10);
+    if (!isNaN(num) && num > 0) {
+        const key = getAutoNumberKey();
+        localStorage.setItem(key, num);
+        console.log(`[saveLastOrderNumber] تم حفظ: ${num} في المفتاح ${key}`);
+    } else {
+        console.warn(`[saveLastOrderNumber] رقم غير صالح: ${orderNumber}`);
+    }
+}
+
+function resetAutoNumber() {
+    const key = getAutoNumberKey();
+    localStorage.removeItem(key);
+    const input = document.getElementById('orderNumber');
+    if (input) {
+        input.value = '';
+        input.focus();
+    }
+    showNotification('🔄 تم إعادة تعيين العداد', 'info');
+    console.log(`[resetAutoNumber] تم حذف المفتاح: ${key}`);
+}
+
+// ==================== دوال مساعدة ====================
 let previousOrderIds = new Set();
 let autoRefresh = setInterval(fetchOrders, 5000);
 let allOrders = [];
 let adminPhone = '';
-let currentSort = 'default'; // 'asc', 'desc', 'default'
+let currentSort = 'default';
 let suppressNewOrderNotifications = false;
 
-// ==================== دوال مساعدة ====================
 function setSortAndRender(direction) {
-  currentSort = direction;
-  applyFiltersAndRender();
+    currentSort = direction;
+    applyFiltersAndRender();
 }
+
 function formatDate(date) {
-  if (!date) return '-';
-  const d = new Date(date);
-  if (isNaN(d.getTime())) return '-';
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  return `${day}/${month}/${year}`;
+    if (!date) return '-';
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return '-';
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
 }
 
 function validateCustomerName(name) {
-  if (!name || name.trim() === '') return true;
-  return /[^\d]/.test(name.trim());
+    if (!name || name.trim() === '') return true;
+    return /[^\d]/.test(name.trim());
 }
 
 function validateCustomerNumber(number) {
-  if (!number || number.trim() === '') return true;
-  return /^\d{10}$/.test(number.trim());
+    if (!number || number.trim() === '') return true;
+    return /^\d{10}$/.test(number.trim());
 }
 
 function formatNumber(num) {
-  if (num === null || num === undefined || isNaN(num)) return '0';
-  const rounded = Math.round(num);
-  return rounded.toLocaleString('en-US');
+    if (num === null || num === undefined || isNaN(num)) return '0';
+    const rounded = Math.round(num);
+    return rounded.toLocaleString('en-US');
 }
 
 function showNotification(msg, type = 'info') {
-  const area = document.getElementById('notificationArea');
-  if (!area) return;
-  
-  const n = document.createElement('div');
-  n.className = `toast-notification toast-${type}`;
-  n.innerHTML = `<span>${msg}</span>`;
-  area.appendChild(n);
-  
-  // إزالة تلقائية بعد 4 ثوانٍ
-  setTimeout(() => {
-    n.style.opacity = '0';
-    setTimeout(() => n.remove(), 300);
-  }, 4000);
-  
-  // يمكن إضافة زر إغلاق
-  const closeBtn = document.createElement('button');
-  closeBtn.innerHTML = '✕';
-  closeBtn.style.cssText = 'background:none;border:none;color:inherit;margin-left:10px;cursor:pointer;font-size:16px;';
-  closeBtn.onclick = () => n.remove();
-  n.appendChild(closeBtn);
+    const area = document.getElementById('notificationArea');
+    if (!area) return;
+
+    const n = document.createElement('div');
+    n.className = `toast-notification toast-${type}`;
+    n.innerHTML = `<span>${msg}</span>`;
+    area.appendChild(n);
+
+    setTimeout(() => {
+        n.style.opacity = '0';
+        setTimeout(() => n.remove(), 300);
+    }, 4000);
+
+    const closeBtn = document.createElement('button');
+    closeBtn.innerHTML = '✕';
+    closeBtn.style.cssText = 'background:none;border:none;color:inherit;margin-left:10px;cursor:pointer;font-size:16px;';
+    closeBtn.onclick = () => n.remove();
+    n.appendChild(closeBtn);
 }
 
-// offline notification
+// ==================== حالة الاتصال ====================
 function updateOnlineStatus() {
-  const offlineBar = document.getElementById('offlineBar');
-  if (!navigator.onLine) {
-    if (!offlineBar) {
-      const bar = document.createElement('div');
-      bar.id = 'offlineBar';
-      bar.style.cssText = 'background:#f39c12; color:white; text-align:center; padding:8px; margin-bottom:10px; border-radius:8px;';
-      bar.textContent = '⚠️ أنت غير متصل بالإنترنت. التغييرات ستحفظ لاحقاً.';
-      document.querySelector('.dashboard-header').after(bar);
+    const offlineBar = document.getElementById('offlineBar');
+    if (!navigator.onLine) {
+        if (!offlineBar) {
+            const bar = document.createElement('div');
+            bar.id = 'offlineBar';
+            bar.style.cssText = 'background:#f39c12; color:white; text-align:center; padding:8px; margin-bottom:10px; border-radius:8px;';
+            bar.textContent = '⚠️ أنت غير متصل بالإنترنت. التغييرات ستحفظ لاحقاً.';
+            document.querySelector('.dashboard-header').after(bar);
+        }
+    } else {
+        if (offlineBar) offlineBar.remove();
     }
-  } else {
-    if (offlineBar) offlineBar.remove();
-  }
 }
 window.addEventListener('online', updateOnlineStatus);
 window.addEventListener('offline', updateOnlineStatus);
 document.addEventListener('DOMContentLoaded', updateOnlineStatus);
 
-// ==================== جلب الطلبات (مع دعم الفلاتر) ====================
+// ==================== جلب الطلبات ====================
 async function fetchOrders() {
-  try {
-    // 1. قراءة القيم مباشرة من الحقول (وليس من متغيرات محفوظة قديمة)
-    const statusEl = document.getElementById('filterStatus');
-    const startDateEl = document.getElementById('startDate');
-    const endDateEl = document.getElementById('endDate');
-    const searchEl = document.getElementById('searchInput');
+    try {
+        const statusEl = document.getElementById('filterStatus');
+        const startDateEl = document.getElementById('startDate');
+        const endDateEl = document.getElementById('endDate');
+        const searchEl = document.getElementById('searchInput');
 
-    const status = statusEl ? statusEl.value : '';
-    const startDateInput = startDateEl ? startDateEl.value : '';
-    const endDateInput = endDateEl ? endDateEl.value : '';
-    const searchInput = searchEl ? searchEl.value : '';
+        const status = statusEl ? statusEl.value : '';
+        const startDateInput = startDateEl ? startDateEl.value : '';
+        const endDateInput = endDateEl ? endDateEl.value : '';
+        const searchInput = searchEl ? searchEl.value : '';
 
-    // 2. تحويل التواريخ إلى UTC
-    let startDate = '';
-    let endDate = '';
-    if (startDateInput) {
-      startDate = new Date(startDateInput + 'T00:00:00').toISOString();
+        let startDate = '';
+        let endDate = '';
+        if (startDateInput) {
+            startDate = new Date(startDateInput + 'T00:00:00').toISOString();
+        }
+        if (endDateInput) {
+            endDate = new Date(endDateInput + 'T23:59:59').toISOString();
+        }
+
+        let url = '/api/orders?all=true&';
+        if (status) url += `status=${status}&`;
+        if (startDate) url += `startDate=${startDate}&`;
+        if (endDate) url += `endDate=${endDate}&`;
+
+        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) throw new Error('فشل جلب الطلبات');
+        const orders = await res.json();
+
+        const filterKey = `${status}|${startDateInput}|${endDateInput}|${searchInput}`;
+        if (window._lastFilterKey !== filterKey) {
+            previousOrderIds.clear();
+            window._lastFilterKey = filterKey;
+        }
+
+        const newOrders = orders.filter(o => !previousOrderIds.has(o.id || o._id));
+        let showAlerts = true;
+        if (suppressNewOrderNotifications) {
+            showAlerts = false;
+            suppressNewOrderNotifications = false;
+        }
+        if (showAlerts && newOrders.length > 0 && previousOrderIds.size > 0) {
+            newOrders.forEach(order => {
+                showNotification(`🚚 طلب جديد #${order.order_number || order.orderNumber}`, 'success');
+                if (typeof notificationSound !== 'undefined') notificationSound.play().catch(() => {});
+            });
+        }
+
+        previousOrderIds = new Set(orders.map(o => o.id || o._id));
+        allOrders = orders;
+        applyFiltersAndRender();
+
+        if (statusEl && statusEl.value !== status) statusEl.value = status;
+        if (startDateEl && startDateEl.value !== startDateInput) startDateEl.value = startDateInput;
+        if (endDateEl && endDateEl.value !== endDateInput) endDateEl.value = endDateInput;
+        if (searchEl && searchEl.value !== searchInput) searchEl.value = searchInput;
+
+        document.getElementById('lastUpdateTime').textContent = `آخر تحديث: ${new Date().toLocaleTimeString('ar')}`;
+    } catch (err) {
+        console.error('fetchOrders error:', err);
     }
-    if (endDateInput) {
-      endDate = new Date(endDateInput + 'T23:59:59').toISOString();
-    }
-
-    // 3. بناء رابط API
-    let url = '/api/orders?all=true&'; // طلب جميع الطلبات للشركة
-    if (status) url += `status=${status}&`;
-    if (startDate) url += `startDate=${startDate}&`;
-    if (endDate) url += `endDate=${endDate}&`;
-
-    const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
-    if (!res.ok) throw new Error('فشل جلب الطلبات');
-    const orders = await res.json();
-
-    // 4. إعادة تعيين مجموعة الطلبات السابقة لمنع الإشعارات الوهمية
-    //    فقط إذا تغيرت معايير الفلترة (الحالة، التاريخ، البحث)
-    const filterKey = `${status}|${startDateInput}|${endDateInput}|${searchInput}`;
-    if (window._lastFilterKey !== filterKey) {
-        // تغير الفلتر، نمسح الذاكرة المؤقتة للطلبات القديمة
-        previousOrderIds.clear();
-        window._lastFilterKey = filterKey;
-    }
-
- // 5. إشعار بالطلبات الجديدة الحقيقية (مع تحكم إضافي)
-const newOrders = orders.filter(o => !previousOrderIds.has(o.id || o._id));
-
-// متغير للتحكم: هل نعرض الإشعارات أم لا؟
-let shouldNotify = true;
-
-// إذا كان suppression مفعلاً، نلغِ الإشعار ونعيد التعيين
-if (suppressNewOrderNotifications) {
-    shouldNotify = false;
-    suppressNewOrderNotifications = false; // نعيد التعيين ليعمل في المستقبل
-}
-
-// الآن نعرض الإشعارات فقط إذا كان shouldNotify = true واستوفينا الشروط الأخرى
-if (shouldNotify && newOrders.length > 0 && previousOrderIds.size > 0) {
-    newOrders.forEach(order => {
-        showNotification(`🚚 طلب جديد #${order.order_number || order.orderNumber}`, 'success');
-        if (typeof notificationSound !== 'undefined') notificationSound.play().catch(() => {});
-    });
-}
-
-    // 6. تحديث مجموعة المعرفات
-    previousOrderIds = new Set(orders.map(o => o.id || o._id));
-
-    // 7. تحديث البيانات وعرضها
-    allOrders = orders;
-    applyFiltersAndRender();
-
-    // 8. الحفاظ على قيم الفلاتر في الحقول (بدون تغيير)
-    if (statusEl && statusEl.value !== status) statusEl.value = status;
-    if (startDateEl && startDateEl.value !== startDateInput) startDateEl.value = startDateInput;
-    if (endDateEl && endDateEl.value !== endDateInput) endDateEl.value = endDateInput;
-    if (searchEl && searchEl.value !== searchInput) searchEl.value = searchInput;
-
-    document.getElementById('lastUpdateTime').textContent = `آخر تحديث: ${new Date().toLocaleTimeString('ar')}`;
-  } catch (err) {
-    console.error('fetchOrders error:', err);
-  }
 }
 
 function applyFiltersAndRender() {
-  let filtered = [...allOrders];
-  const searchText = document.getElementById('searchInput')?.value || '';
-  filtered = filterOrdersBySearch(filtered, searchText);
-      // تطبيق الترتيب
+    let filtered = [...allOrders];
+    const searchText = document.getElementById('searchInput')?.value || '';
+    filtered = filterOrdersBySearch(filtered, searchText);
+
     if (currentSort === 'asc') {
-      filtered.sort((a, b) => (a.order_number || '').localeCompare(b.order_number || '', 'ar', { numeric: true }));
+        filtered.sort((a, b) => (a.order_number || '').localeCompare(b.order_number || '', 'ar', { numeric: true }));
     } else if (currentSort === 'desc') {
-      filtered.sort((a, b) => (b.order_number || '').localeCompare(a.order_number || '', 'ar', { numeric: true }));
+        filtered.sort((a, b) => (b.order_number || '').localeCompare(a.order_number || '', 'ar', { numeric: true }));
     }
-  renderTable(filtered);
+    renderTable(filtered);
 }
 
 function clearFilters() {
-  document.getElementById('filterStatus').value = '';
-  document.getElementById('startDate').value = '';
-  document.getElementById('endDate').value = '';
-  document.getElementById('searchInput').value = '';
-  fetchOrders();
+    document.getElementById('filterStatus').value = '';
+    document.getElementById('startDate').value = '';
+    document.getElementById('endDate').value = '';
+    document.getElementById('searchInput').value = '';
+    fetchOrders();
 }
-
 
 // ==================== عرض الجدول ====================
 function renderTable(orders) {
-  const tbody = document.getElementById('ordersTableBody');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-  let totalSYR = 0, totalUSD = 0;
+    const tbody = document.getElementById('ordersTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    let totalSYR = 0, totalUSD = 0;
 
-  orders.forEach((order, index) => {
-    const price = Number(order.price) || 0;
-    if (order.currency === 'دولار') {
-      totalUSD += price;
-    } else {
-      totalSYR += price;
-    }
+    orders.forEach((order, index) => {
+        const price = Number(order.price) || 0;
+        if (order.currency === 'دولار') {
+            totalUSD += price;
+        } else {
+            totalSYR += price;
+        }
 
-    const tr = document.createElement('tr');
-    const orderId = order.id || order._id;
-    const orderNumber = order.order_number || order.orderNumber;
-    const customerName = order.customer_name || order.customerName;
-    const customerNumber = order.customer_number || order.customerNumber;
-    const address = order.address;
-    const priceVal = order.price;
-    const currency = order.currency || 'ل.س';
-    const status = order.status;
-    const note = order.note;
-    const createdAt = order.created_at || order.createdAt;
-    const serialNumber = order.serial_number || order.serialNumber;
+        const tr = document.createElement('tr');
+        const orderId = order.id || order._id;
+        const orderNumber = order.order_number || order.orderNumber;
+        const customerName = order.customer_name || order.customerName;
+        const customerNumber = order.customer_number || order.customerNumber;
+        const address = order.address;
+        const priceVal = order.price;
+        const currency = order.currency || 'ل.س';
+        const status = order.status;
+        const note = order.note || '';
+        const createdAt = order.created_at || order.createdAt;
+        const serialNumber = order.serial_number || order.serialNumber;
 
-    tr.innerHTML = `
-      <td data-label="الرقم التسلسلي :">${serialNumber || ''}</td>
-      <td data-label="عداد الطلبات :">${index + 1}</td>
-      <td data-label="رقم الطلب :">${orderNumber}</td>
-      <td data-label="محتويات الطلب :">${order.order_contents || order.orderContents || '-'}</td>
-      <td data-label="اسم العميل :">${customerName}</td>
-      <td data-label="رقم العميل :">${customerNumber ? `<a href="tel:${customerNumber}">${customerNumber}</a>` : '-'}</td>
-      <td data-label="العنوان :">${address}</td>
-      <td data-label="السعر :">${formatNumber(priceVal)} ${currency}</td>
-      <td data-label="الحالة :"><span class="status-badge status-${status}">${status}</span></td>
-      <td data-label="ملاحظة :">${note || '-'}</td>
-      <td data-label="التاريخ :">${formatDate(createdAt)}</td>
-      <td data-label="">
-        <button class="btn btn-sm btn-warning" onclick='openEditRequestModal("${orderId}")'>✏️ طلب تعديل</button>
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
+        tr.innerHTML = `
+            <td data-label="الرقم التسلسلي :">${serialNumber || ''}</td>
+            <td data-label="عداد الطلبات :">${index + 1}</td>
+            <td data-label="رقم الطلب :">${orderNumber}</td>
+            <td data-label="محتويات الطلب :">${order.order_contents || order.orderContents || '-'}</td>
+            <td data-label="اسم العميل :">${customerName}</td>
+            <td data-label="رقم العميل :">${customerNumber ? `<a href="tel:${customerNumber}">${customerNumber}</a>` : '-'}</td>
+            <td data-label="العنوان :">${address}</td>
+            <td data-label="السعر :">${formatNumber(priceVal)} ${currency}</td>
+            <td data-label="الحالة :"><span class="status-badge status-${status}">${status}</span></td>
+            <td data-label="ملاحظة :">${note || '-'}</td>
+            <td data-label="التاريخ :">${formatDate(createdAt)}</td>
+            <td data-label="">
+                <button class="btn btn-sm btn-warning" onclick='openEditRequestModal("${orderId}")'>✏️ طلب تعديل</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
 
-  document.getElementById('totalPriceSYR').textContent = formatNumber(totalSYR) + ' ل.س';
-  document.getElementById('totalPriceUSD').textContent = formatNumber(totalUSD) + ' $';
+    document.getElementById('totalPriceSYR').textContent = formatNumber(totalSYR) + ' ل.س';
+    document.getElementById('totalPriceUSD').textContent = formatNumber(totalUSD) + ' $';
 }
 
 function toggleDarkMode(event) {
-  document.body.classList.toggle('dark-mode');
-  const isDark = document.body.classList.contains('dark-mode');
-  localStorage.setItem('darkMode', isDark);
-  const btn = event.currentTarget;
-  btn.textContent = isDark ? '☀️' : '🌙';
+    document.body.classList.toggle('dark-mode');
+    const isDark = document.body.classList.contains('dark-mode');
+    localStorage.setItem('darkMode', isDark);
+    const btn = event.currentTarget;
+    btn.textContent = isDark ? '☀️' : '🌙';
 }
 
 // ==================== فلترة وبحث ====================
 function filterOrdersBySearch(orders, searchText) {
-  if (!searchText || !searchText.trim()) return orders;
-  const searchLower = searchText.trim().toLowerCase();
-  return orders.filter(order => {
-    return (
-      (order.order_number || order.orderNumber || '').toLowerCase().includes(searchLower) ||
-      (order.customer_name || order.customerName || '').toLowerCase().includes(searchLower) ||
-      (order.customer_number || order.customerNumber || '').toString().includes(searchLower) ||
-      (order.address || '').toLowerCase().includes(searchLower) ||
-      (order.note || '').toLowerCase().includes(searchLower)
-    );
-  });
+    if (!searchText || !searchText.trim()) return orders;
+    const searchLower = searchText.trim().toLowerCase();
+    return orders.filter(order => {
+        return (
+            (order.order_number || order.orderNumber || '').toLowerCase().includes(searchLower) ||
+            (order.customer_name || order.customerName || '').toLowerCase().includes(searchLower) ||
+            (order.customer_number || order.customerNumber || '').toString().includes(searchLower) ||
+            (order.address || '').toLowerCase().includes(searchLower) ||
+            (order.note || '').toLowerCase().includes(searchLower)
+        );
+    });
 }
-
 
 // ==================== إنشاء طلب ====================
 document.getElementById('createOrderForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  const orderNumberInput = document.getElementById('orderNumber');
-  const customerNumberInput = document.getElementById('customerNumber');
-  const customerNameInput = document.getElementById('customerName');
-  const addressInput = document.getElementById('address');
-  const priceInput = document.getElementById('price');
-  const currencyInput = document.getElementById('currency');
+    const orderNumberInput = document.getElementById('orderNumber');
+    const customerNumberInput = document.getElementById('customerNumber');
+    const customerNameInput = document.getElementById('customerName');
+    const addressInput = document.getElementById('address');
+    const priceInput = document.getElementById('price');
+    const currencyInput = document.getElementById('currency');
 
-  const noteInput = document.getElementById('note');
-const note = noteInput ? noteInput.value.trim() : '';
- 
-  
- 
-
-  if (!orderNumberInput || !customerNameInput || !addressInput || !priceInput) {
-    alert('خطأ: بعض الحقول المطلوبة غير موجودة في الصفحة');
-    return;
-  }
-
-  const orderNumber = orderNumberInput.value.trim();
-  const customerNumber = customerNumberInput ? customerNumberInput.value.trim() : '';
-  const customerName = customerNameInput.value.trim();
-  const address = addressInput.value.trim();
-  const price = parseFloat(priceInput.value);
-  const currency = currencyInput ? currencyInput.value : 'ل.س';
- 
-
-  if (!orderNumber || !customerName || !address || isNaN(price)) {
-    alert('يرجى ملء جميع الحقول المطلوبة');
-    return;
-  }
-
-  if (!validateCustomerName(customerName)) {
-    alert('❌ اسم العميل يجب أن يحتوي على أحرف');
-    return;
-  }
-
-  if (customerNumber && !validateCustomerNumber(customerNumber)) {
-    alert('❌ رقم العميل يجب أن يتكون من 10 أرقام بالضبط');
-    return;
-  }
-
-  const data = {
-    orderNumber,
-    orderContents: document.getElementById('orderContents')?.value || '',
-    customerNumber,
-    customerName,
-    address,
-    price,
-    currency,
-    ratio: 0,
-    note: document.getElementById('orderNote')?.value || ''
-  };
-
-  try {
-    const res = await fetch('/api/orders', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify(data)
-    });
-
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.message || 'فشل إنشاء الطلب');
+    if (!orderNumberInput || !customerNameInput || !addressInput || !priceInput) {
+        alert('خطأ: بعض الحقول المطلوبة غير موجودة في الصفحة');
+        return;
     }
 
- // داخل try بعد نجاح الإنشاء:
-document.getElementById('createOrderForm').reset();
+    const orderNumber = orderNumberInput.value.trim();
+    const customerNumber = customerNumberInput ? customerNumberInput.value.trim() : '';
+    const customerName = customerNameInput.value.trim();
+    const address = addressInput.value.trim();
+    const price = parseFloat(priceInput.value);
+    const currency = currencyInput ? currencyInput.value : 'ل.س';
 
-// أخبر fetchOrders ألا تعرض إشعاراً جديداً
-suppressNewOrderNotifications = true;
-fetchOrders();
+    if (!orderNumber || !customerName || !address || isNaN(price)) {
+        alert('يرجى ملء جميع الحقول المطلوبة');
+        return;
+    }
 
-showNotification('✅ تم إنشاء الطلب بنجاح');
+    if (!validateCustomerName(customerName)) {
+        alert('❌ اسم العميل يجب أن يحتوي على أحرف');
+        return;
+    }
 
-  } catch (err) {
-    alert('❌ ' + err.message);
-  }
+    if (customerNumber && !validateCustomerNumber(customerNumber)) {
+        alert('❌ رقم العميل يجب أن يتكون من 10 أرقام بالضبط');
+        return;
+    }
+
+    const data = {
+        orderNumber,
+        orderContents: document.getElementById('orderContents')?.value || '',
+        customerNumber,
+        customerName,
+        address,
+        price,
+        currency,
+        ratio: 0,
+        note: document.getElementById('orderNote')?.value || ''
+    };
+
+    try {
+        const res = await fetch('/api/orders', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.message || 'فشل إنشاء الطلب');
+        }
+
+        // ✅ حفظ الرقم بعد نجاح الإنشاء
+        const orderNumInput = document.getElementById('orderNumber');
+        if (orderNumInput && orderNumInput.value) {
+            saveLastOrderNumber(orderNumInput.value);
+        }
+
+        // ✅ تحديث الحقل بالرقم التالي مباشرة
+        loadAutoOrderNumber();
+
+        document.getElementById('createOrderForm').reset();
+        suppressNewOrderNotifications = true;
+        fetchOrders();
+        showNotification('✅ تم إنشاء الطلب بنجاح');
+    } catch (err) {
+        alert('❌ ' + err.message);
+    }
 });
 
 // ==================== طلبات التعديل ====================
 function openEditRequestModal(orderId) {
-  // نبحث عن الطلب في allOrders لأننا نحتاج بياناته
-  const order = allOrders.find(o => (o.id || o._id) === orderId);
-  if (!order) return alert('الطلب غير موجود');
+    const order = allOrders.find(o => (o.id || o._id) === orderId);
+    if (!order) return alert('الطلب غير موجود');
 
-  document.getElementById('requestOrderId').value = orderId;
-  document.getElementById('reqOrderNumber').value = order.order_number || order.orderNumber;
-  document.getElementById('reqOrderContents').value = order.order_contents || order.orderContents || '';
-  document.getElementById('reqCustomerNumber').value = order.customer_number || order.customerNumber || '';
-  document.getElementById('reqCustomerName').value = order.customer_name || order.customerName;
-  document.getElementById('reqAddress').value = order.address;
-  document.getElementById('reqPrice').value = order.price;
-  document.getElementById('reqCurrency').value = order.currency || 'ل.س';
-  document.getElementById('editRequestModal').style.display = 'flex';
+    document.getElementById('requestOrderId').value = orderId;
+    document.getElementById('reqOrderNumber').value = order.order_number || order.orderNumber;
+    document.getElementById('reqOrderContents').value = order.order_contents || order.orderContents || '';
+    document.getElementById('reqCustomerNumber').value = order.customer_number || order.customerNumber || '';
+    document.getElementById('reqCustomerName').value = order.customer_name || order.customerName;
+    document.getElementById('reqAddress').value = order.address;
+    document.getElementById('reqPrice').value = order.price;
+    document.getElementById('reqCurrency').value = order.currency || 'ل.س';
+    document.getElementById('editRequestModal').style.display = 'flex';
 }
 
 function closeEditRequestModal() {
-  document.getElementById('editRequestModal').style.display = 'none';
+    document.getElementById('editRequestModal').style.display = 'none';
 }
 
 document.getElementById('editRequestForm')?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const orderId = document.getElementById('requestOrderId').value;
-  const changes = {
-    orderNumber: document.getElementById('reqOrderNumber').value,
-    orderContents: document.getElementById('reqOrderContents').value,
-    customerNumber: document.getElementById('reqCustomerNumber').value,
-    customerName: document.getElementById('reqCustomerName').value,
-    address: document.getElementById('reqAddress').value,
-    price: parseFloat(document.getElementById('reqPrice').value),
-    currency: document.getElementById('reqCurrency').value,
-    note: document.getElementById('reqNote').value
-  };
+    e.preventDefault();
+    const orderId = document.getElementById('requestOrderId').value;
+    const changes = {
+        orderNumber: document.getElementById('reqOrderNumber').value,
+        orderContents: document.getElementById('reqOrderContents').value,
+        customerNumber: document.getElementById('reqCustomerNumber').value,
+        customerName: document.getElementById('reqCustomerName').value,
+        address: document.getElementById('reqAddress').value,
+        price: parseFloat(document.getElementById('reqPrice').value),
+        currency: document.getElementById('reqCurrency').value,
+        note: document.getElementById('reqNote')?.value || ''
+    };
 
-  try {
-    const res = await fetch('/api/edit-requests', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ orderId, changes })
-    });
-    if (!res.ok) throw new Error('فشل إرسال الطلب');
-    closeEditRequestModal();
-    showNotification('✅ تم إرسال طلب التعديل إلى المدير');
-  } catch (err) {
-    alert(err.message);
-  }
+    try {
+        const res = await fetch('/api/edit-requests', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ orderId, changes })
+        });
+        if (!res.ok) throw new Error('فشل إرسال الطلب');
+        closeEditRequestModal();
+        showNotification('✅ تم إرسال طلب التعديل إلى المدير');
+    } catch (err) {
+        alert(err.message);
+    }
 });
 
 // ==================== مراسلة المدير ====================
 async function loadAdminPhone() {
-  try {
-    const res = await fetch('/api/auth/admin-phone', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (res.ok) {
-      const data = await res.json();
-      adminPhone = data.phone || '';
+    try {
+        const res = await fetch('/api/auth/admin-phone', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+            const data = await res.json();
+            adminPhone = data.phone || '';
+        }
+    } catch (err) {
+        console.warn('تعذر جلب رقم المدير');
     }
-  } catch (err) {
-    console.warn('تعذر جلب رقم المدير');
-  }
+}
+
+// ==================== PWA والتحديث التلقائي ====================
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').then(reg => {
+            reg.addEventListener('updatefound', () => {
+                const newWorker = reg.installing;
+                newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        showNotification('🔄 تحديث جديد متوفر... جاري التحديث', 'info');
+                        setTimeout(() => {
+                            newWorker.postMessage('skipWaiting');
+                            window.location.reload();
+                        }, 2000);
+                    }
+                });
+            });
+        }).catch(err => console.log('SW failed', err));
+    });
 }
 
 // ==================== تهيئة الصفحة ====================
 document.addEventListener('DOMContentLoaded', function() {
-  // ربط البحث
-  const searchInput = document.getElementById('searchInput');
-  if (searchInput) {
-    searchInput.addEventListener('input', applyFiltersAndRender);
-  }
+    // ربط البحث
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', applyFiltersAndRender);
+    }
 
-  // تعيين تاريخ اليوم كقيمة افتراضية في حقول التاريخ
-  const today = new Date();
-  const yyyy = today.getFullYear();
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
-  const dd = String(today.getDate()).padStart(2, '0');
-  const formattedDate = `${yyyy}-${mm}-${dd}`;
+    // تعيين تاريخ اليوم
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const formattedDate = `${yyyy}-${mm}-${dd}`;
+    const startDateInput = document.getElementById('startDate');
+    const endDateInput = document.getElementById('endDate');
+    if (startDateInput) startDateInput.value = formattedDate;
+    if (endDateInput) endDateInput.value = formattedDate;
 
-  const startDateInput = document.getElementById('startDate');
-  const endDateInput = document.getElementById('endDate');
-  if (startDateInput) startDateInput.value = formattedDate;
-  if (endDateInput) endDateInput.value = formattedDate;
-
-  // زر مراسلة المدير
-  const contactBtn = document.getElementById('contactAdminBtn');
-  if (contactBtn) {
-    contactBtn.addEventListener('click', function() {
-      if (!adminPhone) {
-        alert('رقم المدير غير متاح حالياً');
-        return;
-      }
-      const message = 'مرحبًا، لدي استفسار بخصوص الطلبات.';
-      const whatsappUrl = `https://wa.me/${adminPhone}?text=${encodeURIComponent(message)}`;
-      window.open(whatsappUrl, '_blank');
-    });
-  }
-
-  loadAdminPhone();
-});
-function toggleDarkMode() {
-  document.body.classList.toggle('dark-mode');
-  const isDark = document.body.classList.contains('dark-mode');
-  localStorage.setItem('darkMode', isDark);
-  const btn = event.target;
-  btn.textContent = isDark ? '☀️' : '🌙';
-}
-
-// تحميل التفضيل عند بدء التشغيل
-document.addEventListener('DOMContentLoaded', () => {
-  if (localStorage.getItem('darkMode') === 'true') {
-    document.body.classList.add('dark-mode');
-    const btn = document.querySelector('[onclick="toggleDarkMode()"]');
-    if (btn) btn.textContent = '☀️';
-  }
-});
-// ==================== PWA مع التحديث التلقائي ====================
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').then(reg => {
-
-      
-      // التحقق من وجود تحديث جديد
-      reg.addEventListener('updatefound', () => {
-        const newWorker = reg.installing;
-        newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            showNotification('🔄 تحديث جديد متوفر... جاري التحديث', 'info');
-            setTimeout(() => {
-              newWorker.postMessage('skipWaiting');
-              window.location.reload();
-            }, 2000);
-          }
+    // زر مراسلة المدير
+    const contactBtn = document.getElementById('contactAdminBtn');
+    if (contactBtn) {
+        contactBtn.addEventListener('click', function() {
+            if (!adminPhone) {
+                alert('رقم المدير غير متاح حالياً');
+                return;
+            }
+            const message = 'مرحبًا، لدي استفسار بخصوص الطلبات.';
+            const whatsappUrl = `https://wa.me/${adminPhone}?text=${encodeURIComponent(message)}`;
+            window.open(whatsappUrl, '_blank');
         });
-      });
-    }).catch(err => console.log('SW failed', err));
-  });
-}
+    }
 
-// ==================== الترقيم الآلي للشركة ====================
+    // تحميل رقم المدير
+    loadAdminPhone();
 
-// الحصول على معرف الشركة الحالية المسجلة دخولاً
-function getCurrentCompanyId() {
-  // استبدل هذا السطر بالطريقة التي تخزن بها معرف الشركة الحالية في الجلسة لديك (مثلاً localStorage أو متغير عام)
-  const user = JSON.parse(localStorage.getItem('currentUser')) || {};
-  return user.companyId || user.id || 'default_company';
-}
+    // تفعيل الترقيم الآلي
+    loadAutoOrderNumber();
 
-function getAutoNumberKeyForCurrentCompany() {
-  const companyId = getCurrentCompanyId();
-  return `autoOrderNumber_company_${companyId}`;
-}
-
-function getAutoToggleKeyForCurrentCompany() {
-  const companyId = getCurrentCompanyId();
-  return `autoToggle_company_${companyId}`;
-}
-
-function loadAutoOrderNumberForCompany() {
-  const input = document.getElementById('orderNumber');
-  const manualToggle = document.getElementById('manualOrderToggle');
-  
-  if (!input) return;
-
-  const toggleKey = getAutoToggleKeyForCurrentCompany();
-  const isManual = localStorage.getItem(toggleKey) === 'true';
-
-  if (manualToggle) manualToggle.checked = isManual;
-
-  if (isManual) {
-    input.readOnly = false; // السماح بالكتابة اليدوية الكاملة
-    return;
-  }
-
-  input.readOnly = true; // قفل الحقل للترقيم الآلي
-  const key = getAutoNumberKeyForCurrentCompany();
-  const lastNumber = parseInt(localStorage.getItem(key), 10);
-
-  if (!isNaN(lastNumber) && lastNumber > 0) {
-    input.value = lastNumber + 1;
-  } else {
-    input.value = 1; // نقطة بداية افتراضية
-  }
-}
-
-// تحديد رقم بداية مخصص للشركة
-function setCustomStartNumberForCompany() {
-  const input = document.getElementById('orderNumber');
-  if (!input) return;
-  
-  const customVal = prompt("أدخل رقم البداية الجديد للطلبات:", input.value || "1");
-  const num = parseInt(customVal, 10);
-  
-  if (!isNaN(num) && num > 0) {
-    const key = getAutoNumberKeyForCurrentCompany();
-    localStorage.setItem(key, num - 1); // نحفظ الرقم السابق لكي يبدأ العد من الرقم المدخل تماماً
-    input.value = num;
-  }
-}
-
-// تبديل وضع الإدخال اليدوي أو الآلي
-function toggleManualOrderInput(checkbox) {
-  const input = document.getElementById('orderNumber');
-  if (!input) return;
-
-  const toggleKey = getAutoToggleKeyForCurrentCompany();
-  
-  if (checkbox.checked) {
-    localStorage.setItem(toggleKey, 'true');
-    input.readOnly = false;
-    input.value = '';
-    input.focus();
-  } else {
-    localStorage.setItem(toggleKey, 'false');
-    loadAutoOrderNumberForCompany();
-  }
-}
-
-// حفظ آخر رقم طلب تم إنشاؤه لتحديث العداد
-function saveLastOrderNumberForCompany(orderNumber) {
-  const num = parseInt(orderNumber, 10);
-  if (!isNaN(num) && num > 0) {
-    const key = getAutoNumberKeyForCurrentCompany();
-    localStorage.setItem(key, num);
-  }
-}
-
-function resetAutoNumber() {
-  const key = getAutoNumberKeyForCurrentCompany();
-  localStorage.removeItem(key);
-  const input = document.getElementById('orderNumber');
-  if (input) {
-    input.value = '';
-    input.focus();
-  }
-}
-
-// استدعاء الدالة تلقائياً عند فتح الصفحة أو تحميل لوحة التحكم
-document.addEventListener('DOMContentLoaded', () => {
-  loadAutoOrderNumberForCompany();
-  
-  // عند نجاح إنشاء طلب جديد، تأكد من حفظ الرقم الحالي للعداد
-  const form = document.getElementById('createOrderForm');
-  if (form) {
-    form.addEventListener('submit', function(e) {
-      const orderNumInput = document.getElementById('orderNumber');
-      const manualToggle = document.getElementById('manualOrderToggle');
-      
-      // إذا لم يكن الوضع يدوياً، احفظ الرقم الحالي كآخر رقم مستخدم
-      if (orderNumInput && (!manualToggle || !manualToggle.checked)) {
-        saveLastOrderNumberForCompany(orderNumInput.value);
-      }
-    });
-  }
+    // تفعيل الوضع الداكن إن كان محفوظاً
+    if (localStorage.getItem('darkMode') === 'true') {
+        document.body.classList.add('dark-mode');
+        const btn = document.querySelector('[onclick="toggleDarkMode()"]');
+        if (btn) btn.textContent = '☀️';
+    }
 });
 
 // ==================== بدء التطبيق ====================
