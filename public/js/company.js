@@ -10,6 +10,7 @@ let autoRefresh = setInterval(fetchOrders, 5000);
 let allOrders = [];
 let adminPhone = '';
 let currentSort = 'default'; // 'asc', 'desc', 'default'
+let suppressNewOrderNotifications = false;
 
 // ==================== دوال مساعدة ====================
 function setSortAndRender(direction) {
@@ -127,14 +128,25 @@ async function fetchOrders() {
         window._lastFilterKey = filterKey;
     }
 
-    // 5. إشعار بالطلبات الجديدة الحقيقية
-    const newOrders = orders.filter(o => !previousOrderIds.has(o.id || o._id));
-    if (newOrders.length > 0 && previousOrderIds.size > 0) {
-      newOrders.forEach(order => {
+ // 5. إشعار بالطلبات الجديدة الحقيقية (مع تحكم إضافي)
+const newOrders = orders.filter(o => !previousOrderIds.has(o.id || o._id));
+
+// متغير للتحكم: هل نعرض الإشعارات أم لا؟
+let shouldNotify = true;
+
+// إذا كان suppression مفعلاً، نلغِ الإشعار ونعيد التعيين
+if (suppressNewOrderNotifications) {
+    shouldNotify = false;
+    suppressNewOrderNotifications = false; // نعيد التعيين ليعمل في المستقبل
+}
+
+// الآن نعرض الإشعارات فقط إذا كان shouldNotify = true واستوفينا الشروط الأخرى
+if (shouldNotify && newOrders.length > 0 && previousOrderIds.size > 0) {
+    newOrders.forEach(order => {
         showNotification(`🚚 طلب جديد #${order.order_number || order.orderNumber}`, 'success');
         if (typeof notificationSound !== 'undefined') notificationSound.play().catch(() => {});
-      });
-    }
+    });
+}
 
     // 6. تحديث مجموعة المعرفات
     previousOrderIds = new Set(orders.map(o => o.id || o._id));
@@ -263,6 +275,12 @@ document.getElementById('createOrderForm').addEventListener('submit', async (e) 
   const priceInput = document.getElementById('price');
   const currencyInput = document.getElementById('currency');
 
+  const noteInput = document.getElementById('note');
+const note = noteInput ? noteInput.value.trim() : '';
+ 
+  
+ 
+
   if (!orderNumberInput || !customerNameInput || !addressInput || !priceInput) {
     alert('خطأ: بعض الحقول المطلوبة غير موجودة في الصفحة');
     return;
@@ -274,6 +292,7 @@ document.getElementById('createOrderForm').addEventListener('submit', async (e) 
   const address = addressInput.value.trim();
   const price = parseFloat(priceInput.value);
   const currency = currencyInput ? currencyInput.value : 'ل.س';
+ 
 
   if (!orderNumber || !customerName || !address || isNaN(price)) {
     alert('يرجى ملء جميع الحقول المطلوبة');
@@ -298,7 +317,8 @@ document.getElementById('createOrderForm').addEventListener('submit', async (e) 
     address,
     price,
     currency,
-    ratio: 0
+    ratio: 0,
+    note: document.getElementById('orderNote')?.value || ''
   };
 
   try {
@@ -316,9 +336,15 @@ document.getElementById('createOrderForm').addEventListener('submit', async (e) 
       throw new Error(err.message || 'فشل إنشاء الطلب');
     }
 
-    document.getElementById('createOrderForm').reset();
-    fetchOrders();
-    showNotification('✅ تم إنشاء الطلب بنجاح');
+ // داخل try بعد نجاح الإنشاء:
+document.getElementById('createOrderForm').reset();
+
+// أخبر fetchOrders ألا تعرض إشعاراً جديداً
+suppressNewOrderNotifications = true;
+fetchOrders();
+
+showNotification('✅ تم إنشاء الطلب بنجاح');
+
   } catch (err) {
     alert('❌ ' + err.message);
   }
@@ -355,7 +381,8 @@ document.getElementById('editRequestForm')?.addEventListener('submit', async (e)
     customerName: document.getElementById('reqCustomerName').value,
     address: document.getElementById('reqAddress').value,
     price: parseFloat(document.getElementById('reqPrice').value),
-    currency: document.getElementById('reqCurrency').value
+    currency: document.getElementById('reqCurrency').value,
+    note: document.getElementById('reqNote').value
   };
 
   try {

@@ -271,7 +271,7 @@ if (!startDate && !endDate) {
 // ==================== إنشاء طلب ====================
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const { orderNumber, customerNumber, customerName, address, price, currency, ratio, driverId, companyId, orderContents } = req.body;
+    const { orderNumber, customerNumber, customerName, address, price, currency, ratio, driverId, companyId, orderContents, note } = req.body;
     const creator = req.user;
 
     if (creator.role !== 'admin' && creator.role !== 'company') {
@@ -328,7 +328,8 @@ router.post('/', authenticateToken, async (req, res) => {
         driver_name: driverName,
         company_id: company,
         company_name: companyName,
-        status: 'قيد المتابعة'
+        status: 'قيد المتابعة',
+        note: note || ''
         
       }])
       .select()
