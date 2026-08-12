@@ -6,6 +6,8 @@ const urlsToCache = [
   '/driver.html',
   '/company.html',
   '/css/style.css',
+  '/images/wolf-login-bg-delivery.png',
+  '/icons/icon-192x192.png',
   '/js/auth.js',
   '/js/admin.js',
   '/js/driver.js',
