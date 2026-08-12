@@ -19,20 +19,42 @@ function getAutoToggleKey() {
     return `autoToggle_company_${COMPANY_ID}`;
 }
 
+function isManualNumbering() {
+    return localStorage.getItem(getAutoToggleKey()) === 'true';
+}
+
+function updateNumberingModeUI(isManual) {
+    const autoButton = document.getElementById('autoNumberModeBtn');
+    const manualButton = document.getElementById('manualNumberModeBtn');
+    const hint = document.getElementById('numberingModeHint');
+
+    autoButton?.classList.toggle('is-active', !isManual);
+    manualButton?.classList.toggle('is-active', isManual);
+    autoButton?.setAttribute('aria-pressed', String(!isManual));
+    manualButton?.setAttribute('aria-pressed', String(isManual));
+
+    if (hint) {
+        hint.textContent = isManual
+            ? 'الوضع اليدوي مفعّل: اكتب رقم كل طلب بنفسك.'
+            : 'الوضع التلقائي مفعّل: سيزداد الرقم تلقائياً بعد إنشاء الطلب.';
+    }
+}
+
 function loadAutoOrderNumber() {
     const input = document.getElementById('orderNumber');
-    const manualToggle = document.getElementById('manualOrderToggle');
     if (!input) return;
 
-    const isManual = localStorage.getItem(getAutoToggleKey()) === 'true';
-    if (manualToggle) manualToggle.checked = isManual;
+    const isManual = isManualNumbering();
+    updateNumberingModeUI(isManual);
 
     if (isManual) {
         input.readOnly = false;
+        input.placeholder = 'اكتب رقم الطلب يدوياً';
         return;
     }
 
     input.readOnly = true;
+    input.placeholder = '';
     const key = getAutoNumberKey();
     const lastNumber = parseInt(localStorage.getItem(key), 10);
     console.log(`[loadAutoOrderNumber] المفتاح: ${key}, القيمة المخزنة: ${localStorage.getItem(key)}`);
@@ -45,40 +67,54 @@ function loadAutoOrderNumber() {
     console.log(`[loadAutoOrderNumber] الرقم المعروض: ${input.value}`);
 }
 
-function setCustomStartNumberForCompany() {
+function openAutoNumberDialog() {
+    const modal = document.getElementById('autoNumberModal');
+    const startInput = document.getElementById('autoNumberStart');
+    const orderInput = document.getElementById('orderNumber');
+    if (!modal || !startInput) return;
+
+    const savedNumber = parseInt(localStorage.getItem(getAutoNumberKey()), 10);
+    const suggestedNumber = !isNaN(savedNumber) && savedNumber > 0
+        ? savedNumber + 1
+        : parseInt(orderInput?.value, 10) || 1;
+
+    startInput.value = suggestedNumber;
+    modal.style.display = 'flex';
+    modal.setAttribute('aria-hidden', 'false');
+    setTimeout(() => {
+        startInput.focus();
+        startInput.select();
+    }, 0);
+}
+
+function closeAutoNumberDialog() {
+    const modal = document.getElementById('autoNumberModal');
+    if (!modal) return;
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden', 'true');
+}
+
+function enableManualNumbering() {
     const input = document.getElementById('orderNumber');
-    if (!input) {
-        console.error('حقل رقم الطلب غير موجود');
-        return;
-    }
+    if (!input) return;
 
-    const customVal = prompt("أدخل رقم البداية الجديد للطلبات:", input.value || "1");
-    if (customVal === null) return;
+    localStorage.setItem(getAutoToggleKey(), 'true');
+    input.readOnly = false;
+    input.value = '';
+    input.placeholder = 'اكتب رقم الطلب يدوياً';
+    updateNumberingModeUI(true);
+    input.focus();
+    showNotification('تم تفعيل الترقيم اليدوي', 'info');
+}
 
-    const num = parseInt(customVal, 10);
-    if (!isNaN(num) && num > 0) {
-        const key = getAutoNumberKey();
-        localStorage.setItem(key, num - 1);
-        input.value = num;
-        showNotification(`✅ تم تعيين رقم البداية إلى ${num}`, 'success');
-        console.log(`[setCustomStartNumberForCompany] تم حفظ: ${num - 1} في المفتاح ${key}`);
-    } else {
-        showNotification('❌ الرقم غير صالح، يرجى إدخال رقم صحيح', 'error');
-    }
+// إبقاء الاسم القديم متاحاً لأي نسخة مخزنة من الصفحة.
+function setCustomStartNumberForCompany() {
+    openAutoNumberDialog();
 }
 
 function toggleManualOrderInput(checkbox) {
-    const input = document.getElementById('orderNumber');
-    if (!input) return;
-    if (checkbox.checked) {
-        localStorage.setItem(getAutoToggleKey(), 'true');
-        input.readOnly = false;
-        input.value = '';
-        input.focus();
-    } else {
-        localStorage.setItem(getAutoToggleKey(), 'false');
-        loadAutoOrderNumber();
-    }
+    if (checkbox?.checked) enableManualNumbering();
+    else openAutoNumberDialog();
 }
 
 function saveLastOrderNumber(orderNumber) {
@@ -93,15 +129,7 @@ function saveLastOrderNumber(orderNumber) {
 }
 
 function resetAutoNumber() {
-    const key = getAutoNumberKey();
-    localStorage.removeItem(key);
-    const input = document.getElementById('orderNumber');
-    if (input) {
-        input.value = '';
-        input.focus();
-    }
-    showNotification('🔄 تم إعادة تعيين العداد', 'info');
-    console.log(`[resetAutoNumber] تم حذف المفتاح: ${key}`);
+    openAutoNumberDialog();
 }
 
 // ==================== دوال مساعدة ====================
@@ -295,19 +323,16 @@ function renderTable(orders) {
         const status = order.status;
         const note = order.note || '';
         const createdAt = order.created_at || order.createdAt;
-        const serialNumber = order.serial_number || order.serialNumber;
-
         tr.innerHTML = `
-            <td data-label="الرقم التسلسلي :">${serialNumber || ''}</td>
             <td data-label="عداد الطلبات :">${index + 1}</td>
             <td data-label="رقم الطلب :">${orderNumber}</td>
-            <td data-label="محتويات الطلب :">${order.order_contents || order.orderContents || '-'}</td>
+            <td class="text-wrap-column" data-label="محتويات الطلب :">${order.order_contents || order.orderContents || '-'}</td>
             <td data-label="اسم العميل :">${customerName}</td>
             <td data-label="رقم العميل :">${customerNumber ? `<a href="tel:${customerNumber}">${customerNumber}</a>` : '-'}</td>
             <td data-label="العنوان :">${address}</td>
             <td data-label="السعر :">${formatNumber(priceVal)} ${currency}</td>
             <td data-label="الحالة :"><span class="status-badge status-${status}">${status}</span></td>
-            <td data-label="ملاحظة :">${note || '-'}</td>
+            <td class="text-wrap-column" data-label="ملاحظة :">${note || '-'}</td>
             <td data-label="التاريخ :">${formatDate(createdAt)}</td>
             <td data-label="">
                 <button class="btn btn-sm btn-warning" onclick='openEditRequestModal("${orderId}")'>✏️ طلب تعديل</button>
@@ -408,16 +433,15 @@ document.getElementById('createOrderForm').addEventListener('submit', async (e) 
             throw new Error(err.message || 'فشل إنشاء الطلب');
         }
 
-        // ✅ حفظ الرقم بعد نجاح الإنشاء
+        // حفظ العداد فقط في الوضع التلقائي؛ الرقم اليدوي لا يغيّر تسلسل العداد.
         const orderNumInput = document.getElementById('orderNumber');
-        if (orderNumInput && orderNumInput.value) {
+        if (!isManualNumbering() && orderNumInput && orderNumInput.value) {
             saveLastOrderNumber(orderNumInput.value);
         }
 
-        // ✅ تحديث الحقل بالرقم التالي مباشرة
-        loadAutoOrderNumber();
-
         document.getElementById('createOrderForm').reset();
+        // إعادة رقم الطلب التالي بعد reset حتى لا يبقى الحقل فارغاً.
+        loadAutoOrderNumber();
         suppressNewOrderNotifications = true;
         fetchOrders();
         showNotification('✅ تم إنشاء الطلب بنجاح');
@@ -492,28 +516,40 @@ async function loadAdminPhone() {
     }
 }
 
-// ==================== PWA والتحديث التلقائي ====================
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').then(reg => {
-            reg.addEventListener('updatefound', () => {
-                const newWorker = reg.installing;
-                newWorker.addEventListener('statechange', () => {
-                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                        showNotification('🔄 تحديث جديد متوفر... جاري التحديث', 'info');
-                        setTimeout(() => {
-                            newWorker.postMessage('skipWaiting');
-                            window.location.reload();
-                        }, 2000);
-                    }
-                });
-            });
-        }).catch(err => console.log('SW failed', err));
-    });
-}
-
 // ==================== تهيئة الصفحة ====================
 document.addEventListener('DOMContentLoaded', function() {
+    const autoNumberForm = document.getElementById('autoNumberForm');
+    if (autoNumberForm) {
+        autoNumberForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            const startInput = document.getElementById('autoNumberStart');
+            const startNumber = Number(startInput?.value);
+
+            if (!Number.isInteger(startNumber) || startNumber < 1) {
+                showNotification('أدخل رقم بداية صحيحاً أكبر من صفر', 'error');
+                startInput?.focus();
+                return;
+            }
+
+            localStorage.setItem(getAutoNumberKey(), String(startNumber - 1));
+            localStorage.setItem(getAutoToggleKey(), 'false');
+            loadAutoOrderNumber();
+            closeAutoNumberDialog();
+            showNotification(`تم بدء الترقيم التلقائي من ${startNumber}`, 'success');
+        });
+    }
+
+    const autoNumberModal = document.getElementById('autoNumberModal');
+    autoNumberModal?.addEventListener('click', function(event) {
+        if (event.target === autoNumberModal) closeAutoNumberDialog();
+    });
+
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' && autoNumberModal?.style.display === 'flex') {
+            closeAutoNumberDialog();
+        }
+    });
+
     // ربط البحث
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {

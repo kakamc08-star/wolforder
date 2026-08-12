@@ -3,5 +3,7 @@ node_modules/
 .DS_Store
 *.log
 *.png
+!public/icons/apple-touch-icon-180x180.png
+!public/icons/icon-maskable-512x512.png
 npm
 console.log*

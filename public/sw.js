@@ -1,48 +1,86 @@
-const CACHE_NAME = 'wolforder-v' + Date.now(); // إصدار فريد مع كل نشر
-const urlsToCache = [
-  '/',
+const CACHE_NAME = 'wolforder-pwa-v3';
+const APP_SHELL = [
   '/login.html',
   '/admin.html',
   '/driver.html',
   '/company.html',
   '/css/style.css',
-  '/images/wolf-login-bg-delivery.png',
-  '/icons/icon-192x192.png',
+  '/js/pwa.js',
+  '/js/dashboard-ui.js',
   '/js/auth.js',
   '/js/admin.js',
+  '/js/driver-offline.js',
   '/js/driver.js',
   '/js/company.js',
+  '/images/wolf-login-bg-delivery.png',
+  '/icons/apple-touch-icon-180x180.png',
+  '/icons/icon-192x192.png',
+  '/icons/icon-512x512.png',
+  '/icons/icon-maskable-512x512.png',
+  '/favicon.ico',
   '/manifest.json'
 ];
 
 self.addEventListener('install', event => {
-  // تم إزالة self.skipWaiting() من هنا لكي ينتظر الإذن من رسالة الواجهة الأمامية
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache).catch(console.warn))
-  );
+  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)));
 });
 
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.filter(name => name !== CACHE_NAME).map(name => caches.delete(name))
-      );
-    }).then(() => self.clients.claim()) // سيطرة فورية على جميع العملاء
+    caches.keys()
+      .then(names => Promise.all(
+        names
+          .filter(name => name.startsWith('wolforder-') && name !== CACHE_NAME)
+          .map(name => caches.delete(name))
+      ))
+      .then(() => self.clients.claim())
   );
 });
 
-self.addEventListener('fetch', event => {
-  const url = event.request.url;
-  if (url.includes('/api/') || url.includes('/socket.io/')) return;
-  event.respondWith(
-    caches.match(event.request).then(response => response || fetch(event.request))
-  );
-});
-
-// إشعار جميع النوافذ المفتوحة بوجود تحديث
 self.addEventListener('message', event => {
-  if (event.data === 'skipWaiting') {
+  if (event.data === 'skipWaiting' || (event.data && event.data.type === 'SKIP_WAITING')) {
     self.skipWaiting();
   }
 });
+
+self.addEventListener('fetch', event => {
+  const request = event.request;
+  if (request.method !== 'GET') return;
+
+  const requestUrl = new URL(request.url);
+  if (requestUrl.origin !== self.location.origin) return;
+  if (requestUrl.pathname.startsWith('/api/') || requestUrl.pathname.startsWith('/socket.io/')) return;
+
+  if (request.mode === 'navigate') {
+    event.respondWith(networkFirstPage(request));
+    return;
+  }
+
+  event.respondWith(staleWhileRevalidate(request));
+});
+
+async function networkFirstPage(request) {
+  const cache = await caches.open(CACHE_NAME);
+
+  try {
+    const response = await fetch(request);
+    if (response.ok) await cache.put(request, response.clone());
+    return response;
+  } catch (error) {
+    return (await cache.match(request)) || (await cache.match('/login.html'));
+  }
+}
+
+async function staleWhileRevalidate(request) {
+  const cache = await caches.open(CACHE_NAME);
+  const cachedResponse = await cache.match(request);
+
+  const networkResponse = fetch(request)
+    .then(response => {
+      if (response.ok) cache.put(request, response.clone());
+      return response;
+    })
+    .catch(() => null);
+
+  return cachedResponse || (await networkResponse) || Response.error();
+}

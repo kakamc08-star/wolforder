@@ -31,6 +31,16 @@ wss.on('connection', (ws) => {
 // ============================================================
 
 app.use(express.json());
+
+// إجبار المتصفح على فحص نسخة Service Worker الجديدة عند كل زيارة.
+app.use((req, res, next) => {
+  if (req.path === '/sw.js') {
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Service-Worker-Allowed', '/');
+  }
+  next();
+});
+
 app.use(express.static('public'));
 
 // ✅ تعطيل Socket.IO مؤقتاً

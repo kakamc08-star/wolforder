@@ -380,14 +380,14 @@ function renderOrdersTable(orders) {
       <td data-label="الرقم التسلسلي :">${order.serial_number || order.serialNumber || ''}</td>
       <td data-label="عداد الطلبات :">${index + 1}</td>
       <td data-label="رقم الطلب :">${order.order_number || order.orderNumber}</td>
-      <td data-label="محتويات الطلب :">${order.order_contents || '-'}</td>
+      <td class="text-wrap-column" data-label="محتويات الطلب :">${order.order_contents || '-'}</td>
       <td data-label="اسم العميل :">${order.customer_name || order.customerName}</td>
       <td data-label="رقم العميل :">${order.customer_number ? `<a href="tel:${order.customer_number}">${order.customer_number}</a>` : '-'}</td>
       <td data-label="العنوان :">${order.address}</td>
       <td data-label="السعر :">${formatNumber(order.price)} ${order.currency || 'ل.س'}</td>
       <td data-label="النسبة :">${formatNumber(order.ratio || 0)}</td>
       <td data-label="الحالة :"><span class="status-badge status-${order.status}">${order.status}</span></td>
-      <td data-label="ملاحظة :">${order.note || '-'}</td>
+      <td class="text-wrap-column" data-label="ملاحظة :">${order.note || '-'}</td>
       <td data-label="السائق :">${order.driver_name || order.driverName || '-'}</td>
       <td data-label="الشركة :">${order.company_name || order.companyName || '-'}</td>
       <td data-label="التاريخ :">${formatDate(order.created_at || order.createdAt)}</td>
@@ -837,13 +837,13 @@ async function generateReport() {
         <td>${o.serial_number || o.serialNumber}</td>
         <td>${index + 1}</td>
         <td>${o.order_number || o.orderNumber}</td>
-        <td>${o.order_contents || '-'}</td>
+        <td class="text-wrap-column">${o.order_contents || '-'}</td>
         <td>${o.customer_name || o.customerName}</td>
         <td>${o.customer_number ? `<a href="tel:${o.customer_number}">${o.customer_number}</a>` : '-'}</td>
         <td>${formatNumber(o.price)} ${o.currency || 'ل.س'}</td>
         <td>${formatNumber(o.ratio || 0)}</td>
         <td>${o.status}</td>
-        <td>${o.note || '-'}</td>
+        <td class="text-wrap-column">${o.note || '-'}</td>
         <td>${o.driver_name || o.driverName || '-'}</td>
         <td>${o.company_name || o.companyName || '-'}</td>
       `;
@@ -1115,26 +1115,6 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
-
-// ==================== PWA ====================
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').then(reg => {
-      reg.addEventListener('updatefound', () => {
-        const newWorker = reg.installing;
-        newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            showNotification('🔄 تحديث جديد متوفر... جاري التحديث', 'info');
-            setTimeout(() => {
-              newWorker.postMessage('skipWaiting');
-              window.location.reload();
-            }, 2000);
-          }
-        });
-      });
-    }).catch(err => console.log('SW failed', err));
-  });
-}
 
 // ==================== إدارة المستخدمين ====================
 async function loadUsersListForManagement() {

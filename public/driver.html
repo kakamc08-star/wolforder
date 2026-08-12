@@ -2,117 +2,88 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <!-- PWA Manifest -->
-  <link rel="manifest" href="/manifest.json">
-  <meta name="mobile-web-app-capable" content="yes">
-  <!-- iOS Support -->
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="WolfOrder">
-  <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
-
-  <!-- Theme color -->
-  <meta name="theme-color" content="#3498db">
-
-
-  <title>لوحة السائق - نظام الطلبات</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="لوحة سائق WolfOrder لمتابعة الطلبات وتحديث حالتها">
+  <title>لوحة السائق | WolfOrder</title>
   <link rel="stylesheet" href="css/style.css">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WolfOrder">
+  <meta name="application-name" content="WolfOrder">
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon-180x180.png">
+  <meta name="theme-color" content="#06101f">
+  <script src="/js/pwa.js" defer></script>
 </head>
-<body>
-  <div class="dashboard-header">
-    <h1>🚚 لوحة السائق</h1>
-    <div class="user-info">
-      <span id="userNameDisplay"></span>
-      <button class="btn btn-secondary btn-sm" onclick="logout()">تسجيل الخروج</button>
-      <button class="btn btn-sm btn-secondary" onclick="toggleDarkMode(event)">🌙</button>
+<body class="dashboard-page role-driver">
+  <div class="app-shell">
+    <aside class="app-sidebar" id="appSidebar" aria-label="التنقل الرئيسي">
+      <div class="sidebar-brand">
+        <img src="icons/icon-192x192.png" alt="شعار WolfOrder" width="52" height="52">
+        <div><strong lang="en">WOLFORDER</strong><span>نظام إدارة التوصيل</span></div>
+      </div>
+      <div class="sidebar-role">
+        <span class="role-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17h2M19 17h2M5 17l1.5-7h11l1.5 7M7 10l1.3-4h7.4L17 10M7 17h10"></path><circle cx="7" cy="18" r="2"></circle><circle cx="17" cy="18" r="2"></circle></svg></span>
+        <div><small>مساحة العمل</small><strong>لوحة السائق</strong></div>
+      </div>
+      <nav class="sidebar-nav">
+        <span class="nav-label">القائمة الرئيسية</span>
+        <a class="active" href="#ordersSection"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"></path></svg><span>طلباتي</span></a>
+      </nav>
+      <div class="sidebar-tip"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v4l3 2"></path></svg><p>حدّث حالة الطلب مباشرة بعد كل عملية توصيل.</p></div>
+      <div class="sidebar-footer"><span class="status-dot"></span><div><strong>السائق متصل</strong><small>WolfOrder Driver</small></div></div>
+    </aside>
+    <button class="sidebar-overlay" type="button" data-sidebar-close aria-label="إغلاق القائمة"></button>
+
+    <main class="app-main">
+      <header class="dashboard-header">
+        <div class="header-title-row">
+          <button class="icon-button mobile-menu-button" type="button" data-sidebar-toggle aria-controls="appSidebar" aria-expanded="true" aria-label="إخفاء لوحة العمل" title="إخفاء لوحة العمل"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button>
+          <div class="page-heading"><span class="eyebrow">رحلات التوصيل</span><h1>لوحة السائق</h1><p>تابع طلباتك وحدّث الحالة بسرعة أثناء العمل</p></div>
+        </div>
+        <div class="user-info">
+          <button class="icon-button" type="button" data-theme-toggle aria-label="تفعيل الوضع الداكن"></button>
+          <div class="user-chip"><span class="user-avatar">س</span><div><small>مرحباً بك</small><strong id="userNameDisplay"></strong></div></div>
+          <button class="btn btn-secondary btn-sm logout-button" type="button" onclick="logout()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3M15 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"></path></svg><span>تسجيل الخروج</span></button>
+        </div>
+      </header>
+
+      <div class="workspace-content">
+        <section class="card dashboard-card" id="ordersSection">
+          <div class="section-heading section-heading-split">
+            <div class="section-heading-main"><span class="section-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"></path></svg></span><div><h2>طلباتي</h2><p>كل الطلبات المعيّنة لك مع بيانات التواصل والتوصيل</p></div></div>
+            <div class="update-meta"><span id="lastUpdateTime"></span><button class="btn btn-sm btn-secondary" type="button" onclick="fetchOrders()">تحديث الآن</button></div>
+          </div>
+          <div class="filters-panel"><div class="filters-section">
+            <div class="form-group search-field"><label for="searchInput">بحث</label><input type="text" id="searchInput" placeholder="رقم الطلب، العميل أو العنوان..."></div>
+            <div class="form-group"><label for="filterStatus">الحالة</label><select id="filterStatus"><option value="">الكل</option><option value="تم">تم</option><option value="مؤجل">مؤجل</option><option value="مرتجع">مرتجع</option><option value="إلغاء">إلغاء</option></select></div>
+            <div class="filter-actions"><button class="btn btn-primary" type="button" onclick="fetchOrders()">تطبيق الفلتر</button></div>
+          </div></div>
+          <div class="table-responsive">
+            <table id="ordersTable">
+              <thead><tr><th>العداد</th><th>رقم الطلب</th><th class="text-wrap-column">المحتويات</th><th>اسم العميل</th><th>رقم العميل</th><th>العنوان</th><th>السعر</th><th>النسبة</th><th>الحالة</th><th>الشركة</th><th class="text-wrap-column">ملاحظة</th><th>التاريخ</th><th>إجراء</th></tr></thead>
+              <tbody id="ordersTableBody"></tbody>
+              <tfoot id="ordersTableFoot"><tr><td colspan="13"><div class="totals-grid"><div class="total-card total-green"><span>إجمالي السعر (ل.س)</span><strong id="totalPriceSYR">0 ل.س</strong></div><div class="total-card total-blue"><span>إجمالي السعر ($)</span><strong id="totalPriceUSD">0 $</strong></div><div class="total-card total-orange"><span>إجمالي النسبة</span><strong id="totalRatioSum">0</strong></div></div></td></tr></tfoot>
+            </table>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div id="editModal" class="modal" style="display:none;">
+    <div class="card modal-card modal-sm">
+      <div class="modal-heading"><h3>تحديث حالة الطلب</h3><button type="button" class="modal-close" onclick="closeModal()" aria-label="إغلاق">×</button></div>
+      <form id="editOrderForm"><input type="hidden" id="editOrderId"><div class="form-group"><label for="editStatus">الحالة</label><select id="editStatus" required><option value="تم">تم</option><option value="مؤجل">مؤجل</option><option value="مرتجع">مرتجع</option><option value="إلغاء">إلغاء</option></select></div><div class="form-group"><label for="editNote">ملاحظة</label><textarea id="editNote" rows="3" placeholder="أضف تفاصيل تساعد في المتابعة..."></textarea></div><div class="form-actions"><button type="submit" class="btn btn-primary">حفظ التحديث</button><button type="button" class="btn btn-secondary" onclick="closeModal()">إلغاء</button></div></form>
     </div>
   </div>
-  <div class="card">
-    <h2>📋 طلباتي</h2>
-    <div class="filters-section">
-      
 
- 
-   <div class="form-group">
-    <label for="searchInput">🔍 بحث</label>
-    <input type="text" id="searchInput" placeholder="ابحث عن طلب..." style="min-width:250px;">
-  </div>
-
-      <div class="form-group"><label for="filterStatus">الحالة</label><select id="filterStatus">
-        <option value="">الكل</option>
-        <option value="تم">تم</option>
-        <option value="مؤجل">مؤجل</option>
-        <option value="مرتجع">مرتجع</option>
-        <option value="إلغاء">إلغاء</option>
-      </select></div>
-      <button class="btn btn-secondary" onclick="fetchOrders()">تطبيق</button>
-      <span id="lastUpdateTime"></span>
-      <button class="btn btn-sm btn-secondary" onclick="fetchOrders()" style="margin-left:10px;">🔄 تحديث الآن</button>
-    </div>
-    <div  class="table-responsive">
-      <table id="ordersTable">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>عداد الطلبات</th>
-            <th>رقم الطلب</th>
-            <th>محتويات الطلب</th>
-            <th>اسم العميل</th>
-            <th>رقم العميل</th>
-            <th>العنوان</th>
-            <th>السعر</th>
-            <th>النسبة</th>
-            <th>الحالة</th>
-            <th>الشركة</th>
-            <th>ملاحظة</th>
-            <th>التاريخ</th>
-            <th>إجراء</th>
-        </tr>
-      </thead>
-      <tbody id="ordersTableBody" ></tbody>
-
-      <tfoot id="ordersTableFoot" >
-        <!-- صف إجمالي الليرة السورية -->
-        <tr>
-          <td colspan="7" style="text-align: right" >إجمالي السعر بالليرة السورية:</td>
-          <td id="totalPriceSYR" >0 ل.س</td>
-          <td colspan="6"></td>
-        </tr>
-        <!-- صف إجمالي الدولار -->
-        <tr>
-          <td colspan="7" style="text-align: right" >إجمالي السعر بالدولار:</td>
-          <td id="totalPriceUSD">0 $</td>
-          <td colspan="6"></td>
-        </tr>
-        <!-- صف إجمالي النسبة -->
-        <tr>
-          <td colspan="8" style="text-align: right">إجمالي النسبة:</td>
-          
-          <td id="totalRatioSum" >0</td>
-          <td colspan="5"></td>
-        </tr>
-      </tfoot>
-
-      </table>
-    </div>
-  </div>
-  <div id="editModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center; z-index:1000;">
-    <div class="card" style="max-width:500px;">
-      <h3>تعديل الطلب</h3>
-      <form id="editOrderForm">
-        <input type="hidden" id="editOrderId">
-        <div class="form-group"><label for="editStatus">الحالة</label><select id="editStatus" required><option value="تم">تم</option><option value="مؤجل">مؤجل</option><option value="مرتجع">مرتجع</option><option value="إلغاء">إلغاء</option></select></div>
-        <div class="form-group"><label for="editNote">ملاحظة</label><textarea id="editNote"></textarea></div>
-        <button type="submit" class="btn btn-primary">حفظ</button>
-        <button type="button" class="btn btn-secondary" onclick="closeModal()">إلغاء</button>
-      </form>
-    </div>
-  </div>
   <div id="notificationArea"></div>
- 
+  <script src="js/dashboard-ui.js"></script>
   <script src="js/auth.js"></script>
+  <script src="js/driver-offline.js"></script>
   <script src="js/driver.js"></script>
 </body>
 </html>

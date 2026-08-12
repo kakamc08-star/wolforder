@@ -102,30 +102,14 @@ if (window.location.pathname.includes('login.html')) {
   });
 }
 
-function logout() {
+async function logout() {
+  if (typeof window.clearDriverOfflineData === 'function') {
+    try {
+      await window.clearDriverOfflineData();
+    } catch (error) {
+      console.warn('تعذر مسح بيانات السائق المحلية:', error);
+    }
+  }
   localStorage.clear();
   window.location.href = 'login.html';
-}
-
-// ==================== PWA مع التحديث التلقائي ====================
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').then(registration => {
-      registration.addEventListener('updatefound', () => {
-        const newWorker = registration.installing;
-        newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            if (typeof showNotification === 'function') {
-              showNotification('🔄 تحديث جديد متوفر... جاري التحديث', 'info');
-            }
-
-            window.setTimeout(() => {
-              newWorker.postMessage('skipWaiting');
-              window.location.reload();
-            }, 2000);
-          }
-        });
-      });
-    }).catch(error => console.log('SW failed', error));
-  });
 }
