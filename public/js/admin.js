@@ -260,6 +260,26 @@ function validateCustomerNumber(number) {
   return /^\d{10}$/.test(number.trim());
 }
 
+function convertToEnglishDigits(value) {
+    return String(value)
+        .replace(/[٠-٩]/g, digit => '٠١٢٣٤٥٦٧٨٩'.indexOf(digit))
+        .replace(/[۰-۹]/g, digit => '۰۱۲۳۴۵۶۷۸۹'.indexOf(digit))
+        .replace(/٫/g, '.')
+        .replace(/٬/g, '');
+}
+
+document.addEventListener('input', function (event) {
+    const input = event.target;
+
+    if (!input.matches('input, textarea')) return;
+
+    const convertedValue = convertToEnglishDigits(input.value);
+
+    if (input.value !== convertedValue) {
+        input.value = convertedValue;
+    }
+});
+
 // ==================== جلب الطلبات ====================
 async function fetchOrders() {
   try {

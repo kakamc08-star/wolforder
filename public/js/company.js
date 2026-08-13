@@ -192,6 +192,28 @@ function showNotification(msg, type = 'info') {
     n.appendChild(closeBtn);
 }
 
+// تحويل الأرقام العربية والفارسية إلى أرقام إنكليزية
+function convertToEnglishDigits(value) {
+    return String(value)
+        .replace(/[٠-٩]/g, digit => '٠١٢٣٤٥٦٧٨٩'.indexOf(digit))
+        .replace(/[۰-۹]/g, digit => '۰۱۲۳۴۵۶۷۸۹'.indexOf(digit))
+        .replace(/٫/g, '.')
+        .replace(/٬/g, '');
+}
+
+// التحويل مباشرة أثناء الكتابة في لوحة الشركة
+document.addEventListener('input', function (event) {
+    const input = event.target;
+
+    if (!input.matches('input, textarea')) return;
+
+    const convertedValue = convertToEnglishDigits(input.value);
+
+    if (input.value !== convertedValue) {
+        input.value = convertedValue;
+    }
+});
+
 // ==================== حالة الاتصال ====================
 function updateOnlineStatus() {
     const offlineBar = document.getElementById('offlineBar');
@@ -594,6 +616,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (btn) btn.textContent = '☀️';
     }
 });
+
+
+
 
 // ==================== بدء التطبيق ====================
 fetchOrders();
