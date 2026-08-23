@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wolforder-pwa-v3';
+const CACHE_NAME = 'wolforder-pwa-v5';
 const APP_SHELL = [
   '/login.html',
   '/admin.html',

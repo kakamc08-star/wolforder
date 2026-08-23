@@ -3,6 +3,13 @@ const router = express.Router();
 const supabase = require('../config/db');
 const authenticateToken = require('../middleware/auth');
 
+const ORDER_TYPES = ['توصيل', 'شحن', 'شحن لباب المنزل'];
+
+function normalizeOrderType(value) {
+  const orderType = value || 'توصيل';
+  return ORDER_TYPES.includes(orderType) ? orderType : null;
+}
+
 // دالة تنسيق الأرقام للتصدير
 function formatNumberForExcel(num) {
   if (num === null || num === undefined || isNaN(num)) return '0';
@@ -53,11 +60,12 @@ router.get('/report', authenticateToken, async (req, res) => {
     const totalRatio = orders.reduce((sum, o) => sum + (o.ratio || 0), 0);
 
  if (req.query.export === 'excel') {
-  const headers = ['الرقم التسلسلي', 'رقم الطلب','محتويات الطلب', 'اسم العميل', 'رقم العميل', 'العنوان', 'السعر', 'النسبة', 'الحالة', 'ملاحظة', 'السائق', 'الشركة', 'التاريخ'];
+  const headers = ['الرقم التسلسلي', 'رقم الطلب', 'نوع الطلب', 'محتويات الطلب', 'اسم العميل', 'رقم العميل', 'العنوان', 'السعر', 'النسبة', 'الحالة', 'ملاحظة', 'السائق', 'الشركة', 'التاريخ'];
   
   const rows = orders.map(o => [
     o.serial_number,
     o.order_number,
+    o.order_type || 'توصيل',
     o.order_contents || '-', 
     o.customer_name,
     o.customer_number || '-',
@@ -185,7 +193,7 @@ router.patch('/bulk-update', authenticateToken, async (req, res) => {
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const { role, id } = req.user;
-    const { status, startDate, endDate, driverId, companyId } = req.query;
+    const { status, startDate, endDate, driverId, companyId, orderType } = req.query;
 
     // 1. بناء استعلام أساسي
     let query = supabase
@@ -217,6 +225,14 @@ if (startDate || endDate) {
     // 4. فلترة حسب الحالة (إذا وُجد)
     if (status) {
       query = query.eq('status', status);
+    }
+
+    if (orderType) {
+      const normalizedOrderType = normalizeOrderType(orderType);
+      if (!normalizedOrderType) {
+        return res.status(400).json({ message: 'نوع الطلب غير صالح' });
+      }
+      query = query.eq('order_type', normalizedOrderType);
     }
 
     // 5. فلترة إضافية للمدير
@@ -271,8 +287,13 @@ if (!startDate && !endDate) {
 // ==================== إنشاء طلب ====================
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const { orderNumber, customerNumber, customerName, address, price, currency, ratio, driverId, companyId, orderContents, note } = req.body;
+    const { orderNumber, customerNumber, customerName, address, price, currency, ratio, driverId, companyId, orderContents, orderType, note } = req.body;
     const creator = req.user;
+    const normalizedOrderType = normalizeOrderType(orderType);
+
+    if (!normalizedOrderType) {
+      return res.status(400).json({ message: 'نوع الطلب غير صالح' });
+    }
 
     if (creator.role !== 'admin' && creator.role !== 'company') {
       return res.status(403).json({ message: 'غير مصرح لك بإنشاء طلب' });
@@ -317,6 +338,7 @@ router.post('/', authenticateToken, async (req, res) => {
       .from('orders')
       .insert([{
         order_number: orderNumber,
+        order_type: normalizedOrderType,
         order_contents: orderContents || '',
         customer_name: customerName,
         customer_number: customerNumber || '',
@@ -477,18 +499,22 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
     const {
       orderNumber, customerNumber, customerName, address,
-      price, currency, ratio, driverId, companyId, status, note, orderContents
+      price, currency, ratio, driverId, companyId, status, note, orderContents, orderType
     } = req.body;
-
     // جلب الطلب الحالي لمعرفة الشركة المخزنة
     const { data: currentOrder, error: fetchCurrentError } = await supabase
       .from('orders')
-      .select('company_id')
+      .select('company_id, order_type')
       .eq('id', req.params.id)
       .single();
 
     if (fetchCurrentError || !currentOrder) {
       return res.status(404).json({ message: 'الطلب غير موجود' });
+    }
+
+    const normalizedOrderType = normalizeOrderType(orderType || currentOrder.order_type);
+    if (!normalizedOrderType) {
+      return res.status(400).json({ message: 'نوع الطلب غير صالح' });
     }
 
     // ✅ التحقق من عدم تكرار رقم الطلب لنفس الشركة عند التعديل
@@ -523,6 +549,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
     const updates = {
       order_number: orderNumber,
+      order_type: normalizedOrderType,
       order_contents: orderContents || '',
       customer_name: customerName,
       customer_number: customerNumber || '',

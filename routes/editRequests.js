@@ -3,6 +3,8 @@ const router = express.Router();
 const supabase = require('../config/db');
 const authenticateToken = require('../middleware/auth');
 
+const ORDER_TYPES = ['توصيل', 'شحن', 'شحن لباب المنزل'];
+
 // 1. الشركة ترسل طلب تعديل
 router.post('/', authenticateToken, async (req, res) => {
   try {
@@ -118,7 +120,11 @@ router.patch('/:id/accept', authenticateToken, async (req, res) => {
     // تطبيق التغييرات
     const changes = editRequest.requested_changes;
     const updates = { updated_at: new Date() };
+    if (changes.orderType && !ORDER_TYPES.includes(changes.orderType)) {
+      return res.status(400).json({ message: 'نوع الطلب غير صالح' });
+    }
     if (changes.orderNumber) updates.order_number = changes.orderNumber;
+    if (changes.orderType) updates.order_type = changes.orderType;
     if (changes.orderContents) updates.order_contents = changes.orderContents;
     if (changes.customerNumber) updates.customer_number = changes.customerNumber;
     if (changes.customerName) updates.customer_name = changes.customerName;

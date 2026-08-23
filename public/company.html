@@ -30,8 +30,9 @@
       </div>
       <nav class="sidebar-nav">
         <span class="nav-label">القائمة الرئيسية</span>
-        <a class="active" href="#ordersSection"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"></path></svg><span>طلبات الشركة</span></a>
-        <a href="#createOrderSection"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg><span>إنشاء طلب</span></a>
+        <a class="active" href="#companyHomeSection" data-company-view="home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5M5.5 10v10h13V10M9 20v-6h6v6"></path></svg><span>الرئيسية</span></a>
+        <a href="#createOrderSection" data-company-view="create"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg><span>إنشاء الطلبات</span></a>
+        <a href="#ordersSection" data-company-view="orders"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"></path></svg><span>طلباتي</span></a>
       </nav>
       <div class="sidebar-footer"><span class="status-dot"></span><div><strong>النظام متصل</strong><small>WolfOrder Partner</small></div></div>
     </aside>
@@ -52,18 +53,38 @@
       </header>
 
       <div class="workspace-content">
-        <section class="card dashboard-card" id="createOrderSection">
+        <section class="company-home-section" id="companyHomeSection" aria-labelledby="companyHomeTitle">
+          <div class="company-home-heading">
+            <span class="eyebrow">وصول سريع</span>
+            <h2 id="companyHomeTitle">ماذا تريد أن تفعل؟</h2>
+            <p>اختر القسم المطلوب للبدء.</p>
+          </div>
+          <div class="company-home-actions">
+            <button class="company-home-card company-home-card-create" type="button" data-company-view="create">
+              <span class="company-home-card-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></span>
+              <span class="company-home-card-copy"><strong>إنشاء الطلبات</strong><small>إضافة طلب جديد إلى نظام التوصيل</small></span>
+              <span class="company-home-card-arrow" aria-hidden="true">←</span>
+            </button>
+            <button class="company-home-card company-home-card-orders" type="button" data-company-view="orders">
+              <span class="company-home-card-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"></path></svg></span>
+              <span class="company-home-card-copy"><strong>طلباتي</strong><small>عرض جميع الطلبات ومتابعة حالاتها</small><span class="company-home-pending" id="homePendingOrdersCount">0 قيد المتابعة</span></span>
+              <span class="company-home-card-arrow" aria-hidden="true">←</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="card dashboard-card company-view-section" id="createOrderSection" hidden>
           <div class="section-heading"><span class="section-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></span><div><h2>إنشاء طلب جديد</h2><p>أدخل بيانات العميل وسيظهر الطلب مباشرة في نظام التوصيل</p></div></div>
           <form id="createOrderForm">
             <div class="form-row">
               <div class="form-group">
                 <label for="orderNumber">رقم الطلب *</label>
                 <div class="numbering-mode-switch" role="group" aria-label="طريقة ترقيم الطلبات">
-                  <button type="button" id="autoNumberModeBtn" class="numbering-mode-btn" onclick="openAutoNumberDialog()" aria-pressed="true">
+                  <button type="button" id="autoNumberModeBtn" class="numbering-mode-btn" onclick="openAutoNumberDialog()" aria-pressed="false">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h12M4 12h9M4 17h6M19 5v6M16 8h6"></path></svg>
                     <span>ترقيم تلقائي</span>
                   </button>
-                  <button type="button" id="manualNumberModeBtn" class="numbering-mode-btn" onclick="enableManualNumbering()" aria-pressed="false">
+                  <button type="button" id="manualNumberModeBtn" class="numbering-mode-btn is-active" onclick="enableManualNumbering()" aria-pressed="true">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5V15l10.8-10.8a2.1 2.1 0 0 1 3 3L7 18H4Z"></path><path d="m13.5 5.5 3 3"></path></svg>
                     <span>ترقيم يدوي</span>
                   </button>
@@ -77,31 +98,45 @@
               <div class="form-group"><label for="address">العنوان *</label><input type="text" id="address" required></div>
             </div>
             <div class="form-row form-row-short">
+              <div class="form-group"><label for="orderType">نوع الطلب *</label><select id="orderType" required><option value="توصيل" selected>توصيل</option><option value="شحن">شحن</option><option value="شحن لباب المنزل">شحن لباب المنزل</option></select></div>
               <div class="form-group"><label for="price">السعر *</label><input type="number" id="price" required></div>
               <div class="form-group form-group-compact"><label for="currency">العملة</label><select id="currency"><option value="ل.س" selected>ل.س</option><option value="دولار">دولار</option></select></div>
               <div class="form-group"><label for="orderNote">ملاحظة (اختياري)</label><input type="text" id="orderNote" placeholder="أي تفاصيل إضافية..."></div>
             </div>
-            <div class="form-actions"><button type="submit" class="btn btn-primary">إنشاء الطلب</button></div>
+            <div class="form-actions"><button type="submit" class="btn btn-primary" id="createOrderSubmitBtn">إنشاء الطلب</button></div>
           </form>
+          <div class="created-order-summary" id="createdOrderSummary" hidden role="status" aria-live="polite">
+            <button type="button" class="created-order-summary-close" id="closeCreatedOrderSummary" aria-label="إغلاق">×</button>
+            <div class="created-order-summary-title"><span>✓</span><div><strong>تم إنشاء الطلب بنجاح</strong><small>يمكنك الآن إنشاء طلب جديد أو متابعة الطلب من قسم طلباتي.</small></div></div>
+            <div class="created-order-summary-details"><div><span>رقم الطلب</span><strong id="createdOrderNumber">-</strong></div><div><span>نوع الطلب</span><strong id="createdOrderType">-</strong></div><div><span>اسم العميل</span><strong id="createdCustomerName">-</strong></div></div>
+          </div>
         </section>
 
-        <section class="card dashboard-card" id="ordersSection">
+        <section class="card dashboard-card company-view-section" id="ordersSection" hidden>
           <div class="section-heading section-heading-split">
-            <div class="section-heading-main"><span class="section-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"></path></svg></span><div><h2>طلبات الشركة</h2><p>تابع حالة طلباتك وابحث في السجل</p></div></div>
+            <div class="section-heading-main"><span class="section-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"></path></svg></span><div><h2>طلباتي</h2><p>اختر حالة لعرض طلباتها أو اعرض جميع الطلبات</p></div></div>
             <div class="update-meta"><span id="lastUpdateTime"></span><button class="btn btn-sm btn-secondary" type="button" onclick="fetchOrders()">تحديث الآن</button></div>
           </div>
+          <div class="company-status-grid" role="group" aria-label="تصنيف الطلبات حسب الحالة">
+            <button class="company-status-card status-card-pending" type="button" data-order-category="pending"><span class="status-card-label">قيد المتابعة</span><strong id="pendingOrdersCount">0</strong><small>الطلبات الجارية</small></button>
+            <button class="company-status-card status-card-postponed" type="button" data-order-category="postponed"><span class="status-card-label">مؤجل</span><strong id="postponedOrdersCount">0</strong><small>الطلبات المؤجلة</small></button>
+            <button class="company-status-card status-card-done" type="button" data-order-category="done"><span class="status-card-label">تم</span><strong id="doneOrdersCount">0</strong><small>الطلبات المكتملة</small></button>
+            <button class="company-status-card status-card-returned" type="button" data-order-category="returned"><span class="status-card-label">مرتجع</span><strong id="returnedOrdersCount">0</strong><small>الطلبات المرتجعة</small></button>
+            <button class="company-status-card status-card-cancelled" type="button" data-order-category="cancelled"><span class="status-card-label">الإلغاء</span><strong id="cancelledOrdersCount">0</strong><small>الطلبات الملغاة</small></button>
+            <button class="company-status-card status-card-shipping" type="button" data-order-category="shipping"><span class="status-card-label">طلبات الشحن</span><strong id="shippingOrdersCount">0</strong><small>شحن وشحن لباب المنزل</small></button>
+          </div>
+          <div class="company-orders-toolbar"><span id="activeCategoryLabel">جميع الطلبات</span><span class="orders-loading-indicator" id="ordersLoadingIndicator" hidden><span class="loading-spinner" aria-hidden="true"></span>جاري تحميل الطلبات...</span><button class="btn btn-sm btn-ghost" type="button" id="showAllOrdersBtn">عرض جميع الطلبات</button></div>
           <div class="filters-panel"><div class="filters-section">
             <div class="form-group search-field"><label for="searchInput">بحث</label><input type="text" id="searchInput" placeholder="رقم الطلب، العميل أو العنوان..."></div>
-            <div class="form-group"><label for="filterStatus">الحالة</label><select id="filterStatus"><option value="">الكل</option><option value="تم">تم</option><option value="مؤجل">مؤجل</option><option value="مرتجع">مرتجع</option><option value="إلغاء">إلغاء</option></select></div>
             <div class="form-group"><label for="startDate">من تاريخ</label><input type="date" id="startDate"></div>
             <div class="form-group"><label for="endDate">إلى تاريخ</label><input type="date" id="endDate"></div>
             <div class="filter-actions"><button class="btn btn-primary" type="button" onclick="fetchOrders()">تطبيق</button><button class="btn btn-ghost" type="button" onclick="clearFilters()">مسح الفلاتر</button></div>
           </div></div>
           <div class="table-responsive">
             <table id="ordersTable">
-              <thead><tr><th>العداد</th><th>رقم الطلب <span class="sort-control" title="تصاعدي" onclick="setSortAndRender('asc')">▲</span><span class="sort-control" title="تنازلي" onclick="setSortAndRender('desc')">▼</span><span class="sort-control" title="الافتراضي" onclick="setSortAndRender('default')">↺</span></th><th class="text-wrap-column">المحتويات</th><th>اسم العميل</th><th>رقم العميل</th><th>العنوان</th><th>السعر</th><th>الحالة</th><th class="text-wrap-column">ملاحظة</th><th>التاريخ</th><th>إجراء تعديل</th></tr></thead>
+              <thead><tr><th>العداد</th><th>رقم الطلب <span class="sort-control" title="تصاعدي" onclick="setSortAndRender('asc')">▲</span><span class="sort-control" title="تنازلي" onclick="setSortAndRender('desc')">▼</span><span class="sort-control" title="الافتراضي" onclick="setSortAndRender('default')">↺</span></th><th>نوع الطلب</th><th class="text-wrap-column">المحتويات</th><th>اسم العميل</th><th>رقم العميل</th><th>العنوان</th><th>السعر</th><th>الحالة</th><th class="text-wrap-column">ملاحظة</th><th>التاريخ</th><th>إجراء تعديل</th></tr></thead>
               <tbody id="ordersTableBody"></tbody>
-              <tfoot id="ordersTableFoot"><tr><td colspan="11"><div class="totals-grid totals-grid-two"><div class="total-card total-green"><span>إجمالي السعر (ل.س)</span><strong id="totalPriceSYR">0 ل.س</strong></div><div class="total-card total-blue"><span>إجمالي السعر ($)</span><strong id="totalPriceUSD">0 $</strong></div></div></td></tr></tfoot>
+              <tfoot id="ordersTableFoot"><tr><td colspan="12"><div class="totals-grid totals-grid-two"><div class="total-card total-green"><span>إجمالي السعر (ل.س)</span><strong id="totalPriceSYR">0 ل.س</strong></div><div class="total-card total-blue"><span>إجمالي السعر ($)</span><strong id="totalPriceUSD">0 $</strong></div></div></td></tr></tfoot>
             </table>
           </div>
         </section>
@@ -112,7 +147,7 @@
   <div id="editRequestModal" class="modal" style="display:none;">
     <div class="card modal-card modal-lg">
       <div class="modal-heading"><h3>طلب تعديل الطلب</h3><button type="button" class="modal-close" onclick="closeEditRequestModal()" aria-label="إغلاق">×</button></div>
-      <form id="editRequestForm"><input type="hidden" id="requestOrderId"><div class="form-row"><div class="form-group"><label for="reqOrderNumber">رقم الطلب</label><input type="text" id="reqOrderNumber"></div><div class="form-group"><label for="reqOrderContents">محتويات الطلب</label><input type="text" id="reqOrderContents"></div><div class="form-group"><label for="reqCustomerNumber">رقم العميل</label><input type="text" id="reqCustomerNumber"></div></div><div class="form-row"><div class="form-group"><label for="reqCustomerName">اسم العميل</label><input type="text" id="reqCustomerName"></div><div class="form-group"><label for="reqAddress">العنوان</label><input type="text" id="reqAddress"></div></div><div class="form-row"><div class="form-group"><label for="reqPrice">السعر</label><input type="number" step="0.01" id="reqPrice"></div><div class="form-group form-group-compact"><label for="reqCurrency">العملة</label><select id="reqCurrency"><option value="ل.س">ل.س</option><option value="دولار">دولار</option></select></div><div class="form-group"><label for="reqNote">ملاحظة التعديل</label><input type="text" id="reqNote" placeholder="سبب التعديل أو تفاصيل إضافية..."></div></div><div class="form-actions"><button type="submit" class="btn btn-primary">إرسال الطلب</button><button type="button" class="btn btn-secondary" onclick="closeEditRequestModal()">إلغاء</button></div></form>
+      <form id="editRequestForm"><input type="hidden" id="requestOrderId"><div class="form-row"><div class="form-group"><label for="reqOrderNumber">رقم الطلب</label><input type="text" id="reqOrderNumber"></div><div class="form-group"><label for="reqOrderType">نوع الطلب</label><select id="reqOrderType"><option value="توصيل">توصيل</option><option value="شحن">شحن</option><option value="شحن لباب المنزل">شحن لباب المنزل</option></select></div><div class="form-group"><label for="reqOrderContents">محتويات الطلب</label><input type="text" id="reqOrderContents"></div><div class="form-group"><label for="reqCustomerNumber">رقم العميل</label><input type="text" id="reqCustomerNumber"></div></div><div class="form-row"><div class="form-group"><label for="reqCustomerName">اسم العميل</label><input type="text" id="reqCustomerName"></div><div class="form-group"><label for="reqAddress">العنوان</label><input type="text" id="reqAddress"></div></div><div class="form-row"><div class="form-group"><label for="reqPrice">السعر</label><input type="number" step="0.01" id="reqPrice"></div><div class="form-group form-group-compact"><label for="reqCurrency">العملة</label><select id="reqCurrency"><option value="ل.س">ل.س</option><option value="دولار">دولار</option></select></div><div class="form-group"><label for="reqNote">ملاحظة التعديل</label><input type="text" id="reqNote" placeholder="سبب التعديل أو تفاصيل إضافية..."></div></div><div class="form-actions"><button type="submit" class="btn btn-primary">إرسال الطلب</button><button type="button" class="btn btn-secondary" onclick="closeEditRequestModal()">إلغاء</button></div></form>
     </div>
   </div>
 

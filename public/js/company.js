@@ -20,7 +20,9 @@ function getAutoToggleKey() {
 }
 
 function isManualNumbering() {
-    return localStorage.getItem(getAutoToggleKey()) === 'true';
+    const savedMode = localStorage.getItem(getAutoToggleKey());
+    // عند عدم وجود إعداد محفوظ نبدأ بالترقيم اليدوي، ويمكن للمستخدم تفعيل التلقائي لاحقاً.
+    return savedMode === null || savedMode === 'true';
 }
 
 function updateNumberingModeUI(isManual) {
@@ -139,6 +141,145 @@ let allOrders = [];
 let adminPhone = '';
 let currentSort = 'default';
 let suppressNewOrderNotifications = false;
+let activeOrderCategory = '';
+let ordersLoadingTimer = null;
+
+const categoryLabels = {
+    pending: 'طلبات قيد المتابعة',
+    postponed: 'الطلبات المؤجلة',
+    done: 'الطلبات المكتملة',
+    returned: 'الطلبات المرتجعة',
+    cancelled: 'الطلبات الملغاة',
+    shipping: 'طلبات الشحن'
+};
+
+function showCompanyView(viewName) {
+    const homeSection = document.getElementById('companyHomeSection');
+    const createSection = document.getElementById('createOrderSection');
+    const ordersSection = document.getElementById('ordersSection');
+    const sections = { home: homeSection, create: createSection, orders: ordersSection };
+    const selectedSection = sections[viewName] || homeSection;
+
+    Object.values(sections).forEach(section => {
+        if (section) section.hidden = section !== selectedSection;
+    });
+
+    document.querySelectorAll('.sidebar-nav [data-company-view]').forEach(link => {
+        link.classList.toggle('active', link.dataset.companyView === viewName);
+    });
+
+    if (viewName === 'orders') {
+        fetchOrders();
+    } else if (viewName === 'create') {
+        setTimeout(() => document.getElementById('orderNumber')?.focus(), 0);
+    }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function getOrderType(order) {
+    return order.order_type || order.orderType || 'توصيل';
+}
+
+function getOrderTypeClass(orderType) {
+    if (orderType === 'شحن') return 'order-type-shipping';
+    if (orderType === 'شحن لباب المنزل') return 'order-type-home-shipping';
+    return 'order-type-delivery';
+}
+
+function matchesOrderCategory(order, category) {
+    if (!category) return true;
+    if (category === 'pending') return order.status === 'قيد المتابعة';
+    if (category === 'postponed') return order.status === 'مؤجل';
+    if (category === 'done') return order.status === 'تم';
+    if (category === 'returned') return order.status === 'مرتجع';
+    if (category === 'cancelled') return order.status === 'إلغاء';
+    if (category === 'shipping') return ['شحن', 'شحن لباب المنزل'].includes(getOrderType(order));
+    return true;
+}
+
+function updateStatusCards() {
+    const counts = {
+        pending: allOrders.filter(order => matchesOrderCategory(order, 'pending')).length,
+        postponed: allOrders.filter(order => matchesOrderCategory(order, 'postponed')).length,
+        done: allOrders.filter(order => matchesOrderCategory(order, 'done')).length,
+        returned: allOrders.filter(order => matchesOrderCategory(order, 'returned')).length,
+        cancelled: allOrders.filter(order => matchesOrderCategory(order, 'cancelled')).length,
+        shipping: allOrders.filter(order => matchesOrderCategory(order, 'shipping')).length
+    };
+
+    const countElements = {
+        pending: 'pendingOrdersCount',
+        postponed: 'postponedOrdersCount',
+        done: 'doneOrdersCount',
+        returned: 'returnedOrdersCount',
+        cancelled: 'cancelledOrdersCount',
+        shipping: 'shippingOrdersCount'
+    };
+
+    Object.entries(countElements).forEach(([category, elementId]) => {
+        const element = document.getElementById(elementId);
+        if (element) element.textContent = counts[category];
+    });
+
+    const homePendingCount = document.getElementById('homePendingOrdersCount');
+    if (homePendingCount) homePendingCount.textContent = `${counts.pending} قيد المتابعة`;
+}
+
+function setOrdersLoading(isLoading) {
+    const indicator = document.getElementById('ordersLoadingIndicator');
+    const ordersSection = document.getElementById('ordersSection');
+    if (!indicator || !ordersSection) return;
+
+    clearTimeout(ordersLoadingTimer);
+    ordersSection.setAttribute('aria-busy', String(isLoading));
+    if (isLoading) {
+        ordersLoadingTimer = setTimeout(() => {
+            indicator.hidden = false;
+        }, 180);
+    } else {
+        indicator.hidden = true;
+    }
+}
+
+function setCreateOrderSubmitting(isSubmitting) {
+    const button = document.getElementById('createOrderSubmitBtn');
+    if (!button) return;
+    if (isSubmitting) {
+        const summary = document.getElementById('createdOrderSummary');
+        if (summary) summary.hidden = true;
+    }
+    button.disabled = isSubmitting;
+    button.classList.toggle('is-loading', isSubmitting);
+    button.textContent = isSubmitting ? 'جاري إنشاء الطلب...' : 'إنشاء الطلب';
+}
+
+function showCreatedOrderSummary(createdOrder, fallbackData) {
+    const summary = document.getElementById('createdOrderSummary');
+    if (!summary) return;
+
+    const orderNumber = createdOrder?.order_number || createdOrder?.orderNumber || fallbackData.orderNumber;
+    const orderType = createdOrder?.order_type || createdOrder?.orderType || fallbackData.orderType;
+    const customerName = createdOrder?.customer_name || createdOrder?.customerName || fallbackData.customerName;
+
+    document.getElementById('createdOrderNumber').textContent = orderNumber || '-';
+    document.getElementById('createdOrderType').textContent = orderType || 'توصيل';
+    document.getElementById('createdCustomerName').textContent = customerName || '-';
+    summary.hidden = false;
+}
+
+function selectOrderCategory(category = '') {
+    activeOrderCategory = category;
+    document.querySelectorAll('[data-order-category]').forEach(card => {
+        const isActive = card.dataset.orderCategory === category;
+        card.classList.toggle('is-active', isActive);
+        card.setAttribute('aria-pressed', String(isActive));
+    });
+
+    const label = document.getElementById('activeCategoryLabel');
+    if (label) label.textContent = categoryLabels[category] || 'جميع الطلبات';
+    applyFiltersAndRender();
+}
 
 function setSortAndRender(direction) {
     currentSort = direction;
@@ -235,13 +376,12 @@ document.addEventListener('DOMContentLoaded', updateOnlineStatus);
 
 // ==================== جلب الطلبات ====================
 async function fetchOrders() {
+    setOrdersLoading(true);
     try {
-        const statusEl = document.getElementById('filterStatus');
         const startDateEl = document.getElementById('startDate');
         const endDateEl = document.getElementById('endDate');
         const searchEl = document.getElementById('searchInput');
 
-        const status = statusEl ? statusEl.value : '';
         const startDateInput = startDateEl ? startDateEl.value : '';
         const endDateInput = endDateEl ? endDateEl.value : '';
         const searchInput = searchEl ? searchEl.value : '';
@@ -256,7 +396,6 @@ async function fetchOrders() {
         }
 
         let url = '/api/orders?all=true&';
-        if (status) url += `status=${status}&`;
         if (startDate) url += `startDate=${startDate}&`;
         if (endDate) url += `endDate=${endDate}&`;
 
@@ -264,7 +403,7 @@ async function fetchOrders() {
         if (!res.ok) throw new Error('فشل جلب الطلبات');
         const orders = await res.json();
 
-        const filterKey = `${status}|${startDateInput}|${endDateInput}|${searchInput}`;
+        const filterKey = `${activeOrderCategory}|${startDateInput}|${endDateInput}|${searchInput}`;
         if (window._lastFilterKey !== filterKey) {
             previousOrderIds.clear();
             window._lastFilterKey = filterKey;
@@ -285,9 +424,9 @@ async function fetchOrders() {
 
         previousOrderIds = new Set(orders.map(o => o.id || o._id));
         allOrders = orders;
+        updateStatusCards();
         applyFiltersAndRender();
 
-        if (statusEl && statusEl.value !== status) statusEl.value = status;
         if (startDateEl && startDateEl.value !== startDateInput) startDateEl.value = startDateInput;
         if (endDateEl && endDateEl.value !== endDateInput) endDateEl.value = endDateInput;
         if (searchEl && searchEl.value !== searchInput) searchEl.value = searchInput;
@@ -295,11 +434,14 @@ async function fetchOrders() {
         document.getElementById('lastUpdateTime').textContent = `آخر تحديث: ${new Date().toLocaleTimeString('ar')}`;
     } catch (err) {
         console.error('fetchOrders error:', err);
+    } finally {
+        setOrdersLoading(false);
     }
 }
 
 function applyFiltersAndRender() {
     let filtered = [...allOrders];
+    filtered = filtered.filter(order => matchesOrderCategory(order, activeOrderCategory));
     const searchText = document.getElementById('searchInput')?.value || '';
     filtered = filterOrdersBySearch(filtered, searchText);
 
@@ -312,10 +454,10 @@ function applyFiltersAndRender() {
 }
 
 function clearFilters() {
-    document.getElementById('filterStatus').value = '';
     document.getElementById('startDate').value = '';
     document.getElementById('endDate').value = '';
     document.getElementById('searchInput').value = '';
+    selectOrderCategory('');
     fetchOrders();
 }
 
@@ -325,6 +467,10 @@ function renderTable(orders) {
     if (!tbody) return;
     tbody.innerHTML = '';
     let totalSYR = 0, totalUSD = 0;
+
+    if (orders.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="12" class="company-empty-orders">لا توجد طلبات ضمن هذا التصنيف.</td></tr>';
+    }
 
     orders.forEach((order, index) => {
         const price = Number(order.price) || 0;
@@ -348,6 +494,7 @@ function renderTable(orders) {
         tr.innerHTML = `
             <td data-label="عداد الطلبات :">${index + 1}</td>
             <td data-label="رقم الطلب :">${orderNumber}</td>
+            <td data-label="نوع الطلب :"><span class="order-type-badge ${getOrderTypeClass(getOrderType(order))}">${getOrderType(order)}</span></td>
             <td class="text-wrap-column" data-label="محتويات الطلب :">${order.order_contents || order.orderContents || '-'}</td>
             <td data-label="اسم العميل :">${customerName}</td>
             <td data-label="رقم العميل :">${customerNumber ? `<a href="tel:${customerNumber}">${customerNumber}</a>` : '-'}</td>
@@ -437,9 +584,11 @@ document.getElementById('createOrderForm').addEventListener('submit', async (e) 
         price,
         currency,
         ratio: 0,
+        orderType: document.getElementById('orderType')?.value || 'توصيل',
         note: document.getElementById('orderNote')?.value || ''
     };
 
+    setCreateOrderSubmitting(true);
     try {
         const res = await fetch('/api/orders', {
             method: 'POST',
@@ -455,6 +604,8 @@ document.getElementById('createOrderForm').addEventListener('submit', async (e) 
             throw new Error(err.message || 'فشل إنشاء الطلب');
         }
 
+        const createdOrder = await res.json();
+
         // حفظ العداد فقط في الوضع التلقائي؛ الرقم اليدوي لا يغيّر تسلسل العداد.
         const orderNumInput = document.getElementById('orderNumber');
         if (!isManualNumbering() && orderNumInput && orderNumInput.value) {
@@ -466,9 +617,12 @@ document.getElementById('createOrderForm').addEventListener('submit', async (e) 
         loadAutoOrderNumber();
         suppressNewOrderNotifications = true;
         fetchOrders();
+        showCreatedOrderSummary(createdOrder, data);
         showNotification('✅ تم إنشاء الطلب بنجاح');
     } catch (err) {
         alert('❌ ' + err.message);
+    } finally {
+        setCreateOrderSubmitting(false);
     }
 });
 
@@ -479,6 +633,7 @@ function openEditRequestModal(orderId) {
 
     document.getElementById('requestOrderId').value = orderId;
     document.getElementById('reqOrderNumber').value = order.order_number || order.orderNumber;
+    document.getElementById('reqOrderType').value = getOrderType(order);
     document.getElementById('reqOrderContents').value = order.order_contents || order.orderContents || '';
     document.getElementById('reqCustomerNumber').value = order.customer_number || order.customerNumber || '';
     document.getElementById('reqCustomerName').value = order.customer_name || order.customerName;
@@ -497,6 +652,7 @@ document.getElementById('editRequestForm')?.addEventListener('submit', async (e)
     const orderId = document.getElementById('requestOrderId').value;
     const changes = {
         orderNumber: document.getElementById('reqOrderNumber').value,
+        orderType: document.getElementById('reqOrderType').value,
         orderContents: document.getElementById('reqOrderContents').value,
         customerNumber: document.getElementById('reqCustomerNumber').value,
         customerName: document.getElementById('reqCustomerName').value,
@@ -540,6 +696,24 @@ async function loadAdminPhone() {
 
 // ==================== تهيئة الصفحة ====================
 document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-company-view]').forEach(control => {
+        control.addEventListener('click', function(event) {
+            event.preventDefault();
+            showCompanyView(control.dataset.companyView);
+        });
+    });
+
+    document.querySelectorAll('[data-order-category]').forEach(card => {
+        card.setAttribute('aria-pressed', 'false');
+        card.addEventListener('click', () => selectOrderCategory(card.dataset.orderCategory));
+    });
+
+    document.getElementById('showAllOrdersBtn')?.addEventListener('click', () => selectOrderCategory(''));
+    document.getElementById('closeCreatedOrderSummary')?.addEventListener('click', () => {
+        const summary = document.getElementById('createdOrderSummary');
+        if (summary) summary.hidden = true;
+    });
+
     const autoNumberForm = document.getElementById('autoNumberForm');
     if (autoNumberForm) {
         autoNumberForm.addEventListener('submit', function(event) {
@@ -578,17 +752,6 @@ document.addEventListener('DOMContentLoaded', function() {
         searchInput.addEventListener('input', applyFiltersAndRender);
     }
 
-    // تعيين تاريخ اليوم
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    const formattedDate = `${yyyy}-${mm}-${dd}`;
-    const startDateInput = document.getElementById('startDate');
-    const endDateInput = document.getElementById('endDate');
-    if (startDateInput) startDateInput.value = formattedDate;
-    if (endDateInput) endDateInput.value = formattedDate;
-
     // زر مراسلة المدير
     const contactBtn = document.getElementById('contactAdminBtn');
     if (contactBtn) {
@@ -606,8 +769,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // تحميل رقم المدير
     loadAdminPhone();
 
-    // تفعيل الترقيم الآلي
+    // تحميل وضع الترقيم؛ اليدوي هو الافتراضي ما لم يُحفظ اختيار آخر.
     loadAutoOrderNumber();
+
+    showCompanyView('home');
 
     // تفعيل الوضع الداكن إن كان محفوظاً
     if (localStorage.getItem('darkMode') === 'true') {

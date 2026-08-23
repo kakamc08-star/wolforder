@@ -2162,6 +2162,346 @@ body.dark-mode [style*="background-color: #ffffff"] {
   margin-top: 7px !important;
 }
 
+/* ==================== الصفحة الرئيسية ولوحة حالات الشركة ==================== */
+.company-home-section {
+  max-width: 980px;
+  margin: clamp(24px, 7vh, 72px) auto 0;
+}
+
+.company-home-heading {
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.company-home-heading h2 {
+  margin: 5px 0 8px;
+  color: var(--text-main);
+  font-size: clamp(24px, 3vw, 34px);
+}
+
+.company-home-heading p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.company-home-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.company-home-card {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 17px;
+  min-height: 170px;
+  padding: 28px;
+  border: 1px solid #dce7f3;
+  border-radius: 22px;
+  color: var(--text-main);
+  background: linear-gradient(145deg, #ffffff, #f8fbff);
+  box-shadow: 0 16px 42px rgba(24, 54, 89, 0.09);
+  text-align: right;
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.company-home-card:hover {
+  border-color: #b8d8f7;
+  box-shadow: 0 20px 48px rgba(24, 83, 139, 0.15);
+  transform: translateY(-3px);
+}
+
+.company-home-card-icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  color: #ffffff;
+  background: linear-gradient(145deg, #1478d2, #0d5fa9);
+  box-shadow: 0 10px 24px rgba(20, 120, 210, 0.24);
+}
+
+.company-home-card-orders .company-home-card-icon {
+  background: linear-gradient(145deg, #1aa56f, #087b50);
+  box-shadow: 0 10px 24px rgba(13, 132, 86, 0.23);
+}
+
+.company-home-card-icon svg {
+  width: 30px;
+  height: 30px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.company-home-card-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.company-home-card-copy strong {
+  font-size: 23px;
+}
+
+.company-home-card-copy small {
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.company-home-pending {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 2px;
+  padding: 4px 9px;
+  border: 1px solid #c9e4d8;
+  border-radius: 999px;
+  color: #12714a;
+  background: #ebf8f2;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.company-home-card-arrow {
+  color: #7a8fa6;
+  font-size: 24px;
+}
+
+.company-status-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(125px, 1fr));
+  gap: 12px;
+  margin-bottom: 15px;
+}
+
+.company-status-card {
+  display: flex;
+  min-height: 126px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-top: 4px solid #4d91cf;
+  border-radius: 15px;
+  flex-direction: column;
+  align-items: flex-start;
+  color: var(--text-main);
+  background: var(--surface);
+  box-shadow: 0 8px 22px rgba(22, 47, 78, 0.055);
+  text-align: right;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.company-status-card:hover,
+.company-status-card.is-active {
+  border-color: #80b6e7;
+  box-shadow: 0 12px 28px rgba(23, 105, 180, 0.14);
+  transform: translateY(-2px);
+}
+
+.company-status-card.is-active {
+  background: #f0f8ff;
+}
+
+.company-status-card strong {
+  margin: 5px 0 2px;
+  color: var(--brand-dark);
+  font-size: 25px;
+}
+
+.company-status-card small {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.status-card-done { border-top-color: #22a06b; }
+.status-card-postponed { border-top-color: #d6a52e; }
+.status-card-returned { border-top-color: #dd8d2f; }
+.status-card-cancelled { border-top-color: #d95757; }
+.status-card-shipping { border-top-color: #7c63c7; }
+
+.company-orders-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 10px 13px;
+  border-radius: 12px;
+  color: var(--text-muted);
+  background: var(--surface-soft);
+}
+
+.company-orders-toolbar > span {
+  color: var(--text-main);
+  font-weight: 800;
+}
+
+.orders-loading-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-inline-start: auto;
+  color: var(--brand) !important;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.orders-loading-indicator[hidden] {
+  display: none !important;
+}
+
+.loading-spinner {
+  width: 15px;
+  height: 15px;
+  border: 2px solid #c9dff4;
+  border-top-color: var(--brand);
+  border-radius: 50%;
+  animation: wolforder-spin 0.75s linear infinite;
+}
+
+@keyframes wolforder-spin {
+  to { transform: rotate(360deg); }
+}
+
+#createOrderSubmitBtn.is-loading {
+  cursor: wait;
+}
+
+#createOrderSubmitBtn:disabled {
+  opacity: 0.72;
+}
+
+.created-order-summary {
+  position: relative;
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid #bfe7d4;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #f4fcf8, #edf9f3);
+}
+
+.created-order-summary[hidden] {
+  display: none !important;
+}
+
+.created-order-summary-close {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 9px;
+  color: #557168;
+  background: rgba(255, 255, 255, 0.78);
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.created-order-summary-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 15px;
+}
+
+.created-order-summary-title > span {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  color: #ffffff;
+  background: #159260;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.created-order-summary-title div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.created-order-summary-title strong {
+  color: #126844;
+  font-size: 17px;
+}
+
+.created-order-summary-title small {
+  color: #5f766d;
+}
+
+.created-order-summary-details {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.created-order-summary-details > div {
+  display: flex;
+  padding: 11px 13px;
+  border: 1px solid rgba(25, 137, 91, 0.13);
+  border-radius: 11px;
+  flex-direction: column;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.created-order-summary-details span {
+  color: #70847d;
+  font-size: 11px;
+}
+
+.created-order-summary-details strong {
+  color: #253b33;
+  overflow-wrap: anywhere;
+}
+
+.order-type-badge {
+  display: inline-flex;
+  padding: 5px 9px;
+  border: 1px solid #d6e2ef;
+  border-radius: 999px;
+  color: #385672;
+  background: #f3f7fb;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.order-type-badge.order-type-delivery {
+  border-color: #c5ddf5;
+  color: #1764a8;
+  background: #edf6ff;
+}
+
+.order-type-badge.order-type-shipping {
+  border-color: #d8cdf5;
+  color: #6544ad;
+  background: #f5f1ff;
+}
+
+.order-type-badge.order-type-home-shipping {
+  border-color: #f1d2aa;
+  color: #a75b16;
+  background: #fff6ea;
+}
+
+.company-empty-orders {
+  padding: 38px 16px !important;
+  color: var(--text-muted);
+  text-align: center !important;
+}
+
 #orderNumber[readonly] {
   color: #175f9f;
   background: #eef7ff;
@@ -2455,6 +2795,79 @@ body.dark-mode [style*="background-color: #ffffff"] {
   background: #142b40;
 }
 
+.dashboard-page.dark-mode .company-home-card,
+.dashboard-page.dark-mode .company-status-card {
+  border-color: var(--border);
+  color: var(--text-main);
+  background: linear-gradient(145deg, #162130, #111b28);
+}
+
+.dashboard-page.dark-mode .company-home-heading h2,
+.dashboard-page.dark-mode .company-home-card-copy strong {
+  color: var(--text-main);
+}
+
+.dashboard-page.dark-mode .company-status-card.is-active {
+  border-color: #315f89;
+  background: #173651;
+}
+
+.dashboard-page.dark-mode .company-status-card strong,
+.dashboard-page.dark-mode .company-orders-toolbar > span {
+  color: #a9d6ff;
+}
+
+.dashboard-page.dark-mode .company-home-pending {
+  border-color: #28644c;
+  color: #84ddb6;
+  background: #153b2c;
+}
+
+.dashboard-page.dark-mode .created-order-summary {
+  border-color: #28644c;
+  background: linear-gradient(145deg, #153428, #11271f);
+}
+
+.dashboard-page.dark-mode .created-order-summary-title strong,
+.dashboard-page.dark-mode .created-order-summary-details strong {
+  color: #b7efd4;
+}
+
+.dashboard-page.dark-mode .created-order-summary-title small,
+.dashboard-page.dark-mode .created-order-summary-details span {
+  color: #94b3a5;
+}
+
+.dashboard-page.dark-mode .created-order-summary-details > div {
+  border-color: #28513f;
+  background: rgba(11, 28, 22, 0.55);
+}
+
+.dashboard-page.dark-mode .company-orders-toolbar,
+.dashboard-page.dark-mode .order-type-badge {
+  border-color: var(--border);
+  color: #b7c6d7;
+  background: #111b28;
+}
+
+.dashboard-page.dark-mode .order-type-badge.order-type-delivery {
+  border-color: #315f89;
+  color: #8fc7ff;
+  background: #142b40;
+}
+
+.dashboard-page.dark-mode .order-type-badge.order-type-shipping {
+  border-color: #5a488a;
+  color: #c8b4ff;
+  background: #28203d;
+}
+
+.dashboard-page.dark-mode .order-type-badge.order-type-home-shipping {
+  border-color: #78502d;
+  color: #ffc184;
+  background: #382719;
+}
+
 @media (max-width: 1180px) {
   .dashboard-page {
     --sidebar-width: 248px;
@@ -2473,6 +2886,10 @@ body.dark-mode [style*="background-color: #ffffff"] {
 
   .user-chip {
     min-width: 120px;
+  }
+
+  .company-status-grid {
+    grid-template-columns: repeat(3, minmax(145px, 1fr));
   }
 }
 
@@ -2545,7 +2962,7 @@ body.dark-mode [style*="background-color: #ffffff"] {
 
   /* توزيع ثابت بلا فراغات بين السعر والعملة والنسبة في نموذج المدير. */
   .role-admin .admin-order-secondary-row {
-    grid-template-columns: minmax(0, 1fr) 105px minmax(0, 0.78fr) minmax(0, 1.08fr) minmax(0, 1.08fr);
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.9fr) 105px minmax(0, 0.72fr) minmax(0, 1fr) minmax(0, 1fr);
   }
 
   .role-admin .admin-order-secondary-row .form-group-compact {
@@ -2722,6 +3139,45 @@ body.dark-mode [style*="background-color: #ffffff"] {
     margin-bottom: 16px;
     padding: 17px 14px;
     border-radius: 16px;
+  }
+
+  .company-home-section {
+    margin-top: 18px;
+  }
+
+  .company-home-actions,
+  .company-status-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .company-home-card {
+    min-height: 132px;
+    padding: 21px 18px;
+  }
+
+  .company-home-card-copy strong {
+    font-size: 20px;
+  }
+
+  .company-status-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    min-height: 88px;
+    align-items: center;
+  }
+
+  .company-status-card strong {
+    grid-row: 1 / span 2;
+    grid-column: 2;
+    margin: 0;
+  }
+
+  .company-status-card small {
+    grid-column: 1;
+  }
+
+  .created-order-summary-details {
+    grid-template-columns: 1fr;
   }
 
   .section-heading {

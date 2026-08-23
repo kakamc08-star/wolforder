@@ -85,7 +85,8 @@ function loadAutoOrderNumberForCompany() {
   if (!input) return;
 
   const toggleKey = getAutoToggleKeyForCompany(companyId);
-  const isManual = localStorage.getItem(toggleKey) === 'true';
+  const savedMode = localStorage.getItem(toggleKey);
+  const isManual = savedMode === null || savedMode === 'true';
 
   if (manualToggle) manualToggle.checked = isManual;
 
@@ -232,6 +233,16 @@ function formatNumber(num) {
   return rounded.toLocaleString('en-US');
 }
 
+function getOrderType(order) {
+  return order.order_type || order.orderType || 'توصيل';
+}
+
+function getOrderTypeClass(orderType) {
+  if (orderType === 'شحن') return 'order-type-shipping';
+  if (orderType === 'شحن لباب المنزل') return 'order-type-home-shipping';
+  return 'order-type-delivery';
+}
+
 function showNotification(msg, type = 'info') {
   const area = document.getElementById('notificationArea');
   if (!area) return;
@@ -288,6 +299,7 @@ async function fetchOrders() {
     const savedEndDateInput = document.getElementById('filterEndDate')?.value || '';
     const savedDriverId = document.getElementById('filterDriver')?.value || '';
     const savedCompanyId = document.getElementById('filterCompany')?.value || '';
+    const savedOrderType = document.getElementById('filterOrderType')?.value || '';
     const savedSearch = document.getElementById('searchInput')?.value || '';
 
     let startDate = '';
@@ -307,6 +319,7 @@ async function fetchOrders() {
     if (endDate) url += `endDate=${endDate}&`;
     if (savedDriverId) url += `driverId=${savedDriverId}&`;
     if (savedCompanyId) url += `companyId=${savedCompanyId}&`;
+    if (savedOrderType) url += `orderType=${encodeURIComponent(savedOrderType)}&`;
 
     const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
     if (!res.ok) throw new Error('فشل جلب الطلبات');
@@ -319,6 +332,7 @@ async function fetchOrders() {
     const elEnd = document.getElementById('filterEndDate');
     const elDriver = document.getElementById('filterDriver');
     const elCompany = document.getElementById('filterCompany');
+    const elOrderType = document.getElementById('filterOrderType');
     const elSearch = document.getElementById('searchInput');
 
     if (elStatus && elStatus.value !== savedStatus) elStatus.value = savedStatus;
@@ -326,6 +340,7 @@ async function fetchOrders() {
     if (elEnd && elEnd.value !== savedEndDateInput) elEnd.value = savedEndDateInput;
     if (elDriver && elDriver.value !== savedDriverId) elDriver.value = savedDriverId;
     if (elCompany && elCompany.value !== savedCompanyId) elCompany.value = savedCompanyId;
+    if (elOrderType && elOrderType.value !== savedOrderType) elOrderType.value = savedOrderType;
     if (elSearch && elSearch.value !== savedSearch) elSearch.value = savedSearch;
 
     document.getElementById('lastUpdateTime').textContent = `آخر تحديث: ${new Date().toLocaleTimeString('ar')}`;
@@ -344,6 +359,11 @@ function applyFiltersAndRender() {
     filtered = filtered.filter(o => o.status === status);
   }
 
+  const orderType = document.getElementById('filterOrderType')?.value;
+  if (orderType) {
+    filtered = filtered.filter(o => getOrderType(o) === orderType);
+  }
+
   if (currentSort === 'asc') {
     filtered.sort((a, b) => (a.order_number || '').localeCompare(b.order_number || '', 'ar', { numeric: true }));
   } else if (currentSort === 'desc') {
@@ -353,7 +373,7 @@ function applyFiltersAndRender() {
 }
 
 function clearFilters() {
-  const fields = ['filterStatus', 'filterStartDate', 'filterEndDate', 'filterDriver', 'filterCompany', 'searchInput'];
+  const fields = ['filterStatus', 'filterOrderType', 'filterStartDate', 'filterEndDate', 'filterDriver', 'filterCompany', 'searchInput'];
   fields.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
@@ -400,6 +420,7 @@ function renderOrdersTable(orders) {
       <td data-label="الرقم التسلسلي :">${order.serial_number || order.serialNumber || ''}</td>
       <td data-label="عداد الطلبات :">${index + 1}</td>
       <td data-label="رقم الطلب :">${order.order_number || order.orderNumber}</td>
+      <td data-label="نوع الطلب :"><span class="order-type-badge ${getOrderTypeClass(getOrderType(order))}">${getOrderType(order)}</span></td>
       <td class="text-wrap-column" data-label="محتويات الطلب :">${order.order_contents || '-'}</td>
       <td data-label="اسم العميل :">${order.customer_name || order.customerName}</td>
       <td data-label="رقم العميل :">${order.customer_number ? `<a href="tel:${order.customer_number}">${order.customer_number}</a>` : '-'}</td>
@@ -438,19 +459,22 @@ function filterOrdersBySearch(orders, searchText) {
       // 2. محتويات الطلب (الإضافة الجديدة)
       (o.order_contents && String(o.order_contents).toLowerCase().includes(searchLower)) ||
       (o.orderContents && String(o.orderContents).toLowerCase().includes(searchLower)) ||
+
+      // 3. نوع الطلب
+      getOrderType(o).toLowerCase().includes(searchLower) ||
       
-      // 3. اسم العميل
+      // 4. اسم العميل
       (o.customer_name && String(o.customer_name).toLowerCase().includes(searchLower)) ||
       (o.customerName && String(o.customerName).toLowerCase().includes(searchLower)) ||
       
-      // 4. رقم العميل
+      // 5. رقم العميل
       (o.customer_number && String(o.customer_number).toLowerCase().includes(searchLower)) ||
       (o.customerNumber && String(o.customerNumber).toLowerCase().includes(searchLower)) ||
       
-      // 5. العنوان
+      // 6. العنوان
       (o.address && String(o.address).toLowerCase().includes(searchLower)) ||
       
-      // 6. الملاحظات
+      // 7. الملاحظات
       (o.note && String(o.note).toLowerCase().includes(searchLower))
     );
   });
@@ -496,6 +520,7 @@ if (createForm) {
     }
     const data = {
       orderNumber: document.getElementById('orderNumber').value,
+      orderType: document.getElementById('orderType')?.value || 'توصيل',
       orderContents: document.getElementById('orderContents').value,
       customerName,
       customerNumber,
@@ -542,6 +567,7 @@ async function showEditOrderModal(orderId) {
 
     document.getElementById('editOrderId').value = order.id;
     document.getElementById('editOrderNumber').value = order.order_number || order.orderNumber;
+    document.getElementById('editOrderType').value = order.order_type || order.orderType || 'توصيل';
     document.getElementById('editOrderContents').value = order.order_contents || '';
     document.getElementById('editCustomerNumber').value = order.customer_number || '';
     document.getElementById('editCustomerName').value = order.customer_name || order.customerName;
@@ -631,6 +657,7 @@ if (editForm) {
 
     const updatedData = {
       orderNumber: document.getElementById('editOrderNumber').value,
+      orderType: document.getElementById('editOrderType').value,
       orderContents: document.getElementById('editOrderContents').value,
       customerName: document.getElementById('editCustomerName').value,
       customerNumber: document.getElementById('editCustomerNumber').value.trim(),
@@ -1339,6 +1366,16 @@ async function applyBulkEdit() {
 }
 
 // ==================== طباعة ====================
+function getPrintDeliveryRow(order) {
+  const orderType = getOrderType(order);
+
+  if (orderType === 'شحن' || orderType === 'شحن لباب المنزل') {
+    return `<div class="detail-row"><span class="detail-label">نوع الطلب:</span><span class="detail-value">${orderType}</span></div>`;
+  }
+
+  return '<div class="detail-row"><span class="detail-label">أجور التوصيل:</span><span class="detail-value">ضمن دمشق 20,000 <br> خارج دمشق 40,000</span></div>';
+}
+
 function printOrder(orderId) {
   const order = allOrders.find(o => (o.id || o._id) === orderId);
   if (!order) { alert('الطلب غير موجود'); return; }
@@ -1381,7 +1418,7 @@ function printOrder(orderId) {
         <div class="detail-row"><span class="detail-label">رقم العميل:</span><span class="detail-value">${customerNumber || '-'}</span></div>
         <div class="detail-row"><span class="detail-label">العنوان:</span><span class="detail-value">${address}</span></div>
         <div class="detail-row"><span class="detail-label">السعر:</span><span class="detail-value">${price} ${currency}</span></div>
-        <div class="detail-row"><span class="detail-label">أجور التوصيل:</span><span class="detail-value">ضمن دمشق 20,000 <br> خارج دمشق 40,000</span></div>
+        ${getPrintDeliveryRow(order)}
         <div class="detail-row"><span class="detail-label">الشركة:</span><span class="detail-value">${companyName}</span></div>
         <div class="detail-row"><span class="detail-label">ملاحظة:</span><span class="detail-value">${note}</span></div>
         <div class="footer" style="text-align: right;">للشكاوي أو الاستعلام بالنسبة لخدمة التوصيل<br> يرجى التواصل على الرقم: 0997665442</div>
@@ -1423,7 +1460,7 @@ async function printSelectedOrders() {
         <div class="detail-row"><span class="detail-label">رقم العميل:</span><span class="detail-value">${customerNumber || '-'}</span></div>
         <div class="detail-row"><span class="detail-label">العنوان:</span><span class="detail-value">${address}</span></div>
         <div class="detail-row"><span class="detail-label">السعر:</span><span class="detail-value">${price} ${currency}</span></div>
-        <div class="detail-row"><span class="detail-label">أجور التوصيل:</span><span class="detail-value">ضمن دمشق 20,000 <br> خارج دمشق 40,000</span></div>
+        ${getPrintDeliveryRow(order)}
         <div class="detail-row"><span class="detail-label">الشركة:</span><span class="detail-value">${companyName}</span></div>
         <div class="detail-row"><span class="detail-label">ملاحظة:</span><span class="detail-value">${note}</span></div>
         <div class="footer" style="text-align: right;">للشكاوي أو الاستعلام بالنسبة لخدمة التوصيل<br> يرجى التواصل على الرقم: 0997665442</div>
@@ -1718,7 +1755,8 @@ function loadAutoOrderNumberForCompany() {
   if (!input) return;
 
   const toggleKey = getAutoToggleKeyForCompany(companyId);
-  const isManual = localStorage.getItem(toggleKey) === 'true';
+  const savedMode = localStorage.getItem(toggleKey);
+  const isManual = savedMode === null || savedMode === 'true';
 
   // إذا كان المستخدم مفعل الوضع اليدوي
   if (manualToggle) manualToggle.checked = isManual;
