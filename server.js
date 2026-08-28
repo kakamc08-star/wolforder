@@ -2,10 +2,12 @@ require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws'); // ✅ إضافة مكتبة WebSockets
+const path = require('path');
 const authenticateToken = require('./middleware/auth');
 const supabase = require('./config/db'); // ✅ اتصال Supabase
 
 const app = express();
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 
 // ============================================================
@@ -30,7 +32,20 @@ wss.on('connection', (ws) => {
 });
 // ============================================================
 
-app.use(express.json());
+app.disable('x-powered-by');
+app.use(express.json({ limit: '200kb' }));
+
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  if (req.path.startsWith('/api/')) {
+    res.setHeader('Cache-Control', 'no-store, private, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+  }
+  next();
+});
 
 // إجبار المتصفح على فحص نسخة Service Worker الجديدة عند كل زيارة.
 app.use((req, res, next) => {
@@ -54,6 +69,12 @@ console.log('✅ Supabase client initialized');
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/edit-requests', require('./routes/editRequests'));
+app.use('/api/instagram-orders', require('./routes/instagram'));
+
+app.get('/instagram/:slug', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.sendFile(path.join(__dirname, 'public', 'instagram-order.html'));
+});
 
 // ✅ مسار السائقين المتصلين (معدل لـ Supabase)
 app.get('/api/online-drivers', authenticateToken, async (req, res) => {
@@ -93,6 +114,9 @@ app.get('/api/online-drivers', authenticateToken, async (req, res) => {
 // ⭐ ⭐ ⭐ مسار إرسال رسائل واتساب عبر منصة راسل (Rasel) ⭐ ⭐ ⭐
 // ============================================================
 app.post('/api/send-whatsapp', authenticateToken, async (req, res) => {
+  if (!['admin', 'company'].includes(req.user.role)) {
+    return res.status(403).json({ success: false, error: 'غير مصرح لهذا الحساب' });
+  }
   // 1. استقبال البيانات من الواجهة الأمامية
   const { phone, customerName, orderNumber, orderContents, currency, price, companyName, message } = req.body;
 
@@ -242,6 +266,13 @@ WolfOrder`;
 // الصفحة الرئيسية
 // ============================================================
 app.get('/', (req, res) => res.redirect('/login.html'));
+
+app.use((error, req, res, next) => {
+  if (error && (error.type === 'entity.too.large' || error instanceof SyntaxError)) {
+    return res.status(400).json({ message: 'حجم الطلب أو صيغة JSON غير صالحة' });
+  }
+  next(error);
+});
 
 // ============================================================
 // تشغيل السيرفر

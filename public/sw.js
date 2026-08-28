@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wolforder-pwa-v5';
+const CACHE_NAME = 'wolforder-pwa-v6';
 const APP_SHELL = [
   '/login.html',
   '/admin.html',
@@ -6,6 +6,7 @@ const APP_SHELL = [
   '/company.html',
   '/css/style.css',
   '/js/pwa.js',
+  '/js/api-client.js',
   '/js/dashboard-ui.js',
   '/js/auth.js',
   '/js/admin.js',
@@ -49,7 +50,17 @@ self.addEventListener('fetch', event => {
 
   const requestUrl = new URL(request.url);
   if (requestUrl.origin !== self.location.origin) return;
-  if (requestUrl.pathname.startsWith('/api/') || requestUrl.pathname.startsWith('/socket.io/')) return;
+  if (
+    requestUrl.pathname.startsWith('/api/') ||
+    requestUrl.pathname.startsWith('/socket.io/') ||
+    requestUrl.pathname === '/login.html' ||
+    requestUrl.pathname === '/instagram-login.html' ||
+    requestUrl.pathname === '/instagram-viewer.html' ||
+    requestUrl.pathname.startsWith('/instagram/')
+  ) {
+    event.respondWith(fetch(request, { cache: 'no-store' }));
+    return;
+  }
 
   if (request.mode === 'navigate') {
     event.respondWith(networkFirstPage(request));

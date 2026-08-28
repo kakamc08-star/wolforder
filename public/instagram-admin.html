@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="إدارة طلبات إنستغرام والمخزون في WolfOrder">
+  <title>طلبات إنستغرام | WolfOrder</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+</head>
+<body class="dashboard-page role-admin instagram-admin-page">
+  <div class="app-shell">
+    <aside class="app-sidebar" id="appSidebar" aria-label="التنقل الرئيسي">
+      <div class="sidebar-brand"><img src="/icons/icon-192x192.png" alt="WolfOrder" width="52" height="52"><div><strong>WOLFORDER</strong><span>طلبات إنستغرام</span></div></div>
+      <div class="sidebar-role"><span class="role-icon">◎</span><div><small>مساحة العمل</small><strong>مدير إنستغرام</strong></div></div>
+      <nav class="sidebar-nav">
+        <span class="nav-label">القائمة</span>
+        <a href="/admin.html"><span>← الطلبات الأساسية</span></a>
+        <a class="active" href="#instagramOrdersSection"><span>طلبات إنستغرام</span></a>
+        <a href="#instagramProductsSection"><span>الأصناف والمخزون</span></a>
+        <a href="#instagramInventorySection"><span>الجرد والمبيعات</span></a>
+        <a href="#instagramLinksSection"><span>روابط الشركات</span></a>
+        <a href="#instagramViewersSection"><span>حسابات المشاهدة</span></a>
+        <a href="#instagramExportSection"><span>تصدير Excel</span></a>
+      </nav>
+      <div class="sidebar-footer"><span class="status-dot"></span><div><strong>النظام متصل</strong><small>Instagram Orders</small></div></div>
+    </aside>
+    <button class="sidebar-overlay" type="button" data-sidebar-close aria-label="إغلاق القائمة"></button>
+
+    <main class="app-main">
+      <header class="dashboard-header">
+        <div class="header-title-row"><button class="icon-button mobile-menu-button" type="button" data-sidebar-toggle aria-controls="appSidebar" aria-label="فتح القائمة">☰</button><div class="page-heading"><span class="eyebrow">قناة المبيعات</span><h1>الطلبات القادمة من الإنستغرام</h1><p>إدارة منفصلة للطلبات والأصناف وحركة المخزون</p></div></div>
+        <div class="user-info"><button class="icon-button" type="button" data-theme-toggle aria-label="الوضع الداكن"></button><div class="user-chip"><span class="user-avatar">م</span><div><small>المدير</small><strong id="userNameDisplay"></strong></div></div><button class="btn btn-secondary btn-sm" onclick="logout()">تسجيل الخروج</button></div>
+      </header>
+
+      <div class="workspace-content">
+        <section class="card dashboard-card" id="instagramOrdersSection">
+          <div class="section-heading section-heading-split"><div><h2>طلبات إنستغرام</h2><p>لا تظهر هذه الطلبات ضمن قائمة الطلبات الأساسية.</p></div><button class="btn btn-secondary btn-sm" id="refreshInstagramOrders">تحديث</button></div>
+          <div class="instagram-type-tabs" role="group"><button class="btn btn-primary btn-sm" data-instagram-type="">الكل</button><button class="btn btn-secondary btn-sm" data-instagram-type="توصيل">طلبات التوصيل</button><button class="btn btn-secondary btn-sm" data-instagram-type="شحن">طلبات الشحن</button><button class="btn btn-accent btn-sm" id="createShippingBatch" type="button" hidden>تجميع المحدد وتسليمه للشريكة</button></div>
+          <div class="filters-panel"><div class="filters-section">
+            <div class="form-group search-field"><label for="instagramSearch">بحث</label><input id="instagramSearch" placeholder="رقم الطلب، الزبون، الهاتف أو العنوان"></div>
+            <div class="form-group"><label for="instagramCompanyFilter">الشركة</label><select id="instagramCompanyFilter"><option value="">الكل</option></select></div>
+            <div class="form-group"><label for="instagramStatusFilter">الحالة</label><select id="instagramStatusFilter"><option value="">الكل</option><option>قيد المتابعة</option><option>تم</option><option>مؤجل</option><option>ملغي</option><option>مرتجع</option></select></div>
+            <div class="form-group"><label for="instagramStartDate">من</label><input type="date" id="instagramStartDate"></div>
+            <div class="form-group"><label for="instagramEndDate">إلى</label><input type="date" id="instagramEndDate"></div>
+            <div class="filter-actions"><button class="btn btn-primary" id="applyInstagramFilters">تطبيق</button><button class="btn btn-ghost" id="clearInstagramFilters">مسح</button></div>
+          </div></div>
+          <div class="table-responsive"><table><thead><tr><th>#</th><th>الطلب</th><th>الشركة</th><th>الزبون</th><th>العنوان</th><th>النوع</th><th>الأصناف</th><th>الحالة</th><th>السائق</th><th>التاريخ</th><th>إجراء</th></tr></thead><tbody id="instagramOrdersBody"></tbody></table></div>
+          <div class="pagination-controls"><button class="btn btn-secondary btn-sm" id="instagramPrevPage">السابق</button><span id="instagramPageInfo">صفحة 1</span><button class="btn btn-secondary btn-sm" id="instagramNextPage">التالي</button></div>
+        </section>
+
+        <section class="card dashboard-card" id="instagramProductsSection">
+          <div class="section-heading"><div><h2>إدارة الأصناف</h2><p>أضف الصنف وتركيبات اللون والمقاس والكمية الأساسية.</p></div></div>
+          <form id="instagramProductForm">
+            <div class="form-row"><div class="form-group"><label for="productCompany">الشركة *</label><select id="productCompany" required><option value="">اختر الشركة</option></select></div><div class="form-group"><label for="productName">اسم الصنف *</label><input id="productName" maxlength="120" required></div><label class="inline-check"><input id="productActive" type="checkbox" checked><span>الصنف مفعّل</span></label></div>
+            <div class="section-heading-split"><strong>اللون + المقاس + الكمية</strong><button class="btn btn-secondary btn-sm" id="addVariantRow" type="button">+ تركيبة</button></div>
+            <div id="variantRows"></div>
+            <div class="form-actions"><button class="btn btn-primary" type="submit">حفظ الصنف</button></div>
+          </form>
+          <div id="instagramProductsList" class="instagram-product-list"></div>
+        </section>
+
+        <section class="card dashboard-card" id="instagramInventorySection">
+          <div class="section-heading section-heading-split"><div><h2>الجرد والمبيعات</h2><p>الحساب حسب عدد القطع لكل صنف ولون ومقاس.</p></div><button class="btn btn-secondary btn-sm" id="refreshInstagramInventory">تحديث</button></div>
+          <div class="table-responsive"><table><thead><tr><th>الشركة</th><th>الصنف</th><th>اللون</th><th>المقاس</th><th>الأساسية</th><th>المباعة</th><th>المحجوزة</th><th>المؤجلة</th><th>الملغية</th><th>المرتجعة</th><th>المتبقية</th><th>تعديل المخزون</th></tr></thead><tbody id="instagramInventoryBody"></tbody></table></div>
+          <div class="pagination-controls"><button class="btn btn-secondary btn-sm" id="inventoryPrevPage">السابق</button><span id="inventoryPageInfo">صفحة 1</span><button class="btn btn-secondary btn-sm" id="inventoryNextPage">التالي</button></div>
+        </section>
+
+        <section class="card dashboard-card" id="instagramLinksSection">
+          <div class="section-heading"><div><h2>روابط طلبات الشركات</h2><p>الرابط العشوائي هو الذي يحدد الشركة، ولا يقبل النموذج معرّف شركة من الزبون.</p></div></div>
+          <div id="instagramCompanyLinks" class="instagram-links-list"></div>
+        </section>
+
+        <section class="card dashboard-card" id="instagramViewersSection">
+          <div class="section-heading"><div><h2>حساب مشاهدة للشركة</h2><p>حساب مستقل للقراءة فقط لا يدخل اللوحات الأساسية.</p></div></div>
+          <form id="instagramViewerForm"><div class="form-row"><div class="form-group"><label for="viewerUsername">اسم المستخدم</label><input id="viewerUsername" required></div><div class="form-group"><label for="viewerPassword">كلمة المرور</label><input id="viewerPassword" type="password" minlength="8" required></div><div class="form-group"><label for="viewerName">الاسم</label><input id="viewerName" required></div><div class="form-group"><label for="viewerCompany">الشركة</label><select id="viewerCompany" required><option value="">اختر الشركة</option></select></div></div><button class="btn btn-primary" type="submit">إنشاء حساب المشاهدة</button></form>
+        </section>
+
+        <section class="card dashboard-card" id="instagramExportSection">
+          <div class="section-heading"><div><h2>تصدير جرد إنستغرام إلى Excel</h2><p>ملخص شامل وصفحة مستقلة لكل صنف.</p></div></div>
+          <div class="form-row"><div class="form-group"><label for="exportPeriod">الفترة</label><select id="exportPeriod"><option value="day">اليوم</option><option value="week">هذا الأسبوع</option><option value="month" selected>هذا الشهر</option><option value="custom">مخصصة</option></select></div><div class="form-group"><label for="exportStartDate">من</label><input id="exportStartDate" type="date"></div><div class="form-group"><label for="exportEndDate">إلى</label><input id="exportEndDate" type="date"></div><div class="form-group"><label for="exportOrderType">النوع</label><select id="exportOrderType"><option value="">الكل</option><option value="توصيل">التوصيل</option><option value="شحن">الشحن</option></select></div><div class="form-group"><label for="exportStatus">الحالة</label><select id="exportStatus"><option value="">كل الحالات</option><option>قيد المتابعة</option><option>تم</option><option>مؤجل</option><option>ملغي</option><option>مرتجع</option></select></div><div class="form-group"><label for="exportCompany">الشركة</label><select id="exportCompany"><option value="">الكل</option></select></div><div class="form-group"><label for="exportProduct">الصنف</label><select id="exportProduct"><option value="">كل الأصناف</option></select></div></div>
+          <button class="btn btn-primary" id="exportInstagramExcel">تصدير Excel</button>
+        </section>
+      </div>
+    </main>
+  </div>
+  <div id="notificationArea"></div>
+  <script src="/js/dashboard-ui.js"></script>
+  <script src="/js/api-client.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/instagram-admin.js"></script>
+</body>
+</html>

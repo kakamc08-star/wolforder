@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="نموذج طلب سريع من متجر إنستغرام عبر WolfOrder">
+  <title>طلب إنستغرام | WolfOrder</title>
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="instagram-public-page">
+  <main class="instagram-public-shell">
+    <header class="instagram-public-header">
+      <img src="/icons/icon-192x192.png" alt="WolfOrder" width="64" height="64">
+      <div><span>طلب سريع وآمن</span><h1 id="storeName">جاري تحميل المتجر...</h1><p>اختر الأصناف المتوفرة وأرسل طلبك مباشرة.</p></div>
+    </header>
+
+    <div id="catalogError" class="instagram-alert error" hidden></div>
+    <form id="instagramOrderForm" class="card instagram-order-form" hidden novalidate>
+      <section>
+        <h2>بيانات الزبون</h2>
+        <div class="form-row">
+          <div class="form-group"><label for="customerName">الاسم *</label><input id="customerName" maxlength="100" autocomplete="name" required></div>
+          <div class="form-group"><label for="customerPhone">رقم الموبايل *</label><input id="customerPhone" maxlength="16" inputmode="tel" autocomplete="tel" required></div>
+          <div class="form-group form-group-wide"><label for="customerAddress">العنوان *</label><input id="customerAddress" maxlength="300" autocomplete="street-address" required></div>
+          <div class="form-group"><label for="instagramOrderType">نوع الطلب *</label><select id="instagramOrderType" required><option value="توصيل">توصيل</option><option value="شحن">شحن فقط</option></select></div>
+        </div>
+      </section>
+
+      <section class="instagram-items-section">
+        <div class="section-heading-split"><div><h2>الأصناف</h2><p>يمكنك إضافة أكثر من صنف ضمن الطلب نفسه.</p></div><button class="btn btn-secondary btn-sm" id="addInstagramItem" type="button">+ إضافة صنف</button></div>
+        <div id="instagramItems"></div>
+      </section>
+
+      <div class="form-group"><label for="instagramNote">ملاحظة (اختياري)</label><textarea id="instagramNote" maxlength="500" rows="3" placeholder="أي تفاصيل إضافية..."></textarea></div>
+      <div class="honeypot-field" aria-hidden="true"><label for="website">الموقع</label><input id="website" tabindex="-1" autocomplete="off"></div>
+      <div id="submitMessage" class="instagram-alert" hidden></div>
+      <button id="submitInstagramOrder" class="btn btn-primary instagram-submit" type="submit">إرسال الطلب</button>
+    </form>
+    <footer class="instagram-public-footer">يتم حجز الكمية عند تأكيد الطلب · WolfOrder</footer>
+  </main>
+  <script src="/js/instagram-public.js"></script>
+</body>
+</html>

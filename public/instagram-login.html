@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="تسجيل دخول حساب مشاهدة طلبات إنستغرام">
+  <title>دخول مشاهدة إنستغرام | WolfOrder</title>
+  <link rel="stylesheet" href="/css/style.css"><link rel="icon" href="/favicon.ico" sizes="any">
+</head>
+<body class="login-page instagram-viewer-login-page">
+  <main class="login-container"><section class="login-box" aria-labelledby="loginTitle">
+    <header class="login-brand"><div class="brand-mark"><img src="/icons/icon-192x192.png" alt="WolfOrder" width="82" height="82"></div><p class="brand-name">WOLFORDER</p><h1 id="loginTitle">مشاهدة طلبات إنستغرام</h1><p class="login-subtitle">دخول منفصل ومخصص للمشاهدة فقط</p></header>
+    <form id="instagramViewerLoginForm" class="login-form">
+      <div class="form-group"><label for="viewerLoginUsername">اسم المستخدم</label><div class="login-input-wrap"><input id="viewerLoginUsername" autocomplete="username" required></div></div>
+      <div class="form-group"><label for="viewerLoginPassword">كلمة المرور</label><div class="login-input-wrap"><input id="viewerLoginPassword" type="password" autocomplete="current-password" required></div></div>
+      <button id="viewerLoginButton" class="login-submit" type="submit"><span class="button-label">دخول للمشاهدة</span><span class="button-loader"></span></button>
+      <div id="viewerLoginMessage" class="login-message" role="status" hidden><span class="message-icon"></span><span class="message-text"></span></div>
+    </form>
+    <footer class="login-security"><span>هذا الحساب لا يسمح بالإضافة أو التعديل أو التصدير.</span></footer>
+  </section></main>
+  <script src="/js/instagram-auth.js"></script>
+</body>
+</html>

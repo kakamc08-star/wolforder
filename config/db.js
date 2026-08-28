@@ -3,9 +3,6 @@ const { createClient } = require('@supabase/supabase-js');
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-console.log('🔧 SUPABASE_URL:', supabaseUrl);
-console.log('🔧 SUPABASE_KEY (first 10 chars):', supabaseKey?.substring(0, 10) + '...');
-
 if (!supabaseUrl || !supabaseKey) {
   console.error('❌ Missing Supabase URL or Key');
   process.exit(1);
@@ -21,11 +18,7 @@ const options = {
       Authorization: `Bearer ${supabaseKey}`,
     },
   },
-  // إجبار استخدام IPv4
-  fetch: (url, init) => {
-    // نضبط خيارات الطلب لتفضيل IPv4
-    return fetch(url, { ...init, family: 4 });
-  },
+  fetch: (url, init) => fetch(url, { ...init, cache: 'no-store' }),
 };
 
 const supabase = createClient(supabaseUrl, supabaseKey, options);

@@ -3,8 +3,16 @@ const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 const wsUrl = `${wsProtocol}//${window.location.host}`;
 
 let socket;
+let socketReconnectTimer = null;
+let socketRefreshTimer = null;
+let socketStopped = false;
 
 function connectWebSocket() {
+  if (socketStopped || (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING))) return;
+  if (socketReconnectTimer) {
+    clearTimeout(socketReconnectTimer);
+    socketReconnectTimer = null;
+  }
   socket = new WebSocket(wsUrl);
 
   socket.onopen = () => {
@@ -15,8 +23,10 @@ function connectWebSocket() {
     try {
       const data = JSON.parse(event.data);
       if (data.type === 'ORDER_UPDATED' || data.type === 'ORDER_CREATED' || data.type === 'ORDER_DELETED') {
-        console.log('🔄 جاري تحديث الطلبات فوراً...');
-        if (typeof fetchOrders === 'function') fetchOrders();
+        clearTimeout(socketRefreshTimer);
+        socketRefreshTimer = setTimeout(() => {
+          if (typeof fetchOrders === 'function') fetchOrders();
+        }, 300);
       }
     } catch (err) {
       console.error('❌ خطأ في قراءة بيانات WebSocket:', err);
@@ -25,7 +35,8 @@ function connectWebSocket() {
 
   socket.onclose = () => {
     console.log('⚠️ انقطع الاتصال الفوري، جاري المحاولة بعد 5 ثوانٍ...');
-    setTimeout(connectWebSocket, 5000); 
+    socket = null;
+    if (!socketStopped && !socketReconnectTimer) socketReconnectTimer = setTimeout(connectWebSocket, 5000);
   };
 
   socket.onerror = (error) => {
@@ -62,6 +73,10 @@ document.addEventListener('DOMContentLoaded', () => {
 let selectedOrderIds = new Set();
 let allOrders = [];
 let currentSort = 'default';
+let ordersPage = 1;
+let ordersTotalPages = 1;
+let ordersFetchController = null;
+const ORDERS_PAGE_SIZE = 50;
 
 // تشغيل الاتصال الفوري الآن بأمان بعد تعريف المتغيرات والدالة
 connectWebSocket();
@@ -182,9 +197,6 @@ function insertVariable(variable) {
 
 // ==================== تهيئة الأحداث عند تحميل الصفحة ====================
 document.addEventListener('DOMContentLoaded', () => {
-  // تشغيل الاتصال الفوري
-  connectWebSocket();
-
   // ربط تغير الشركة بدالة جلب رقم الطلب الآلي
   const companySelect = document.getElementById('companySelect');
   if (companySelect) {
@@ -214,7 +226,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // ==================== دوال مساعدة ====================
 function setSortAndRender(direction) {
   currentSort = direction;
-  applyFiltersAndRender();
+  ordersPage = 1;
+  fetchOrders();
 }
 
 function formatDate(date) {
@@ -232,6 +245,14 @@ function formatNumber(num) {
   const rounded = Math.round(num);
   return rounded.toLocaleString('en-US');
 }
+
+window.addEventListener('beforeunload', () => {
+  socketStopped = true;
+  clearTimeout(socketReconnectTimer);
+  clearTimeout(socketRefreshTimer);
+  if (ordersFetchController) ordersFetchController.abort();
+  if (socket) socket.close();
+});
 
 function getOrderType(order) {
   return order.order_type || order.orderType || 'توصيل';
@@ -293,6 +314,8 @@ document.addEventListener('input', function (event) {
 
 // ==================== جلب الطلبات ====================
 async function fetchOrders() {
+  if (ordersFetchController) ordersFetchController.abort();
+  ordersFetchController = new AbortController();
   try {
     const savedStatus = document.getElementById('filterStatus')?.value || '';
     const savedStartDateInput = document.getElementById('filterStartDate')?.value || '';
@@ -313,19 +336,30 @@ async function fetchOrders() {
       endDate = localEnd.toISOString();
     }
 
-    let url = '/api/orders?';
-    if (savedStatus) url += `status=${savedStatus}&`;
-    if (startDate) url += `startDate=${startDate}&`;
-    if (endDate) url += `endDate=${endDate}&`;
-    if (savedDriverId) url += `driverId=${savedDriverId}&`;
-    if (savedCompanyId) url += `companyId=${savedCompanyId}&`;
-    if (savedOrderType) url += `orderType=${encodeURIComponent(savedOrderType)}&`;
+    const params = new URLSearchParams({ paginate: '1', page: String(ordersPage), limit: String(ORDERS_PAGE_SIZE) });
+    if (savedStatus) params.set('status', savedStatus);
+    if (startDate) params.set('startDate', startDate);
+    if (endDate) params.set('endDate', endDate);
+    if (savedDriverId) params.set('driverId', savedDriverId);
+    if (savedCompanyId) params.set('companyId', savedCompanyId);
+    if (savedOrderType) params.set('orderType', savedOrderType);
+    if (savedSearch.trim()) params.set('search', savedSearch.trim());
+    if (currentSort === 'asc' || currentSort === 'desc') params.set('sort', currentSort);
 
-    const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+    const res = await apiFetch(`/api/orders?${params}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+      signal: ordersFetchController.signal
+    });
     if (!res.ok) throw new Error('فشل جلب الطلبات');
-    const orders = await res.json();
-    allOrders = orders;
+    const data = await res.json();
+    allOrders = data.orders || [];
+    ordersTotalPages = data.pagination?.totalPages || 1;
+    if (ordersPage > ordersTotalPages) {
+      ordersPage = ordersTotalPages;
+      return fetchOrders();
+    }
     applyFiltersAndRender();
+    updateOrdersPagination(data.pagination || {});
 
     const elStatus = document.getElementById('filterStatus');
     const elStart = document.getElementById('filterStartDate');
@@ -345,8 +379,26 @@ async function fetchOrders() {
 
     document.getElementById('lastUpdateTime').textContent = `آخر تحديث: ${new Date().toLocaleTimeString('ar')}`;
   } catch (err) {
-    console.error('fetchOrders error:', err);
+    if (err.name !== 'AbortError') console.error('fetchOrders error:', err);
   }
+}
+
+function updateOrdersPagination(pagination) {
+  const info = document.getElementById('ordersPageInfo');
+  const previous = document.getElementById('ordersPrevPage');
+  const next = document.getElementById('ordersNextPage');
+  if (info) info.textContent = `صفحة ${pagination.page || ordersPage} من ${pagination.totalPages || ordersTotalPages} — ${pagination.total || 0} طلب`;
+  if (previous) previous.disabled = ordersPage <= 1;
+  if (next) next.disabled = ordersPage >= ordersTotalPages;
+}
+
+function changeOrdersPage(delta) {
+  const target = ordersPage + delta;
+  if (target < 1 || target > ordersTotalPages) return;
+  ordersPage = target;
+  selectedOrderIds.clear();
+  if (typeof updateBulkControls === 'function') updateBulkControls();
+  fetchOrders();
 }
 
 function applyFiltersAndRender() {
@@ -378,6 +430,7 @@ function clearFilters() {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
+  ordersPage = 1;
   fetchOrders();
 }
 
@@ -418,7 +471,7 @@ function renderOrdersTable(orders) {
     tr.innerHTML = `
       <td><input type="checkbox" class="orderCheckbox" value="${orderId}" ${isChecked} onchange="handleCheckboxChange(this)"></td>
       <td data-label="الرقم التسلسلي :">${order.serial_number || order.serialNumber || ''}</td>
-      <td data-label="عداد الطلبات :">${index + 1}</td>
+      <td data-label="عداد الطلبات :">${((ordersPage - 1) * ORDERS_PAGE_SIZE) + index + 1}</td>
       <td data-label="رقم الطلب :">${order.order_number || order.orderNumber}</td>
       <td data-label="نوع الطلب :"><span class="order-type-badge ${getOrderTypeClass(getOrderType(order))}">${getOrderType(order)}</span></td>
       <td class="text-wrap-column" data-label="محتويات الطلب :">${order.order_contents || '-'}</td>
@@ -484,7 +537,7 @@ function filterOrdersBySearch(orders, searchText) {
 async function deleteOrder(orderId) {
   if (!confirm('هل أنت متأكد من حذف هذا الطلب نهائياً؟')) return;
   try {
-    const res = await fetch(`/api/orders/${orderId}`, {
+    const res = await apiFetch(`/api/orders/${orderId}`, {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -532,7 +585,7 @@ if (createForm) {
       companyId: document.getElementById('companySelect').value || null
     };
     try {
-      const res = await fetch('/api/orders', {
+      const res = await apiFetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(data)
@@ -558,7 +611,7 @@ let currentEditOrder = null;
 
 async function showEditOrderModal(orderId) {
   try {
-    const res = await fetch(`/api/orders/${orderId}`, {
+    const res = await apiFetch(`/api/orders/${orderId}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (!res.ok) throw new Error('فشل جلب بيانات الطلب');
@@ -604,12 +657,12 @@ function closeEditModal() {
 
 async function populateEditSelects() {
   try {
-    const driversRes = await fetch('/api/online-drivers', {
+    const driversRes = await apiFetch('/api/online-drivers', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     const drivers = driversRes.ok ? await driversRes.json() : [];
 
-    const usersRes = await fetch('/api/orders/users-list', {
+    const usersRes = await apiFetch('/api/orders/users-list', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     const data = usersRes.ok ? await usersRes.json() : { companies: [] };
@@ -672,7 +725,7 @@ if (editForm) {
     };
 
     try {
-      const res = await fetch(`/api/orders/${orderId}`, {
+      const res = await apiFetch(`/api/orders/${orderId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(updatedData)
@@ -693,7 +746,7 @@ let currentAssignOrder = null;
 async function showAssignDriverModal(orderId) {
   document.getElementById('assignOrderId').value = orderId;
   try {
-    const orderRes = await fetch(`/api/orders/${orderId}`, {
+    const orderRes = await apiFetch(`/api/orders/${orderId}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (orderRes.ok) {
@@ -702,7 +755,7 @@ async function showAssignDriverModal(orderId) {
       currentAssignOrder = null;
     }
 
-    const res = await fetch('/api/online-drivers', {
+    const res = await apiFetch('/api/online-drivers', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     const drivers = await res.json();
@@ -743,7 +796,7 @@ if (assignForm) {
     }
 
     try {
-      const res = await fetch(`/api/orders/${orderId}/assign-driver`, {
+      const res = await apiFetch(`/api/orders/${orderId}/assign-driver`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ driverId, ratio })
@@ -765,12 +818,12 @@ async function loadUsersLists() {
   let companies = [];
 
   try {
-    const driversRes = await fetch('/api/online-drivers', {
+    const driversRes = await apiFetch('/api/online-drivers', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     drivers = driversRes.ok ? await driversRes.json() : [];
 
-    const usersRes = await fetch('/api/orders/users-list', {
+    const usersRes = await apiFetch('/api/orders/users-list', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     const allData = usersRes.ok ? await usersRes.json() : { drivers: [], companies: [] };
@@ -867,7 +920,7 @@ async function generateReport() {
   if (endDate) url += `endDate=${endDate}&`;
 
   try {
-    const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+    const res = await apiFetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
     if (!res.ok) throw new Error('فشل جلب التقرير');
     const data = await res.json();
 
@@ -914,7 +967,7 @@ async function exportReport() {
   if (companyId) url += `companyId=${companyId}&`;
 
   try {
-    const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+    const res = await apiFetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
     if (!res.ok) throw new Error('فشل جلب البيانات للتصدير');
     const data = await res.json();
     const orders = data.orders || [];
@@ -974,7 +1027,7 @@ async function exportReport() {
 // ==================== طلبات التعديل ====================
 async function fetchEditRequests() {
   try {
-    const res = await fetch('/api/edit-requests/pending', {
+    const res = await apiFetch('/api/edit-requests/pending', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     const requests = await res.json();
@@ -1009,7 +1062,7 @@ function renderEditRequests(requests) {
 
 async function acceptEditRequest(id) {
   try {
-    const res = await fetch(`/api/edit-requests/${id}/accept`, {
+    const res = await apiFetch(`/api/edit-requests/${id}/accept`, {
       method: 'PATCH',
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -1025,7 +1078,7 @@ async function acceptEditRequest(id) {
 async function rejectEditRequest(id) {
   const note = prompt('سبب الرفض (اختياري):');
   try {
-    const res = await fetch(`/api/edit-requests/${id}/reject`, {
+    const res = await apiFetch(`/api/edit-requests/${id}/reject`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ note })
@@ -1041,7 +1094,7 @@ async function rejectEditRequest(id) {
 // ==================== إعدادات المدير ====================
 async function loadAdminPhone() {
   try {
-    const res = await fetch('/api/auth/me', { headers: { 'Authorization': `Bearer ${token}` } });
+    const res = await apiFetch('/api/auth/me', { headers: { 'Authorization': `Bearer ${token}` } });
     if (res.ok) {
       const user = await res.json();
       const phoneInput = document.getElementById('adminPhone');
@@ -1052,7 +1105,7 @@ async function loadAdminPhone() {
 
 async function loadMessageTemplate() {
   try {
-    const res = await fetch('/api/auth/message-template', {
+    const res = await apiFetch('/api/auth/message-template', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (res.ok) {
@@ -1066,7 +1119,7 @@ async function loadMessageTemplate() {
 async function saveMessageTemplate() {
   const template = document.getElementById('messageTemplate')?.value || '';
   try {
-    const res = await fetch('/api/auth/message-template', {
+    const res = await apiFetch('/api/auth/message-template', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ template })
@@ -1085,7 +1138,7 @@ if (settingsForm) {
     const msgDiv = document.getElementById('settingsMessage');
     msgDiv.innerHTML = '<div class="loading"></div> جاري الحفظ...';
     try {
-      await fetch('/api/auth/update-phone', {
+      await apiFetch('/api/auth/update-phone', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ phone })
@@ -1112,7 +1165,7 @@ if (userForm) {
     const msgDiv = document.getElementById('userMessage');
     msgDiv.innerHTML = '<div class="loading"></div> جاري الإنشاء...';
     try {
-      const response = await fetch('/api/auth/register', {
+      const response = await apiFetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password, role, name })
@@ -1140,8 +1193,9 @@ document.addEventListener('DOMContentLoaded', function() {
     searchInput.addEventListener('input', (e) => {
       clearTimeout(searchTimeout);
       searchTimeout = setTimeout(() => {
-        applyFiltersAndRender();
-      }, 300);
+        ordersPage = 1;
+        fetchOrders();
+      }, 400);
     });
   }
 
@@ -1160,13 +1214,16 @@ document.addEventListener('DOMContentLoaded', function() {
     companySelect.addEventListener('change', loadAutoOrderNumberForCompany);
     loadAutoOrderNumberForCompany();
   }
+
+  document.getElementById('ordersPrevPage')?.addEventListener('click', () => changeOrdersPage(-1));
+  document.getElementById('ordersNextPage')?.addEventListener('click', () => changeOrdersPage(1));
 });
 
 
 // ==================== إدارة المستخدمين ====================
 async function loadUsersListForManagement() {
   try {
-    const res = await fetch('/api/auth/users', {
+    const res = await apiFetch('/api/auth/users', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     const users = await res.json();
@@ -1224,7 +1281,7 @@ function renderUsersTable(users) {
 async function deleteUser(userId) {
   if (!confirm('هل أنت متأكد من حذف هذا المستخدم؟ ستظل الطلبات المرتبطة به موجودة.')) return;
   try {
-    const res = await fetch(`/api/auth/users/${userId}`, {
+    const res = await apiFetch(`/api/auth/users/${userId}`, {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -1311,7 +1368,7 @@ async function applyBulkEdit() {
     let successCount = 0, failCount = 0;
     for (const id of ids) {
       try {
-        const res = await fetch(`/api/orders/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+        const res = await apiFetch(`/api/orders/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
         if (res.ok) successCount++; else failCount++;
       } catch (e) { failCount++; }
     }
@@ -1348,7 +1405,7 @@ async function applyBulkEdit() {
   if (!confirm(`هل أنت متأكد من تطبيق التغيير على ${ids.length} طلبات؟`)) return;
 
   try {
-    const res = await fetch('/api/orders/bulk-update', {
+    const res = await apiFetch('/api/orders/bulk-update', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ ids, updates })
@@ -1634,7 +1691,10 @@ async function sendBulkWhatsApp() {
               return false;
             }
 
-            const response = await fetch(API_URL, {
+            const sessionFetch = window.opener && typeof window.opener.apiFetch === 'function'
+              ? window.opener.apiFetch.bind(window.opener)
+              : window.fetch.bind(window);
+            const response = await sessionFetch(API_URL, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',

@@ -12,9 +12,28 @@ let previousOrderIds = new Set();
 let allOrders = [];
 let isFetchingOrders = false;
 let isSyncingPendingUpdates = false;
-let autoRefresh = setInterval(() => {
-  if (navigator.onLine && !isSyncingPendingUpdates) fetchOrders();
-}, 10000);
+let autoRefresh = null;
+let heartbeatInterval = null;
+let ordersPage = 1;
+let ordersTotalPages = 1;
+let instagramOrdersPage = 1;
+let instagramOrdersTotalPages = 1;
+let ordersFetchController = null;
+let driverSearchTimer = null;
+const ORDERS_PAGE_SIZE = 50;
+
+function startDriverPolling() {
+  if (autoRefresh) return;
+  autoRefresh = setInterval(() => {
+    if (!document.hidden && navigator.onLine && !isSyncingPendingUpdates) fetchOrders();
+  }, 30000);
+}
+
+window.addEventListener('beforeunload', () => {
+  if (autoRefresh) clearInterval(autoRefresh);
+  if (heartbeatInterval) clearInterval(heartbeatInterval);
+  if (ordersFetchController) ordersFetchController.abort();
+});
 
 window.clearDriverOfflineData = async function clearDriverOfflineData() {
   if (!offlineStore) return;
@@ -62,11 +81,11 @@ function filterOrdersBySearch(orders, searchText) {
   const searchLower = searchText.trim().toLowerCase();
   return orders.filter(order => {
     return (
-      (order.order_number || order.orderNumber || '').toLowerCase().includes(searchLower) ||
-      (order.customer_name || order.customerName || '').toLowerCase().includes(searchLower) ||
-      (order.customer_number || order.customerNumber || '').toString().includes(searchLower) ||
-      (order.address || '').toLowerCase().includes(searchLower) ||
-      (order.note || '').toLowerCase().includes(searchLower)
+      String(order.order_number || order.orderNumber || '').toLowerCase().includes(searchLower) ||
+      String(order.customer_name || order.customerName || '').toLowerCase().includes(searchLower) ||
+      String(order.customer_number || order.customerNumber || '').toLowerCase().includes(searchLower) ||
+      String(order.address || '').toLowerCase().includes(searchLower) ||
+      String(order.note || '').toLowerCase().includes(searchLower)
     );
   });
 }
@@ -168,7 +187,7 @@ async function syncPendingUpdates() {
 
     for (const update of pendingUpdates) {
       try {
-        const response = await fetch(`/api/orders/${update.orderId}`, {
+        const response = await apiFetch(`/api/orders/${update.orderId}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -212,7 +231,8 @@ async function syncPendingUpdates() {
 
 // ==================== جلب الطلبات ====================
 async function fetchOrders() {
-  if (isFetchingOrders) return;
+  if (ordersFetchController) ordersFetchController.abort();
+  ordersFetchController = new AbortController();
   isFetchingOrders = true;
 
   try {
@@ -227,10 +247,21 @@ async function fetchOrders() {
       return;
     }
 
-    // نجلب كامل طلبات السائق حتى تكون النسخة المحفوظة كاملة مهما كان الفلتر المختار.
-    const res = await fetch('/api/orders', { headers: { 'Authorization': `Bearer ${token}` } });
+    const params = new URLSearchParams({ paginate: '1', page: String(ordersPage), limit: String(ORDERS_PAGE_SIZE) });
+    if (savedStatus) params.set('status', savedStatus);
+    if (savedSearch.trim()) params.set('search', savedSearch.trim());
+    const res = await apiFetch(`/api/orders?${params}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+      signal: ordersFetchController.signal
+    });
     if (!res.ok) throw new Error('فشل جلب الطلبات');
-    const orders = await res.json();
+    const data = await res.json();
+    const orders = data.orders || [];
+    ordersTotalPages = data.pagination?.totalPages || 1;
+    if (ordersPage > ordersTotalPages) {
+      ordersPage = ordersTotalPages;
+      return fetchOrders();
+    }
     const pendingUpdates = offlineStore
       ? await offlineStore.getPendingUpdates(driverOfflineScope)
       : [];
@@ -249,7 +280,9 @@ async function fetchOrders() {
 
     allOrders = ordersWithPendingChanges;
     applyFiltersAndRender();
+    updateOrdersPagination(data.pagination || {});
     await saveCurrentOrders();
+    await fetchInstagramDriverOrders();
 
     // 4. إعادة تعبئة الفلاتر بالقيم المحفوظة
     const elStatus = document.getElementById('filterStatus');
@@ -259,6 +292,7 @@ async function fetchOrders() {
 
     document.getElementById('lastUpdateTime').textContent = `آخر تحديث: ${new Date().toLocaleTimeString('ar')}`;
   } catch (err) {
+    if (err.name === 'AbortError') return;
     console.error('fetchOrders error:', err);
     if (!allOrders.length) await restoreCachedOrders(true);
     const lastUpdate = document.getElementById('lastUpdateTime');
@@ -267,11 +301,79 @@ async function fetchOrders() {
     isFetchingOrders = false;
   }
 }
+
+function updateOrdersPagination(pagination) {
+  const info = document.getElementById('ordersPageInfo');
+  const previous = document.getElementById('ordersPrevPage');
+  const next = document.getElementById('ordersNextPage');
+  if (info) info.textContent = `صفحة ${pagination.page || ordersPage} من ${pagination.totalPages || ordersTotalPages} — ${pagination.total || 0} طلب`;
+  if (previous) previous.disabled = ordersPage <= 1;
+  if (next) next.disabled = ordersPage >= ordersTotalPages;
+}
+
+function changeOrdersPage(delta) {
+  const target = ordersPage + delta;
+  if (target < 1 || target > ordersTotalPages) return;
+  ordersPage = target;
+  fetchOrders();
+}
+
+function escapeDriverHtml(value) {
+  return String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
+}
+
+async function fetchInstagramDriverOrders() {
+  const body = document.getElementById('instagramDriverOrdersBody');
+  if (!body || !navigator.onLine) return;
+  try {
+    const params = new URLSearchParams({ page: String(instagramOrdersPage), limit: '50' });
+    const search = document.getElementById('searchInput')?.value.trim();
+    if (search) params.set('search', search);
+    const response = await apiFetch(`/api/instagram-orders?${params}`);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.message || 'تعذر تحميل طلبات إنستغرام');
+    instagramOrdersTotalPages = data.pagination?.totalPages || 1;
+    if (instagramOrdersPage > instagramOrdersTotalPages) {
+      instagramOrdersPage = instagramOrdersTotalPages;
+      return fetchInstagramDriverOrders();
+    }
+    const pageInfo = document.getElementById('instagramDriverPageInfo');
+    const previous = document.getElementById('instagramDriverPrevPage');
+    const next = document.getElementById('instagramDriverNextPage');
+    if (pageInfo) pageInfo.textContent = `صفحة ${data.pagination?.page || instagramOrdersPage} من ${instagramOrdersTotalPages} — ${data.pagination?.total || 0} طلب`;
+    if (previous) previous.disabled = instagramOrdersPage <= 1;
+    if (next) next.disabled = instagramOrdersPage >= instagramOrdersTotalPages;
+    body.innerHTML = (data.orders || []).map(order => `<tr>
+      <td>${order.order_number}</td><td>${escapeDriverHtml(order.company_name)}</td><td>${escapeDriverHtml(order.customer_name)}</td>
+      <td><a href="tel:${escapeDriverHtml(order.customer_phone)}">${escapeDriverHtml(order.customer_phone)}</a></td><td>${escapeDriverHtml(order.address)}</td>
+      <td class="text-wrap-column">${(order.items || []).map(item => `${escapeDriverHtml(item.product_name)} — ${escapeDriverHtml(item.color)} / ${escapeDriverHtml(item.size)} × ${item.quantity}`).join('<br>')}</td>
+      <td>${escapeDriverHtml(order.status)}</td><td>${['قيد المتابعة', 'مؤجل'].includes(order.status) ? `<button class="btn btn-primary btn-sm instagram-driver-update" data-id="${order.id}">تحديث الحالة</button>` : '—'}</td>
+    </tr>`).join('') || '<tr><td colspan="8">لا توجد طلبات إنستغرام معيّنة لك.</td></tr>';
+  } catch (error) {
+    body.innerHTML = `<tr><td colspan="8">${escapeDriverHtml(error.message)}</td></tr>`;
+  }
+}
+
+document.addEventListener('click', async event => {
+  const button = event.target.closest('.instagram-driver-update');
+  if (!button) return;
+  const status = prompt('اكتب الحالة الجديدة: تم، مؤجل، مرتجع أو ملغي');
+  if (!['تم', 'مؤجل', 'مرتجع', 'ملغي'].includes(status)) return;
+  button.disabled = true;
+  const response = await apiFetch(`/api/instagram-orders/driver-orders/${button.dataset.id}/status`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status })
+  });
+  const data = await response.json().catch(() => ({}));
+  showNotification(response.ok ? 'تم تحديث طلب إنستغرام' : (data.message || 'تعذر التحديث'), response.ok ? 'success' : 'error');
+  await fetchInstagramDriverOrders();
+});
+
 function startHeartbeat() {
-  setInterval(async () => {
+  if (heartbeatInterval) return;
+  heartbeatInterval = setInterval(async () => {
     if (navigator.onLine) {
       try {
-        await fetch('/api/auth/heartbeat', {
+        await apiFetch('/api/auth/heartbeat', {
           method: 'PATCH',
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -317,7 +419,7 @@ function renderTable(orders) {
       : '<span style="color:#999;">—</span>';
 
     tr.innerHTML = `
-      <td data-label="عداد الطلبات :">${index + 1}</td>
+      <td data-label="عداد الطلبات :">${((ordersPage - 1) * ORDERS_PAGE_SIZE) + index + 1}</td>
       <td data-label="رقم الطلب :">${orderNumber}</td>
       <td class="text-wrap-column" data-label="محتويات الطلب :">${order.order_contents || order.orderContents || '-'}</td>
       <td data-label="اسم العميل :">${customerName}</td>
@@ -350,7 +452,7 @@ async function openEditModal(orderId) {
   // 2. إذا كان متصلاً، نحاول جلب أحدث البيانات من الخادم
   if (navigator.onLine) {
     try {
-      const res = await fetch(`/api/orders/${orderId}`, {
+      const res = await apiFetch(`/api/orders/${orderId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -429,7 +531,7 @@ document.getElementById('editOrderForm').addEventListener('submit', async (e) =>
   }
 
   try {
-    const res = await fetch(`/api/orders/${id}`, {
+    const res = await apiFetch(`/api/orders/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ status: newStatus, note: newNote })
@@ -510,9 +612,21 @@ document.addEventListener('DOMContentLoaded', () => {
   
   const searchInput = document.getElementById('searchInput');
   if (searchInput) {
-    searchInput.addEventListener('input', applyFiltersAndRender);
+    searchInput.addEventListener('input', () => {
+      clearTimeout(driverSearchTimer);
+      driverSearchTimer = setTimeout(() => {
+        ordersPage = 1;
+        instagramOrdersPage = 1;
+        fetchOrders();
+      }, 400);
+    });
   }
-startHeartbeat();
+  document.getElementById('ordersPrevPage')?.addEventListener('click', () => changeOrdersPage(-1));
+  document.getElementById('ordersNextPage')?.addEventListener('click', () => changeOrdersPage(1));
+  document.getElementById('instagramDriverPrevPage')?.addEventListener('click', () => { if (instagramOrdersPage > 1) { instagramOrdersPage -= 1; fetchInstagramDriverOrders(); } });
+  document.getElementById('instagramDriverNextPage')?.addEventListener('click', () => { if (instagramOrdersPage < instagramOrdersTotalPages) { instagramOrdersPage += 1; fetchInstagramDriverOrders(); } });
+  startHeartbeat();
+  startDriverPolling();
 });
 
 // ==================== بدء التطبيق ====================
