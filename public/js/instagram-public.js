@@ -7,6 +7,7 @@
   const submitButton = document.getElementById('submitInstagramOrder');
   const message = document.getElementById('submitMessage');
   let catalog = [];
+  let companyName = 'المتجر';
   let formToken = '';
   let submitting = false;
   let idempotencyKey = crypto.randomUUID();
@@ -34,8 +35,7 @@
       <div class="form-group"><label>الصنف *</label><select class="item-product" required></select></div>
       <div class="form-group"><label>اللون *</label><select class="item-color" required disabled></select></div>
       <div class="form-group"><label>المقاس *</label><select class="item-size" required disabled></select></div>
-      <div class="form-group"><label>الكمية *</label><input class="item-quantity" type="number" min="1" max="1" value="1" inputmode="numeric" required disabled><small class="stock-hint"></small></div>
-      <button class="btn btn-danger btn-sm remove-instagram-item" type="button" aria-label="حذف الصنف">حذف</button>`;
+      <div class="form-group"><label>الكمية *</label><input class="item-quantity" type="number" min="1" max="1" value="1" inputmode="numeric" required disabled><small class="stock-hint"></small></div>`;
     itemsContainer.appendChild(row);
 
     const productSelect = row.querySelector('.item-product');
@@ -72,10 +72,6 @@
       row.querySelector('.stock-hint').textContent = variant ? `المتوفر: ${variant.available_quantity}` : '';
     });
 
-    row.querySelector('.remove-instagram-item').addEventListener('click', () => {
-      if (itemsContainer.children.length === 1) return showMessage('يجب إبقاء صنف واحد على الأقل', 'error');
-      row.remove();
-    });
   }
 
   function collectItems() {
@@ -92,7 +88,8 @@
       if (!response.ok) throw new Error(data.message || 'تعذر تحميل المتجر');
       catalog = data.products || [];
       formToken = data.formToken;
-      document.getElementById('storeName').textContent = data.companyName || 'المتجر';
+      companyName = data.companyName || 'المتجر';
+      document.getElementById('storeName').textContent = companyName;
       if (!catalog.length) throw new Error('لا توجد أصناف متوفرة حالياً');
       form.hidden = false;
       addItemRow();
@@ -137,7 +134,8 @@
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.message || 'تعذر إرسال الطلب');
-      showMessage(`${data.message} — رقم الطلب: ${data.orderNumber}`, 'success');
+      const confirmedCompanyName = data.companyName || companyName;
+      showMessage(`تم إنشاء الطلب وهو الآن قيد المتابعة.\nشكرًا لطلبكم من ${confirmedCompanyName}.`, 'success');
       form.querySelectorAll('input, select, textarea, button').forEach(element => { element.disabled = true; });
     } catch (error) {
       showMessage(error.message, 'error');

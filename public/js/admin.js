@@ -73,10 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
 let selectedOrderIds = new Set();
 let allOrders = [];
 let currentSort = 'default';
-let ordersPage = 1;
-let ordersTotalPages = 1;
 let ordersFetchController = null;
-const ORDERS_PAGE_SIZE = 50;
 
 // تشغيل الاتصال الفوري الآن بأمان بعد تعريف المتغيرات والدالة
 connectWebSocket();
@@ -226,7 +223,6 @@ document.addEventListener('DOMContentLoaded', () => {
 // ==================== دوال مساعدة ====================
 function setSortAndRender(direction) {
   currentSort = direction;
-  ordersPage = 1;
   fetchOrders();
 }
 
@@ -336,7 +332,7 @@ async function fetchOrders() {
       endDate = localEnd.toISOString();
     }
 
-    const params = new URLSearchParams({ paginate: '1', page: String(ordersPage), limit: String(ORDERS_PAGE_SIZE) });
+    const params = new URLSearchParams();
     if (savedStatus) params.set('status', savedStatus);
     if (startDate) params.set('startDate', startDate);
     if (endDate) params.set('endDate', endDate);
@@ -352,14 +348,10 @@ async function fetchOrders() {
     });
     if (!res.ok) throw new Error('فشل جلب الطلبات');
     const data = await res.json();
-    allOrders = data.orders || [];
-    ordersTotalPages = data.pagination?.totalPages || 1;
-    if (ordersPage > ordersTotalPages) {
-      ordersPage = ordersTotalPages;
-      return fetchOrders();
-    }
+    allOrders = Array.isArray(data) ? data : (data.orders || []);
     applyFiltersAndRender();
-    updateOrdersPagination(data.pagination || {});
+    const totalCount = document.getElementById('ordersTotalCount');
+    if (totalCount) totalCount.textContent = `${allOrders.length.toLocaleString('en-US')} طلب`;
 
     const elStatus = document.getElementById('filterStatus');
     const elStart = document.getElementById('filterStartDate');
@@ -381,24 +373,6 @@ async function fetchOrders() {
   } catch (err) {
     if (err.name !== 'AbortError') console.error('fetchOrders error:', err);
   }
-}
-
-function updateOrdersPagination(pagination) {
-  const info = document.getElementById('ordersPageInfo');
-  const previous = document.getElementById('ordersPrevPage');
-  const next = document.getElementById('ordersNextPage');
-  if (info) info.textContent = `صفحة ${pagination.page || ordersPage} من ${pagination.totalPages || ordersTotalPages} — ${pagination.total || 0} طلب`;
-  if (previous) previous.disabled = ordersPage <= 1;
-  if (next) next.disabled = ordersPage >= ordersTotalPages;
-}
-
-function changeOrdersPage(delta) {
-  const target = ordersPage + delta;
-  if (target < 1 || target > ordersTotalPages) return;
-  ordersPage = target;
-  selectedOrderIds.clear();
-  if (typeof updateBulkControls === 'function') updateBulkControls();
-  fetchOrders();
 }
 
 function applyFiltersAndRender() {
@@ -430,7 +404,6 @@ function clearFilters() {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
-  ordersPage = 1;
   fetchOrders();
 }
 
@@ -471,7 +444,7 @@ function renderOrdersTable(orders) {
     tr.innerHTML = `
       <td><input type="checkbox" class="orderCheckbox" value="${orderId}" ${isChecked} onchange="handleCheckboxChange(this)"></td>
       <td data-label="الرقم التسلسلي :">${order.serial_number || order.serialNumber || ''}</td>
-      <td data-label="عداد الطلبات :">${((ordersPage - 1) * ORDERS_PAGE_SIZE) + index + 1}</td>
+      <td data-label="عداد الطلبات :">${index + 1}</td>
       <td data-label="رقم الطلب :">${order.order_number || order.orderNumber}</td>
       <td data-label="نوع الطلب :"><span class="order-type-badge ${getOrderTypeClass(getOrderType(order))}">${getOrderType(order)}</span></td>
       <td class="text-wrap-column" data-label="محتويات الطلب :">${order.order_contents || '-'}</td>
@@ -1192,10 +1165,7 @@ document.addEventListener('DOMContentLoaded', function() {
   if (searchInput) {
     searchInput.addEventListener('input', (e) => {
       clearTimeout(searchTimeout);
-      searchTimeout = setTimeout(() => {
-        ordersPage = 1;
-        fetchOrders();
-      }, 400);
+      searchTimeout = setTimeout(fetchOrders, 400);
     });
   }
 
@@ -1214,9 +1184,6 @@ document.addEventListener('DOMContentLoaded', function() {
     companySelect.addEventListener('change', loadAutoOrderNumberForCompany);
     loadAutoOrderNumberForCompany();
   }
-
-  document.getElementById('ordersPrevPage')?.addEventListener('click', () => changeOrdersPage(-1));
-  document.getElementById('ordersNextPage')?.addEventListener('click', () => changeOrdersPage(1));
 });
 
 

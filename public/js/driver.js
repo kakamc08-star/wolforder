@@ -14,13 +14,8 @@ let isFetchingOrders = false;
 let isSyncingPendingUpdates = false;
 let autoRefresh = null;
 let heartbeatInterval = null;
-let ordersPage = 1;
-let ordersTotalPages = 1;
-let instagramOrdersPage = 1;
-let instagramOrdersTotalPages = 1;
 let ordersFetchController = null;
 let driverSearchTimer = null;
-const ORDERS_PAGE_SIZE = 50;
 
 function startDriverPolling() {
   if (autoRefresh) return;
@@ -75,6 +70,14 @@ function formatNumber(num) {
   return rounded.toLocaleString('en-US');
 }
 
+function orderIdentity(order) {
+  return `${order._source || 'basic'}:${order.id || order._id}`;
+}
+
+function instagramItemsSummary(items) {
+  return (items || []).map(item => `${item.product_name} — ${item.color} / ${item.size} × ${Number(item.quantity)}`).join('، ') || '-';
+}
+
 // ==================== البحث والفلترة ====================
 function filterOrdersBySearch(orders, searchText) {
   if (!searchText || !searchText.trim()) return orders;
@@ -99,7 +102,7 @@ function applyFiltersAndRender() {
   const statusSelect = document.getElementById('filterStatus');
   if (statusSelect && statusSelect.value) {
     const selectedStatus = statusSelect.value;
-    filtered = filtered.filter(o => o.status === selectedStatus);
+    filtered = filtered.filter(order => order.status === selectedStatus || (selectedStatus === 'إلغاء' && order.status === 'ملغي'));
   }
   renderTable(filtered);
 }
@@ -113,6 +116,7 @@ function applyPendingUpdates(orders, pendingUpdates) {
   );
 
   return orders.map(order => {
+    if (order._source === 'instagram') return order;
     const orderId = String(order.id || order._id);
     const pending = pendingByOrderId.get(orderId);
     if (!pending) return order;
@@ -145,7 +149,7 @@ async function restoreCachedOrders(showMessage = false) {
 
     const pendingUpdates = await offlineStore.getPendingUpdates(driverOfflineScope);
     allOrders = applyPendingUpdates(snapshot.orders, pendingUpdates);
-    previousOrderIds = new Set(allOrders.map(order => order.id || order._id));
+    previousOrderIds = new Set(allOrders.map(orderIdentity));
     applyFiltersAndRender();
 
     const savedAt = snapshot.updatedAt ? new Date(snapshot.updatedAt) : null;
@@ -236,7 +240,6 @@ async function fetchOrders() {
   isFetchingOrders = true;
 
   try {
-    // 1. حفظ قيم الفلاتر الحالية
     const savedStatus = document.getElementById('filterStatus')?.value || '';
     const savedSearch = document.getElementById('searchInput')?.value || '';
 
@@ -247,44 +250,60 @@ async function fetchOrders() {
       return;
     }
 
-    const params = new URLSearchParams({ paginate: '1', page: String(ordersPage), limit: String(ORDERS_PAGE_SIZE) });
-    if (savedStatus) params.set('status', savedStatus);
-    if (savedSearch.trim()) params.set('search', savedSearch.trim());
-    const res = await apiFetch(`/api/orders?${params}`, {
-      headers: { 'Authorization': `Bearer ${token}` },
-      signal: ordersFetchController.signal
-    });
-    if (!res.ok) throw new Error('فشل جلب الطلبات');
-    const data = await res.json();
-    const orders = data.orders || [];
-    ordersTotalPages = data.pagination?.totalPages || 1;
-    if (ordersPage > ordersTotalPages) {
-      ordersPage = ordersTotalPages;
-      return fetchOrders();
+    const basicParams = new URLSearchParams();
+    const instagramParams = new URLSearchParams({ all: '1' });
+    if (savedStatus) {
+      basicParams.set('status', savedStatus);
+      instagramParams.set('status', savedStatus === 'إلغاء' ? 'ملغي' : savedStatus);
     }
+    if (savedSearch.trim()) {
+      basicParams.set('search', savedSearch.trim());
+      instagramParams.set('search', savedSearch.trim());
+    }
+
+    const [basicResponse, instagramResponse] = await Promise.all([
+      apiFetch(`/api/orders?${basicParams}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+        signal: ordersFetchController.signal
+      }),
+      apiFetch(`/api/instagram-orders?${instagramParams}`, { signal: ordersFetchController.signal })
+    ]);
+    if (!basicResponse.ok || !instagramResponse.ok) throw new Error('فشل جلب قائمة الطلبات الموحدة');
+
+    const [basicData, instagramData] = await Promise.all([basicResponse.json(), instagramResponse.json()]);
+    const basicOrders = (Array.isArray(basicData) ? basicData : (basicData.orders || [])).map(order => ({ ...order, _source: 'basic' }));
+    const instagramOrders = (instagramData.orders || []).map(order => ({
+      ...order,
+      _source: 'instagram',
+      customer_number: order.customer_phone,
+      order_contents: instagramItemsSummary(order.items),
+      price: 0,
+      ratio: 0,
+      currency: 'ل.س'
+    }));
+    const orders = [...basicOrders, ...instagramOrders].sort((left, right) => {
+      const leftDate = new Date(left.created_at || left.createdAt || 0).getTime();
+      const rightDate = new Date(right.created_at || right.createdAt || 0).getTime();
+      return rightDate - leftDate;
+    });
     const pendingUpdates = offlineStore
       ? await offlineStore.getPendingUpdates(driverOfflineScope)
       : [];
     const ordersWithPendingChanges = applyPendingUpdates(orders, pendingUpdates);
 
-    // 3. إشعارات الطلبات الجديدة (المنطق الحالي يبقى كما هو)
-    const newOrders = orders.filter(o => !previousOrderIds.has(o.id || o._id));
+    const newOrders = orders.filter(order => !previousOrderIds.has(orderIdentity(order)));
     if (newOrders.length > 0 && previousOrderIds.size > 0) {
       newOrders.forEach(order => {
         showNotification(`🚚 طلب جديد #${order.order_number || order.orderNumber}`, 'success');
         notificationSound.play().catch(() => {});
       });
     }
-    // تحديث مجموعة المعرفات
-    previousOrderIds = new Set(orders.map(o => o.id || o._id));
+    previousOrderIds = new Set(orders.map(orderIdentity));
 
     allOrders = ordersWithPendingChanges;
     applyFiltersAndRender();
-    updateOrdersPagination(data.pagination || {});
     await saveCurrentOrders();
-    await fetchInstagramDriverOrders();
 
-    // 4. إعادة تعبئة الفلاتر بالقيم المحفوظة
     const elStatus = document.getElementById('filterStatus');
     const elSearch = document.getElementById('searchInput');
     if (elStatus && elStatus.value !== savedStatus) elStatus.value = savedStatus;
@@ -301,72 +320,6 @@ async function fetchOrders() {
     isFetchingOrders = false;
   }
 }
-
-function updateOrdersPagination(pagination) {
-  const info = document.getElementById('ordersPageInfo');
-  const previous = document.getElementById('ordersPrevPage');
-  const next = document.getElementById('ordersNextPage');
-  if (info) info.textContent = `صفحة ${pagination.page || ordersPage} من ${pagination.totalPages || ordersTotalPages} — ${pagination.total || 0} طلب`;
-  if (previous) previous.disabled = ordersPage <= 1;
-  if (next) next.disabled = ordersPage >= ordersTotalPages;
-}
-
-function changeOrdersPage(delta) {
-  const target = ordersPage + delta;
-  if (target < 1 || target > ordersTotalPages) return;
-  ordersPage = target;
-  fetchOrders();
-}
-
-function escapeDriverHtml(value) {
-  return String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
-}
-
-async function fetchInstagramDriverOrders() {
-  const body = document.getElementById('instagramDriverOrdersBody');
-  if (!body || !navigator.onLine) return;
-  try {
-    const params = new URLSearchParams({ page: String(instagramOrdersPage), limit: '50' });
-    const search = document.getElementById('searchInput')?.value.trim();
-    if (search) params.set('search', search);
-    const response = await apiFetch(`/api/instagram-orders?${params}`);
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.message || 'تعذر تحميل طلبات إنستغرام');
-    instagramOrdersTotalPages = data.pagination?.totalPages || 1;
-    if (instagramOrdersPage > instagramOrdersTotalPages) {
-      instagramOrdersPage = instagramOrdersTotalPages;
-      return fetchInstagramDriverOrders();
-    }
-    const pageInfo = document.getElementById('instagramDriverPageInfo');
-    const previous = document.getElementById('instagramDriverPrevPage');
-    const next = document.getElementById('instagramDriverNextPage');
-    if (pageInfo) pageInfo.textContent = `صفحة ${data.pagination?.page || instagramOrdersPage} من ${instagramOrdersTotalPages} — ${data.pagination?.total || 0} طلب`;
-    if (previous) previous.disabled = instagramOrdersPage <= 1;
-    if (next) next.disabled = instagramOrdersPage >= instagramOrdersTotalPages;
-    body.innerHTML = (data.orders || []).map(order => `<tr>
-      <td>${order.order_number}</td><td>${escapeDriverHtml(order.company_name)}</td><td>${escapeDriverHtml(order.customer_name)}</td>
-      <td><a href="tel:${escapeDriverHtml(order.customer_phone)}">${escapeDriverHtml(order.customer_phone)}</a></td><td>${escapeDriverHtml(order.address)}</td>
-      <td class="text-wrap-column">${(order.items || []).map(item => `${escapeDriverHtml(item.product_name)} — ${escapeDriverHtml(item.color)} / ${escapeDriverHtml(item.size)} × ${item.quantity}`).join('<br>')}</td>
-      <td>${escapeDriverHtml(order.status)}</td><td>${['قيد المتابعة', 'مؤجل'].includes(order.status) ? `<button class="btn btn-primary btn-sm instagram-driver-update" data-id="${order.id}">تحديث الحالة</button>` : '—'}</td>
-    </tr>`).join('') || '<tr><td colspan="8">لا توجد طلبات إنستغرام معيّنة لك.</td></tr>';
-  } catch (error) {
-    body.innerHTML = `<tr><td colspan="8">${escapeDriverHtml(error.message)}</td></tr>`;
-  }
-}
-
-document.addEventListener('click', async event => {
-  const button = event.target.closest('.instagram-driver-update');
-  if (!button) return;
-  const status = prompt('اكتب الحالة الجديدة: تم، مؤجل، مرتجع أو ملغي');
-  if (!['تم', 'مؤجل', 'مرتجع', 'ملغي'].includes(status)) return;
-  button.disabled = true;
-  const response = await apiFetch(`/api/instagram-orders/driver-orders/${button.dataset.id}/status`, {
-    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status })
-  });
-  const data = await response.json().catch(() => ({}));
-  showNotification(response.ok ? 'تم تحديث طلب إنستغرام' : (data.message || 'تعذر التحديث'), response.ok ? 'success' : 'error');
-  await fetchInstagramDriverOrders();
-});
 
 function startHeartbeat() {
   if (heartbeatInterval) return;
@@ -390,8 +343,11 @@ function renderTable(orders) {
   let totalSYR = 0, totalUSD = 0, totalRatio = 0;
 
   orders.forEach((order, index) => {
+    const isInstagram = order._source === 'instagram';
     const price = Number(order.price) || 0;
-    if (order.currency === 'دولار') {
+    if (isInstagram) {
+      // طلب إنستغرام لا يحتوي سعراً أو نسبة في نموذج هذه القناة.
+    } else if (order.currency === 'دولار') {
       totalUSD += price;
     } else {
       totalSYR += price;
@@ -413,20 +369,23 @@ function renderTable(orders) {
     const pendingSyncLabel = order._offlinePending
       ? '<small class="pending-sync-label">بانتظار المزامنة</small>'
       : '';
-    // ✅ زر التعديل يظهر فقط إذا كانت الحالة "قيد المتابعة"
-    const editButton = (status === 'قيد المتابعة')
+    const canEdit = isInstagram
+      ? ['قيد المتابعة', 'مؤجل'].includes(status)
+      : status === 'قيد المتابعة';
+    const editButton = canEdit
       ? `<button class="btn btn-sm btn-primary" onclick='openEditModal("${orderId}")'>تعديل</button>`
       : '<span style="color:#999;">—</span>';
 
     tr.innerHTML = `
-      <td data-label="عداد الطلبات :">${((ordersPage - 1) * ORDERS_PAGE_SIZE) + index + 1}</td>
+      <td data-label="عداد الطلبات :">${index + 1}</td>
+      <td data-label="المصدر :"><span class="order-source-badge ${isInstagram ? 'order-source-instagram' : 'order-source-basic'}">${isInstagram ? 'إنستغرام' : 'أساسي'}</span></td>
       <td data-label="رقم الطلب :">${orderNumber}</td>
       <td class="text-wrap-column" data-label="محتويات الطلب :">${order.order_contents || order.orderContents || '-'}</td>
       <td data-label="اسم العميل :">${customerName}</td>
       <td data-label="رقم العميل :">${customerNumber ? `<a href="tel:${customerNumber}">${customerNumber}</a>` : '-'}</td>
       <td data-label="العنوان :">${address}</td>
-      <td data-label="السعر :">${formatNumber(priceVal)} ${currency}</td>
-      <td data-label="النسبة :">${formatNumber(ratio)}</td>
+      <td data-label="السعر :">${isInstagram ? '—' : `${formatNumber(priceVal)} ${currency}`}</td>
+      <td data-label="النسبة :">${isInstagram ? '—' : formatNumber(ratio)}</td>
       <td data-label="الحالة :"><span class="status-badge status-${status}">${status}</span>${pendingSyncLabel}</td>
       <td data-label="الشركة :">${order.company_name || order.companyName || '-'}</td> 
       <td class="text-wrap-column" data-label="ملاحظة :">${note || '-'}</td>
@@ -443,14 +402,12 @@ function renderTable(orders) {
 
 // ==================== تعديل الحالة ====================
 async function openEditModal(orderId) {
-  // 1. البحث عن الطلب في البيانات المحلية
-  const localOrder = allOrders.find(o => (o.id || o._id) === orderId);
+  const localOrder = allOrders.find(o => String(o.id || o._id) === String(orderId));
   
   let order = null;
   let usedLocal = false;
 
-  // 2. إذا كان متصلاً، نحاول جلب أحدث البيانات من الخادم
-  if (navigator.onLine) {
+  if (navigator.onLine && localOrder?._source !== 'instagram') {
     try {
       const res = await apiFetch(`/api/orders/${orderId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -463,7 +420,6 @@ async function openEditModal(orderId) {
     }
   }
 
-  // 3. إذا لم نحصل على بيانات من الخادم، استخدم المحلية
   if (!order) {
     if (localOrder) {
       order = localOrder;
@@ -474,20 +430,29 @@ async function openEditModal(orderId) {
     }
   }
 
-  // 4. ملء الحقول
-  document.getElementById('editOrderId').value = order.id || order._id;
-  document.getElementById('editStatus').value = order.status;
-  document.getElementById('editNote').value = order.note || '';
+  order._source = localOrder?._source || 'basic';
 
-  const statusSelect = document.getElementById('editStatus');
-  if (order.status !== 'قيد المتابعة') {
-    statusSelect.disabled = true;
-  } else {
-    statusSelect.disabled = false;
+  if (order._source === 'instagram' && !navigator.onLine) {
+    showNotification('يلزم الاتصال بالإنترنت لتحديث طلب إنستغرام.', 'warning');
+    return;
   }
+
+  document.getElementById('editOrderId').value = order.id || order._id;
+  document.getElementById('editOrderSource').value = order._source;
+  const statusSelect = document.getElementById('editStatus');
+  const statuses = order._source === 'instagram'
+    ? ['تم', 'مؤجل', 'مرتجع', 'ملغي']
+    : ['تم', 'مؤجل', 'مرتجع', 'إلغاء'];
+  statusSelect.innerHTML = statuses.map(status => `<option value="${status}">${status}</option>`).join('');
+  statusSelect.value = statuses.includes(order.status) ? order.status : statuses[0];
+  document.getElementById('editNote').value = order.note || '';
+  document.getElementById('editNote').readOnly = order._source === 'instagram';
+  document.getElementById('editNoteHint').textContent = order._source === 'instagram' ? 'ملاحظة طلب إنستغرام للعرض فقط؛ يمكن للسائق تغيير الحالة.' : '';
+  statusSelect.disabled = order._source === 'instagram'
+    ? !['قيد المتابعة', 'مؤجل'].includes(order.status)
+    : order.status !== 'قيد المتابعة';
   document.getElementById('editModal').style.display = 'flex';
 
-  // 5. إشعار تحذيري فقط إذا استخدمنا البيانات المحلية
   if (usedLocal) {
     showNotification('⚠️ أنت غير متصل. البيانات المعروضة قد لا تكون محدثة.', 'warning');
   }
@@ -500,12 +465,33 @@ function closeModal() {
 document.getElementById('editOrderForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const id = document.getElementById('editOrderId').value;
+  const source = document.getElementById('editOrderSource').value || 'basic';
   const newStatus = document.getElementById('editStatus').value;
   const newNote = document.getElementById('editNote').value;
 
-  // البحث عن الطلب في allOrders لتحديثه مؤقتاً
-  const orderIndex = allOrders.findIndex(o => (o.id || o._id) === id);
+  const orderIndex = allOrders.findIndex(o => String(o.id || o._id) === String(id) && (o._source || 'basic') === source);
   if (orderIndex === -1) return;
+
+  if (source === 'instagram') {
+    if (!navigator.onLine) return showNotification('يلزم الاتصال بالإنترنت لتحديث طلب إنستغرام.', 'warning');
+    try {
+      const response = await apiFetch(`/api/instagram-orders/driver-orders/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || 'تعذر تحديث طلب إنستغرام');
+      allOrders[orderIndex].status = newStatus;
+      closeModal();
+      applyFiltersAndRender();
+      await saveCurrentOrders();
+      showNotification('تم تحديث طلب إنستغرام', 'success');
+    } catch (error) {
+      showNotification(`❌ ${error.message}`, 'error');
+    }
+    return;
+  }
 
   const originalOrder = { ...allOrders[orderIndex] };
 
@@ -614,17 +600,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (searchInput) {
     searchInput.addEventListener('input', () => {
       clearTimeout(driverSearchTimer);
-      driverSearchTimer = setTimeout(() => {
-        ordersPage = 1;
-        instagramOrdersPage = 1;
-        fetchOrders();
-      }, 400);
+      driverSearchTimer = setTimeout(fetchOrders, 400);
     });
   }
-  document.getElementById('ordersPrevPage')?.addEventListener('click', () => changeOrdersPage(-1));
-  document.getElementById('ordersNextPage')?.addEventListener('click', () => changeOrdersPage(1));
-  document.getElementById('instagramDriverPrevPage')?.addEventListener('click', () => { if (instagramOrdersPage > 1) { instagramOrdersPage -= 1; fetchInstagramDriverOrders(); } });
-  document.getElementById('instagramDriverNextPage')?.addEventListener('click', () => { if (instagramOrdersPage < instagramOrdersTotalPages) { instagramOrdersPage += 1; fetchInstagramDriverOrders(); } });
   startHeartbeat();
   startDriverPolling();
 });

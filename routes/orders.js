@@ -262,65 +262,63 @@ router.get('/', async (req, res) => {
     const search = sanitizeSearch(req.query.search);
     const sortDirection = req.query.sort === 'asc' ? true : false;
 
-    // 1. بناء استعلام أساسي
-    let query = supabase
-      .from('orders')
-      .select(`
-        *,
-        driver:driver_id(id, name, username),
-        company:company_id(id, name, username)
-      `, shouldPaginate ? { count: 'exact' } : undefined)
-      .order(req.query.sort ? 'order_number' : 'created_at', { ascending: req.query.sort ? sortDirection : false });
-
-    // 2. فلترة حسب الدور
-    query = applyRoleFilter(query, role, id);
-    
-  // 3. فلترة حسب التاريخ (إذا وُجد)
-    query = applyDateFilter(query, startDate, endDate, role);
-
-    // 4. فلترة حسب الحالة (إذا وُجد)
-    if (status) {
-      query = query.eq('status', status);
+    const normalizedOrderType = orderType ? normalizeOrderType(orderType) : null;
+    if (orderType && !normalizedOrderType) {
+      return res.status(400).json({ message: 'نوع الطلب غير صالح' });
     }
 
-    if (orderType) {
-      const normalizedOrderType = normalizeOrderType(orderType);
-      if (!normalizedOrderType) {
-        return res.status(400).json({ message: 'نوع الطلب غير صالح' });
+    const buildQuery = ({ includeCount = false, rangeStart = null, rangeEnd = null } = {}) => {
+      let query = supabase
+        .from('orders')
+        .select(`
+          *,
+          driver:driver_id(id, name, username),
+          company:company_id(id, name, username)
+        `, includeCount ? { count: 'exact' } : undefined)
+        .order(req.query.sort ? 'order_number' : 'created_at', { ascending: req.query.sort ? sortDirection : false });
+
+      query = applyRoleFilter(query, role, id);
+      query = applyDateFilter(query, startDate, endDate, role);
+      if (status) query = query.eq('status', status);
+      if (normalizedOrderType) query = query.eq('order_type', normalizedOrderType);
+      if (String(req.query.shipping || '') === '1') query = query.in('order_type', ['شحن', 'شحن لباب المنزل']);
+
+      if (search) {
+        const pattern = `*${search}*`;
+        query = query.or([
+          `order_number.ilike.${pattern}`,
+          `order_contents.ilike.${pattern}`,
+          `customer_name.ilike.${pattern}`,
+          `customer_number.ilike.${pattern}`,
+          `address.ilike.${pattern}`,
+          `note.ilike.${pattern}`,
+          `company_name.ilike.${pattern}`,
+          `driver_name.ilike.${pattern}`
+        ].join(','));
       }
-      query = query.eq('order_type', normalizedOrderType);
-    }
-    if (String(req.query.shipping || '') === '1') {
-      query = query.in('order_type', ['شحن', 'شحن لباب المنزل']);
-    }
 
-    if (search) {
-      const pattern = `*${search}*`;
-      query = query.or([
-        `order_number.ilike.${pattern}`,
-        `order_contents.ilike.${pattern}`,
-        `customer_name.ilike.${pattern}`,
-        `customer_number.ilike.${pattern}`,
-        `address.ilike.${pattern}`,
-        `note.ilike.${pattern}`,
-        `company_name.ilike.${pattern}`,
-        `driver_name.ilike.${pattern}`
-      ].join(','));
-    }
+      if (role === 'admin') {
+        if (driverId) query = query.eq('driver_id', driverId);
+        if (companyId) query = query.eq('company_id', companyId);
+      }
+      if (rangeStart !== null && rangeEnd !== null) query = query.range(rangeStart, rangeEnd);
+      return query;
+    };
 
-    // 5. فلترة إضافية للمدير
-    if (role === 'admin') {
-      if (driverId) query = query.eq('driver_id', driverId);
-      if (companyId) query = query.eq('company_id', companyId);
+    if (!shouldPaginate) {
+      const orders = [];
+      const batchSize = 1000;
+      for (let rangeStart = 0; rangeStart < 100000; rangeStart += batchSize) {
+        const { data, error } = await buildQuery({ rangeStart, rangeEnd: rangeStart + batchSize - 1 });
+        if (error) throw error;
+        orders.push(...(data || []));
+        if (!data || data.length < batchSize) return res.json(orders);
+      }
+      return res.status(413).json({ message: 'عدد الطلبات كبير جداً للعرض دفعة واحدة؛ استخدم الفلاتر لتضييق النتائج' });
     }
 
-    if (shouldPaginate) query = query.range(from, to);
-
-    // 6. تنفيذ الاستعلام
-    const { data: orders, error, count } = await query;
+    const { data: orders, error, count } = await buildQuery({ includeCount: true, rangeStart: from, rangeEnd: to });
     if (error) throw error;
-
-    if (!shouldPaginate) return res.json(orders || []);
 
     let summary = null;
     if (role === 'company' && String(req.query.includeSummary || '') === '1') {

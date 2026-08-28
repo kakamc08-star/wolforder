@@ -85,7 +85,7 @@
         <section class="card dashboard-card" id="ordersSection">
           <div class="section-heading section-heading-split">
             <div class="section-heading-main"><span class="section-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"></path></svg></span><div><h2>قائمة الطلبات</h2><p>ابحث وفلتر وعدّل الطلبات الحالية</p></div></div>
-            <div class="update-meta"><span id="lastUpdateTime"></span><button class="btn btn-sm btn-secondary" type="button" onclick="fetchOrders()">تحديث الآن</button></div>
+            <div class="update-meta"><span id="ordersTotalCount">0 طلب</span><span id="lastUpdateTime"></span><button class="btn btn-sm btn-secondary" type="button" onclick="fetchOrders()">تحديث الآن</button></div>
           </div>
           <div class="filters-panel"><div class="filters-section">
             <div class="form-group search-field"><label for="searchInput">بحث</label><input type="text" id="searchInput" placeholder="رقم الطلب، العميل أو العنوان..."></div>
@@ -105,7 +105,6 @@
               <tfoot id="ordersTableFoot"><tr><td colspan="17"><div class="totals-grid"><div class="total-card total-green"><span>إجمالي السعر (ل.س)</span><strong id="totalPriceSYR">0 ل.س</strong></div><div class="total-card total-blue"><span>إجمالي السعر ($)</span><strong id="totalPriceUSD">0 $</strong></div><div class="total-card total-orange"><span>إجمالي النسبة</span><strong id="totalRatioSum">0</strong></div></div></td></tr></tfoot>
             </table>
           </div>
-          <div class="pagination-controls"><button class="btn btn-secondary btn-sm" id="ordersPrevPage" type="button">السابق</button><span id="ordersPageInfo">صفحة 1</span><button class="btn btn-secondary btn-sm" id="ordersNextPage" type="button">التالي</button></div>
         </section>
 
         <section class="card dashboard-card" id="editRequestsSection">

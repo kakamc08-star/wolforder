@@ -80,6 +80,16 @@ async function getCompanyName(companyId) {
   return data && data.name ? data.name : 'المتجر';
 }
 
+async function getCompanyNameBySlug(slug) {
+  const { data: link } = await supabase
+    .from('instagram_company_links')
+    .select('company_id')
+    .eq('public_slug', slug)
+    .eq('is_active', true)
+    .maybeSingle();
+  return link ? getCompanyName(link.company_id) : 'المتجر';
+}
+
 async function getViewerCompany(userId) {
   const { data, error } = await supabase
     .from('users')
@@ -136,6 +146,29 @@ async function fetchAllRows(table, select, applyFilters, pageSize = 1000) {
   throw new Error('EXPORT_LIMIT_EXCEEDED');
 }
 
+async function getPendingShippingSummary(companyId) {
+  const orders = await fetchAllRows(
+    'instagram_orders',
+    'id, items:instagram_order_items(quantity)',
+    query => {
+      query = query
+        .eq('order_type', 'شحن')
+        .in('status', ['قيد المتابعة', 'مؤجل'])
+        .is('shipping_batch_id', null)
+        .order('created_at', { ascending: false });
+      if (companyId) query = query.eq('company_id', companyId);
+      return query;
+    }
+  );
+  return {
+    orderCount: orders.length,
+    pieceCount: orders.reduce(
+      (sum, order) => sum + (order.items || []).reduce((itemSum, item) => itemSum + Number(item.quantity || 0), 0),
+      0
+    )
+  };
+}
+
 // ==================== الصفحة العامة ====================
 router.get('/public/:slug/catalog', async (req, res) => {
   try {
@@ -153,6 +186,7 @@ router.get('/public/:slug/catalog', async (req, res) => {
       .select('id, name')
       .eq('company_id', link.company_id)
       .eq('is_active', true)
+      .is('deleted_at', null)
       .order('name');
     if (productsError) throw productsError;
 
@@ -164,6 +198,7 @@ router.get('/public/:slug/catalog', async (req, res) => {
         .select('id, product_id, color, size, available_quantity')
         .in('product_id', productIds)
         .eq('is_active', true)
+        .is('deleted_at', null)
         .gt('available_quantity', 0)
         .order('color');
       if (error) throw error;
@@ -226,10 +261,12 @@ router.post('/public/:slug/orders', async (req, res) => {
     if (error) throw error;
 
     const result = typeof data === 'string' ? JSON.parse(data) : data;
+    const companyName = await getCompanyNameBySlug(slug);
     const broadcast = req.app.get('broadcast');
     if (broadcast && !result.duplicate) broadcast({ type: 'INSTAGRAM_ORDER_CREATED' });
     res.status(result.duplicate ? 200 : 201).json({
-      message: result.duplicate ? 'تم استلام هذا الطلب مسبقاً' : 'تم إرسال طلبك وهو الآن قيد المتابعة',
+      message: `تم إنشاء الطلب وهو الآن قيد المتابعة.\nشكرًا لطلبكم من ${companyName}.`,
+      companyName,
       orderNumber: result.order_number,
       duplicate: Boolean(result.duplicate)
     });
@@ -304,10 +341,28 @@ router.get('/', async (req, res) => {
   try {
     const companyId = await resolveCompanyScope(req, req.query.companyId);
     if (req.user.role === 'instagram_viewer' && !companyId) return res.status(403).json({ message: 'الحساب غير مرتبط بشركة' });
-    const { page, limit, from, to } = parsePagination(req.query, 50, 100);
     const select = req.query.productId
       ? '*, items:instagram_order_items!inner(*)'
       : '*, items:instagram_order_items(*)';
+    const fetchAll = String(req.query.all || '') === '1' && ['admin', 'driver'].includes(req.user.role);
+
+    if (fetchAll) {
+      const orders = await fetchAllRows('instagram_orders', select, query => {
+        query = query.order('created_at', { ascending: false });
+        if (req.user.role === 'driver') {
+          query = query.eq('driver_id', String(req.user.id)).eq('order_type', 'توصيل');
+        }
+        query = applyOrderFilters(query, req.query, companyId);
+        if (req.query.productId) query = query.eq('instagram_order_items.product_id', req.query.productId);
+        return query;
+      });
+      return res.json({
+        orders,
+        pagination: { page: 1, limit: orders.length, total: orders.length, totalPages: 1 }
+      });
+    }
+
+    const { page, limit, from, to } = parsePagination(req.query, 50, 100);
     let query = supabase
       .from('instagram_orders')
       .select(select, { count: 'exact' })
@@ -333,6 +388,7 @@ router.get('/inventory', async (req, res) => {
     if (!['admin', 'instagram_viewer'].includes(req.user.role)) return res.status(403).json({ message: 'غير مصرح' });
     const companyId = await resolveCompanyScope(req, req.query.companyId);
     if (req.user.role === 'instagram_viewer' && !companyId) return res.status(403).json({ message: 'الحساب غير مرتبط بشركة' });
+    const orderType = ['توصيل', 'شحن'].includes(req.query.orderType) ? req.query.orderType : '';
     const { page, limit, from, to } = parsePagination(req.query, 100, 500);
     let query = supabase.from('instagram_inventory_stats').select('*', { count: 'exact' }).order('product_name').range(from, to);
     if (companyId) query = query.eq('company_id', companyId);
@@ -341,8 +397,48 @@ router.get('/inventory', async (req, res) => {
     if (search) query = query.or(`product_name.ilike.*${search}*,color.ilike.*${search}*,size.ilike.*${search}*`);
     const { data, error, count } = await query;
     if (error) throw error;
+    let inventory = data || [];
+
+    if (orderType && inventory.length) {
+      const inventoryIds = inventory.map(item => item.inventory_id);
+      const rows = await fetchAllRows(
+        'instagram_export_rows',
+        'inventory_id, status, quantity',
+        rowsQuery => rowsQuery.in('inventory_id', inventoryIds).eq('order_type', orderType)
+      );
+      const countsByInventory = new Map();
+      for (const row of rows) {
+        const key = String(row.inventory_id);
+        const counts = countsByInventory.get(key) || { sold: 0, reserved: 0, postponed: 0, cancelled: 0, returned: 0 };
+        const quantity = Number(row.quantity || 0);
+        if (row.status === 'تم') counts.sold += quantity;
+        else if (row.status === 'قيد المتابعة') counts.reserved += quantity;
+        else if (row.status === 'مؤجل') counts.postponed += quantity;
+        else if (row.status === 'ملغي') counts.cancelled += quantity;
+        else if (row.status === 'مرتجع') counts.returned += quantity;
+        countsByInventory.set(key, counts);
+      }
+      inventory = inventory.map(item => {
+        const counts = countsByInventory.get(String(item.inventory_id)) || { sold: 0, reserved: 0, postponed: 0, cancelled: 0, returned: 0 };
+        return {
+          ...item,
+          sold_quantity: counts.sold,
+          reserved_quantity: counts.reserved,
+          postponed_quantity: counts.postponed,
+          cancelled_quantity: counts.cancelled,
+          returned_quantity: counts.returned
+        };
+      });
+    }
+
+    const shippingSummary = await getPendingShippingSummary(companyId);
     const total = count || 0;
-    res.json({ inventory: data || [], pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
+    res.json({
+      inventory,
+      shippingSummary,
+      activeOrderType: orderType,
+      pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) }
+    });
   } catch (error) {
     console.error('Instagram inventory error:', error.message);
     res.status(500).json({ message: 'تعذر تحميل الجرد' });
@@ -354,11 +450,15 @@ router.get('/products', requireAdmin, async (req, res) => {
     let query = supabase
       .from('instagram_products')
       .select('*, variants:instagram_inventory(*)')
+      .is('deleted_at', null)
       .order('created_at', { ascending: false });
     if (req.query.companyId) query = query.eq('company_id', cleanText(req.query.companyId, 80));
     const { data, error } = await query;
     if (error) throw error;
-    res.json(data || []);
+    res.json((data || []).map(product => ({
+      ...product,
+      variants: (product.variants || []).filter(variant => !variant.deleted_at)
+    })));
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -400,6 +500,15 @@ router.patch('/products/:id', requireAdmin, async (req, res) => {
   }
 });
 
+router.delete('/products/:id', requireAdmin, async (req, res) => {
+  const { data, error } = await supabase.rpc('archive_instagram_product', {
+    p_product_id: req.params.id,
+    p_actor_id: String(req.user.id)
+  });
+  if (error) return res.status(404).json({ message: 'الصنف غير موجود أو محذوف مسبقاً' });
+  res.json({ message: 'تم حذف الصنف', product: data });
+});
+
 router.post('/products/:id/variants', requireAdmin, async (req, res) => {
   const color = cleanText(req.body && req.body.color, 60);
   const size = cleanText(req.body && req.body.size, 60);
@@ -407,6 +516,13 @@ router.post('/products/:id/variants', requireAdmin, async (req, res) => {
   if (!color || !size || !Number.isInteger(quantity) || quantity < 0 || quantity > 1000000) {
     return res.status(400).json({ message: 'بيانات اللون أو المقاس أو الكمية غير صالحة' });
   }
+  const { data: product } = await supabase
+    .from('instagram_products')
+    .select('id')
+    .eq('id', req.params.id)
+    .is('deleted_at', null)
+    .maybeSingle();
+  if (!product) return res.status(404).json({ message: 'الصنف غير موجود أو محذوف' });
   const { data, error } = await supabase.rpc('add_instagram_variant', {
     p_product_id: req.params.id,
     p_color: color,
@@ -432,6 +548,61 @@ router.post('/inventory/:id/adjust', requireAdmin, async (req, res) => {
   });
   if (error) return res.status(409).json({ message: error.message.includes('INSUFFICIENT') ? 'لا يمكن إنقاص كمية محجوزة أو مباعة' : 'تعذر تعديل المخزون' });
   res.json(data);
+});
+
+router.delete('/inventory/:id', requireAdmin, async (req, res) => {
+  const { data, error } = await supabase.rpc('archive_instagram_inventory', {
+    p_inventory_id: req.params.id,
+    p_actor_id: String(req.user.id)
+  });
+  if (error) {
+    const message = String(error.message || '');
+    return res.status(message.includes('INVENTORY_HAS_RESERVED_ORDERS') ? 409 : 404).json({
+      message: message.includes('INVENTORY_HAS_RESERVED_ORDERS')
+        ? 'لا يمكن حذف التركيبة لوجود قطع محجوزة ضمن طلبات قيد المتابعة أو مؤجلة'
+        : 'تركيبة المخزون غير موجودة أو محذوفة مسبقاً'
+    });
+  }
+  res.json({ message: 'تم حذف التركيبة من الجرد', inventory: data });
+});
+
+router.patch('/orders/:id', requireAdmin, async (req, res) => {
+  const customerName = cleanText(req.body && req.body.customerName, 100);
+  const customerPhone = normalizeDigits(req.body && req.body.customerPhone).replace(/[^0-9+]/g, '');
+  const address = cleanText(req.body && req.body.address, 300);
+  const note = cleanText(req.body && req.body.note, 500);
+  if (customerName.length < 2) return res.status(400).json({ message: 'اسم الزبون غير صالح' });
+  if (!/^\+?[0-9]{8,15}$/.test(customerPhone)) return res.status(400).json({ message: 'رقم الموبايل غير صالح' });
+  if (address.length < 5) return res.status(400).json({ message: 'العنوان غير صالح' });
+
+  const { data, error } = await supabase
+    .from('instagram_orders')
+    .update({ customer_name: customerName, customer_phone: customerPhone, address, note, updated_at: new Date().toISOString() })
+    .eq('id', req.params.id)
+    .select('*, items:instagram_order_items(*)')
+    .single();
+  if (error) return res.status(404).json({ message: 'الطلب غير موجود أو تعذر تعديله' });
+  const broadcast = req.app.get('broadcast');
+  if (broadcast) broadcast({ type: 'INSTAGRAM_ORDER_UPDATED' });
+  res.json(data);
+});
+
+router.delete('/orders/:id', requireAdmin, async (req, res) => {
+  const { data, error } = await supabase.rpc('delete_instagram_order', {
+    p_order_id: req.params.id,
+    p_actor_id: String(req.user.id)
+  });
+  if (error) {
+    const message = String(error.message || '');
+    return res.status(message.includes('INVENTORY_STATE_CONFLICT') ? 409 : 404).json({
+      message: message.includes('INVENTORY_STATE_CONFLICT')
+        ? 'تعذر حذف الطلب بسبب تعارض في رصيد المخزون'
+        : 'الطلب غير موجود أو محذوف مسبقاً'
+    });
+  }
+  const broadcast = req.app.get('broadcast');
+  if (broadcast) broadcast({ type: 'INSTAGRAM_ORDER_DELETED' });
+  res.json({ message: 'تم حذف الطلب وإعادة رصيد المخزون', order: data });
 });
 
 router.patch('/orders/:id/status', requireAdmin, async (req, res) => {

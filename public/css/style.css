@@ -723,6 +723,10 @@ tr:hover {
   background-color: #fed7d7;  /* أحمر فاتح */
   color: #822727;              /* أحمر غامق */
 }
+.status-ملغي {
+  background-color: #fed7d7;
+  color: #822727;
+}
 .status-مرتجع {
   background-color: #fe9b1a;  /* بنفسجي فاتح */
   color: #855002;              /* بنفسجي غامق */
@@ -952,6 +956,11 @@ body.dark-mode tfoot td {
 
 /* إلغاء */
 .status-badge.status-إلغاء {
+  background-color: #fecaca;
+  color: #991b1b;
+  border: none;
+}
+.status-badge.status-ملغي {
   background-color: #fecaca;
   color: #991b1b;
   border: none;
@@ -3431,7 +3440,7 @@ html.pwa-standalone .app-sidebar {
 .instagram-item-row,
 .instagram-variant-row {
   display: grid;
-  grid-template-columns: 1.4fr 1fr 1fr .75fr auto;
+  grid-template-columns: 1.4fr 1fr 1fr .75fr;
   gap: 10px;
   align-items: end;
   padding: 14px;
@@ -3453,6 +3462,7 @@ html.pwa-standalone .app-sidebar {
   background: #e0f2fe;
   color: #075985;
   font-weight: 700;
+  white-space: pre-line;
 }
 .instagram-alert.error { background: #fee2e2; color: #991b1b; }
 .instagram-alert.success { background: #dcfce7; color: #166534; }
@@ -3460,6 +3470,7 @@ html.pwa-standalone .app-sidebar {
 
 .instagram-type-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0; }
 .instagram-product-list, .instagram-links-list { display: grid; gap: 10px; margin-top: 18px; }
+.instagram-links-list { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
 .instagram-product-card, .instagram-link-card {
   display: flex;
   align-items: center;
@@ -3474,6 +3485,21 @@ html.pwa-standalone .app-sidebar {
 .instagram-product-card .product-card-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .instagram-product-card small, .instagram-link-card small { color: var(--muted, #64748b); overflow-wrap: anywhere; }
 .instagram-row-status, .instagram-row-driver { min-width: 130px; }
+.instagram-link-card { min-height: 116px; }
+.instagram-link-entry { cursor: pointer; transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.instagram-link-entry:hover, .instagram-link-entry:focus-visible { transform: translateY(-2px); border-color: var(--primary, #2563eb); box-shadow: 0 10px 24px rgba(15, 23, 42, .1); outline: none; }
+.instagram-link-card .instagram-link-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.instagram-order-actions { display: flex; flex-wrap: wrap; gap: 7px; min-width: 180px; }
+.instagram-inventory-toolbar { display: flex; align-items: end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin: 12px 0 18px; }
+.instagram-inventory-toolbar > .form-group { min-width: 220px; margin: 0; }
+.instagram-shipping-summary { display: grid; grid-template-columns: repeat(2, minmax(120px, 1fr)); gap: 10px; min-width: min(100%, 360px); }
+.instagram-shipping-summary > div { padding: 12px 14px; border: 1px solid var(--border-color, #dbe4ef); border-radius: 13px; background: var(--card-bg, #fff); display: grid; gap: 4px; }
+.instagram-shipping-summary span, .instagram-shipping-summary small { color: var(--muted, #64748b); }
+.instagram-shipping-summary strong { font-size: 24px; color: var(--primary, #2563eb); }
+.instagram-shipping-summary small { grid-column: 1 / -1; }
+.order-source-badge { display: inline-flex; align-items: center; padding: 4px 9px; border-radius: 999px; font-size: 12px; font-weight: 800; white-space: nowrap; }
+.order-source-basic { color: #075985; background: #e0f2fe; }
+.order-source-instagram { color: #9d174d; background: #fce7f3; }
 
 .dark-mode .instagram-item-row,
 .dark-mode .instagram-variant-row { background: #101d30; border-color: #26364c; }
@@ -3483,14 +3509,15 @@ html.pwa-standalone .app-sidebar {
   .instagram-public-header { align-items: flex-start; }
   .instagram-public-header img { width: 54px; height: 54px; }
   .instagram-item-row, .instagram-variant-row { grid-template-columns: 1fr 1fr; }
-  .instagram-item-row .remove-instagram-item, .instagram-variant-row button { grid-column: 1 / -1; width: 100%; }
+  .instagram-variant-row button { grid-column: 1 / -1; width: 100%; }
   .instagram-product-card, .instagram-link-card { align-items: stretch; flex-direction: column; }
   .instagram-link-card .btn, .instagram-product-card .btn { width: 100%; }
+  .instagram-inventory-toolbar, .instagram-shipping-summary { width: 100%; }
 }
 
 @media (max-width: 480px) {
   .instagram-item-row, .instagram-variant-row { grid-template-columns: 1fr; }
-  .instagram-item-row .remove-instagram-item, .instagram-variant-row button { grid-column: auto; }
+  .instagram-variant-row button { grid-column: auto; }
 }
 
 html.pwa-standalone .dashboard-page .dashboard-header {
