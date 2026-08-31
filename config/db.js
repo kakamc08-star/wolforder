@@ -8,6 +8,8 @@ if (!supabaseUrl || !supabaseKey) {
   process.exit(1);
 }
 
+console.log('🔧 Supabase configuration loaded');
+
 // خيارات إضافية لتحسين الاتصال مع Render
 const options = {
   auth: {
@@ -18,7 +20,11 @@ const options = {
       Authorization: `Bearer ${supabaseKey}`,
     },
   },
-  fetch: (url, init) => fetch(url, { ...init, cache: 'no-store' }),
+  // إجبار استخدام IPv4
+  fetch: (url, init) => {
+    // نضبط خيارات الطلب لتفضيل IPv4
+    return fetch(url, { ...init, family: 4 });
+  },
 };
 
 const supabase = createClient(supabaseUrl, supabaseKey, options);

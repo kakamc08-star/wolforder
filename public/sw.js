@@ -1,18 +1,24 @@
-const CACHE_NAME = 'wolforder-pwa-v6';
+const CACHE_NAME = 'wolforder-pwa-v6-instagram';
 const APP_SHELL = [
   '/login.html',
   '/admin.html',
   '/driver.html',
   '/company.html',
+  '/instagram-admin.html',
+  '/instagram-viewer.html',
+  '/instagram-order.html',
   '/css/style.css',
+  '/css/instagram.css',
   '/js/pwa.js',
-  '/js/api-client.js',
   '/js/dashboard-ui.js',
   '/js/auth.js',
   '/js/admin.js',
   '/js/driver-offline.js',
   '/js/driver.js',
   '/js/company.js',
+  '/js/instagram-admin.js',
+  '/js/instagram-viewer.js',
+  '/js/instagram-order.js',
   '/images/wolf-login-bg-delivery.png',
   '/icons/apple-touch-icon-180x180.png',
   '/icons/icon-192x192.png',
@@ -50,17 +56,7 @@ self.addEventListener('fetch', event => {
 
   const requestUrl = new URL(request.url);
   if (requestUrl.origin !== self.location.origin) return;
-  if (
-    requestUrl.pathname.startsWith('/api/') ||
-    requestUrl.pathname.startsWith('/socket.io/') ||
-    requestUrl.pathname === '/login.html' ||
-    requestUrl.pathname === '/instagram-login.html' ||
-    requestUrl.pathname === '/instagram-viewer.html' ||
-    requestUrl.pathname.startsWith('/instagram/')
-  ) {
-    event.respondWith(fetch(request, { cache: 'no-store' }));
-    return;
-  }
+  if (requestUrl.pathname.startsWith('/api/') || requestUrl.pathname.startsWith('/socket.io/')) return;
 
   if (request.mode === 'navigate') {
     event.respondWith(networkFirstPage(request));

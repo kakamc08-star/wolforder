@@ -70,11 +70,13 @@
     const transaction = database.transaction(PENDING_STORE, 'readwrite');
     const completion = waitForTransaction(transaction);
     const orderId = String(update.orderId);
+    const orderSource = update.orderSource === 'instagram' ? 'instagram' : 'basic';
 
     transaction.objectStore(PENDING_STORE).put({
-      key: `${scope}:${orderId}`,
+      key: `${scope}:${orderSource}:${orderId}`,
       scope,
       orderId,
+      orderSource,
       status: update.status,
       note: update.note,
       queuedAt: new Date().toISOString()

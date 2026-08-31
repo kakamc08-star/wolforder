@@ -3,7 +3,7 @@ function getDestinationByRole(role) {
     case 'admin': return 'admin.html';
     case 'driver': return 'driver.html';
     case 'company': return 'company.html';
-    case 'instagram_viewer': return null;
+    case 'instagram_viewer': return 'instagram-viewer.html';
     default: return null;
   }
 }
@@ -85,7 +85,6 @@ if (window.location.pathname.includes('login.html')) {
       if (!destination) throw new Error('نوع الحساب غير معروف');
 
       localStorage.setItem('token', data.token);
-      if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
       localStorage.setItem('user', JSON.stringify(data.user));
       loginSucceeded = true;
       setMessage('تم تسجيل الدخول بنجاح، جاري فتح لوحة التحكم...', 'success');
@@ -112,11 +111,6 @@ async function logout() {
       console.warn('تعذر مسح بيانات السائق المحلية:', error);
     }
   }
-  if (typeof window.clearWolfSession === 'function') window.clearWolfSession();
-  else {
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
-  }
+  localStorage.clear();
   window.location.href = 'login.html';
 }

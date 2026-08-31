@@ -46,10 +46,6 @@ body {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-[hidden] {
-  display: none !important;
-}
-
 /* ==================== واجهة تسجيل الدخول ==================== */
 body.login-page {
   min-height: 100vh;
@@ -723,10 +719,6 @@ tr:hover {
   background-color: #fed7d7;  /* أحمر فاتح */
   color: #822727;              /* أحمر غامق */
 }
-.status-ملغي {
-  background-color: #fed7d7;
-  color: #822727;
-}
 .status-مرتجع {
   background-color: #fe9b1a;  /* بنفسجي فاتح */
   color: #855002;              /* بنفسجي غامق */
@@ -956,11 +948,6 @@ body.dark-mode tfoot td {
 
 /* إلغاء */
 .status-badge.status-إلغاء {
-  background-color: #fecaca;
-  color: #991b1b;
-  border: none;
-}
-.status-badge.status-ملغي {
   background-color: #fecaca;
   color: #991b1b;
   border: none;
@@ -3389,135 +3376,6 @@ html.pwa-standalone .app-sidebar {
   padding-right: calc(14px + var(--safe-area-right));
   padding-bottom: calc(16px + var(--safe-area-bottom));
   padding-left: calc(14px + var(--safe-area-left));
-}
-
-/* ==================== طلبات إنستغرام ==================== */
-.pagination-controls {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  margin-top: 18px;
-  flex-wrap: wrap;
-}
-
-.pagination-controls span {
-  color: var(--muted, #64748b);
-  font-weight: 700;
-}
-
-.instagram-public-page {
-  min-height: 100vh;
-  margin: 0;
-  background: radial-gradient(circle at top right, #12345a 0, #071322 48%, #030914 100%);
-  color: #0f172a;
-  font-family: inherit;
-}
-
-.instagram-public-shell {
-  width: min(960px, calc(100% - 28px));
-  margin: 0 auto;
-  padding: 28px 0 48px;
-}
-
-.instagram-public-header {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  color: #fff;
-  margin-bottom: 22px;
-}
-
-.instagram-public-header img { border-radius: 18px; box-shadow: 0 12px 32px #0007; }
-.instagram-public-header h1 { margin: 3px 0; font-size: clamp(1.45rem, 4vw, 2.2rem); }
-.instagram-public-header p, .instagram-public-header span { margin: 0; color: #cbd5e1; }
-
-.instagram-order-form { padding: clamp(18px, 4vw, 32px); }
-.instagram-order-form section + section { margin-top: 26px; padding-top: 22px; border-top: 1px solid #e2e8f0; }
-.instagram-order-form h2 { margin: 0 0 16px; }
-.instagram-order-form .form-group-wide { flex: 2 1 340px; }
-
-.instagram-item-row,
-.instagram-variant-row {
-  display: grid;
-  grid-template-columns: 1.4fr 1fr 1fr .75fr;
-  gap: 10px;
-  align-items: end;
-  padding: 14px;
-  margin-top: 12px;
-  border: 1px solid #dbe4ef;
-  border-radius: 14px;
-  background: #f8fafc;
-}
-
-.instagram-variant-row { grid-template-columns: 1fr 1fr 1fr auto; }
-.instagram-item-row .form-group, .instagram-variant-row .form-group { margin: 0; }
-.instagram-submit { width: 100%; min-height: 50px; margin-top: 8px; }
-.honeypot-field { position: absolute !important; inline-size: 1px; block-size: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
-
-.instagram-alert {
-  padding: 13px 16px;
-  border-radius: 12px;
-  margin: 14px 0;
-  background: #e0f2fe;
-  color: #075985;
-  font-weight: 700;
-  white-space: pre-line;
-}
-.instagram-alert.error { background: #fee2e2; color: #991b1b; }
-.instagram-alert.success { background: #dcfce7; color: #166534; }
-.instagram-public-footer { text-align: center; color: #94a3b8; padding: 18px; }
-
-.instagram-type-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0; }
-.instagram-product-list, .instagram-links-list { display: grid; gap: 10px; margin-top: 18px; }
-.instagram-links-list { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
-.instagram-product-card, .instagram-link-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 14px 16px;
-  border: 1px solid var(--border-color, #dbe4ef);
-  border-radius: 14px;
-  background: var(--card-bg, #fff);
-}
-.instagram-product-card div, .instagram-link-card div { display: grid; gap: 4px; min-width: 0; }
-.instagram-product-card .product-card-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.instagram-product-card small, .instagram-link-card small { color: var(--muted, #64748b); overflow-wrap: anywhere; }
-.instagram-row-status, .instagram-row-driver { min-width: 130px; }
-.instagram-link-card { min-height: 116px; }
-.instagram-link-entry { cursor: pointer; transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
-.instagram-link-entry:hover, .instagram-link-entry:focus-visible { transform: translateY(-2px); border-color: var(--primary, #2563eb); box-shadow: 0 10px 24px rgba(15, 23, 42, .1); outline: none; }
-.instagram-link-card .instagram-link-actions { display: flex; flex-wrap: wrap; gap: 7px; }
-.instagram-order-actions { display: flex; flex-wrap: wrap; gap: 7px; min-width: 180px; }
-.instagram-inventory-toolbar { display: flex; align-items: end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin: 12px 0 18px; }
-.instagram-inventory-toolbar > .form-group { min-width: 220px; margin: 0; }
-.instagram-shipping-summary { display: grid; grid-template-columns: repeat(2, minmax(120px, 1fr)); gap: 10px; min-width: min(100%, 360px); }
-.instagram-shipping-summary > div { padding: 12px 14px; border: 1px solid var(--border-color, #dbe4ef); border-radius: 13px; background: var(--card-bg, #fff); display: grid; gap: 4px; }
-.instagram-shipping-summary span, .instagram-shipping-summary small { color: var(--muted, #64748b); }
-.instagram-shipping-summary strong { font-size: 24px; color: var(--primary, #2563eb); }
-.instagram-shipping-summary small { grid-column: 1 / -1; }
-.order-source-badge { display: inline-flex; align-items: center; padding: 4px 9px; border-radius: 999px; font-size: 12px; font-weight: 800; white-space: nowrap; }
-.order-source-basic { color: #075985; background: #e0f2fe; }
-.order-source-instagram { color: #9d174d; background: #fce7f3; }
-
-.dark-mode .instagram-item-row,
-.dark-mode .instagram-variant-row { background: #101d30; border-color: #26364c; }
-
-@media (max-width: 780px) {
-  .instagram-public-shell { width: min(100% - 18px, 960px); padding-top: 16px; }
-  .instagram-public-header { align-items: flex-start; }
-  .instagram-public-header img { width: 54px; height: 54px; }
-  .instagram-item-row, .instagram-variant-row { grid-template-columns: 1fr 1fr; }
-  .instagram-variant-row button { grid-column: 1 / -1; width: 100%; }
-  .instagram-product-card, .instagram-link-card { align-items: stretch; flex-direction: column; }
-  .instagram-link-card .btn, .instagram-product-card .btn { width: 100%; }
-  .instagram-inventory-toolbar, .instagram-shipping-summary { width: 100%; }
-}
-
-@media (max-width: 480px) {
-  .instagram-item-row, .instagram-variant-row { grid-template-columns: 1fr; }
-  .instagram-variant-row button { grid-column: auto; }
 }
 
 html.pwa-standalone .dashboard-page .dashboard-header {

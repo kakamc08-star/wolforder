@@ -2,75 +2,12 @@ const express = require('express');
 const router = express.Router();
 const supabase = require('../config/db');
 const authenticateToken = require('../middleware/auth');
-const { parsePagination, sanitizeSearch } = require('../utils/instagram-validation');
 
 const ORDER_TYPES = ['توصيل', 'شحن', 'شحن لباب المنزل'];
-const companySummaryCache = new Map();
 
 function normalizeOrderType(value) {
   const orderType = value || 'توصيل';
   return ORDER_TYPES.includes(orderType) ? orderType : null;
-}
-
-router.use(authenticateToken);
-router.use((req, res, next) => {
-  if (!['admin', 'driver', 'company'].includes(req.user.role)) {
-    return res.status(403).json({ message: 'هذا الحساب غير مخوّل للوصول إلى الطلبات الأساسية' });
-  }
-  next();
-});
-
-function applyRoleFilter(query, role, id) {
-  if (role === 'driver') return query.eq('driver_id', id);
-  if (role === 'company') return query.eq('company_id', id);
-  return query;
-}
-
-function applyDateFilter(query, startDate, endDate, role) {
-  if (startDate) query = query.gte('created_at', startDate);
-  if (endDate) query = query.lte('created_at', endDate);
-  if (!startDate && !endDate && role !== 'company') {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    query = query.or(`status.eq.قيد المتابعة,created_at.gte.${today.toISOString()},updated_at.gte.${today.toISOString()}`);
-  }
-  return query;
-}
-
-async function getCompanyOrderSummary(companyId, startDate, endDate) {
-  const cacheKey = `${companyId}|${startDate || ''}|${endDate || ''}`;
-  const cached = companySummaryCache.get(cacheKey);
-  if (cached && Date.now() - cached.createdAt < 15000) return cached.value;
-  const countFor = async ({ status, shipping } = {}) => {
-    let query = supabase
-      .from('orders')
-      .select('id', { count: 'exact', head: true })
-      .eq('company_id', companyId);
-    if (startDate) query = query.gte('created_at', startDate);
-    if (endDate) query = query.lte('created_at', endDate);
-    if (status) query = query.eq('status', status);
-    if (shipping) query = query.in('order_type', ['شحن', 'شحن لباب المنزل']);
-    const { count, error } = await query;
-    if (error) throw error;
-    return count || 0;
-  };
-
-  const [pending, postponed, done, returned, cancelled, shipping] = await Promise.all([
-    countFor({ status: 'قيد المتابعة' }),
-    countFor({ status: 'مؤجل' }),
-    countFor({ status: 'تم' }),
-    countFor({ status: 'مرتجع' }),
-    countFor({ status: 'إلغاء' }),
-    countFor({ shipping: true })
-  ]);
-  const value = { pending, postponed, done, returned, cancelled, shipping };
-  companySummaryCache.set(cacheKey, { createdAt: Date.now(), value });
-  if (companySummaryCache.size > 500) {
-    for (const [key, item] of companySummaryCache) {
-      if (Date.now() - item.createdAt > 15000) companySummaryCache.delete(key);
-    }
-  }
-  return value;
 }
 
 // دالة تنسيق الأرقام للتصدير
@@ -83,9 +20,12 @@ function formatNumberForExcel(num) {
 // ==================== المسارات الثابتة (يجب أن تكون أولاً) ====================
 
 // التقارير
-router.get('/report', async (req, res) => {
+router.get('/report', authenticateToken, async (req, res) => {
   try {
     const { role, id } = req.user;
+    if (!['admin', 'driver', 'company'].includes(role)) {
+      return res.status(403).json({ message: 'غير مصرح بمشاهدة الطلبات الأساسية' });
+    }
     const { status, driverId, companyId, startDate, endDate } = req.query;
 
     let query = supabase
@@ -183,7 +123,7 @@ router.get('/report', async (req, res) => {
 });
 
 // قائمة المستخدمين
-router.get('/users-list', async (req, res) => {
+router.get('/users-list', authenticateToken, async (req, res) => {
   if (req.user.role !== 'admin') return res.sendStatus(403);
   try {
     const { data: drivers } = await supabase.from('users').select('id, name, username').eq('role', 'driver');
@@ -195,7 +135,7 @@ router.get('/users-list', async (req, res) => {
 });
 
 // تحديث جماعي (Bulk Update)
-router.patch('/bulk-update', async (req, res) => {
+router.patch('/bulk-update', authenticateToken, async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
       return res.status(403).json({ message: 'غير مصرح' });
@@ -253,84 +193,97 @@ router.patch('/bulk-update', async (req, res) => {
 });
 
 // ==================== طلبات اليوم (المسار الجذري) ====================
-router.get('/', async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
     const { role, id } = req.user;
+    if (!['admin', 'driver', 'company'].includes(role)) {
+      return res.status(403).json({ message: 'غير مصرح بمشاهدة الطلبات الأساسية' });
+    }
     const { status, startDate, endDate, driverId, companyId, orderType } = req.query;
-    const shouldPaginate = String(req.query.paginate || '') === '1';
-    const { page, limit, from, to } = parsePagination(req.query, 50, 100);
-    const search = sanitizeSearch(req.query.search);
-    const sortDirection = req.query.sort === 'asc' ? true : false;
 
-    const normalizedOrderType = orderType ? normalizeOrderType(orderType) : null;
-    if (orderType && !normalizedOrderType) {
-      return res.status(400).json({ message: 'نوع الطلب غير صالح' });
+    // 1. بناء استعلام أساسي
+    let query = supabase
+      .from('orders')
+      .select(`
+        *,
+        driver:driver_id(id, name, username),
+        company:company_id(id, name, username)
+      `)
+      .order('created_at', { ascending: false });
+
+    // 2. فلترة حسب الدور
+    if (role === 'driver') {
+      query = query.eq('driver_id', id);
+    } else if (role === 'company') {
+      query = query.eq('company_id', id);
+    }
+    
+  // 3. فلترة حسب التاريخ (إذا وُجد)
+if (startDate || endDate) {
+  if (startDate) {
+    query = query.gte('created_at', startDate);
+  }
+  if (endDate) {
+    query = query.lte('created_at', endDate);
+  }
+}
+
+    // 4. فلترة حسب الحالة (إذا وُجد)
+    if (status) {
+      query = query.eq('status', status);
     }
 
-    const buildQuery = ({ includeCount = false, rangeStart = null, rangeEnd = null } = {}) => {
-      let query = supabase
-        .from('orders')
-        .select(`
-          *,
-          driver:driver_id(id, name, username),
-          company:company_id(id, name, username)
-        `, includeCount ? { count: 'exact' } : undefined)
-        .order(req.query.sort ? 'order_number' : 'created_at', { ascending: req.query.sort ? sortDirection : false });
-
-      query = applyRoleFilter(query, role, id);
-      query = applyDateFilter(query, startDate, endDate, role);
-      if (status) query = query.eq('status', status);
-      if (normalizedOrderType) query = query.eq('order_type', normalizedOrderType);
-      if (String(req.query.shipping || '') === '1') query = query.in('order_type', ['شحن', 'شحن لباب المنزل']);
-
-      if (search) {
-        const pattern = `*${search}*`;
-        query = query.or([
-          `order_number.ilike.${pattern}`,
-          `order_contents.ilike.${pattern}`,
-          `customer_name.ilike.${pattern}`,
-          `customer_number.ilike.${pattern}`,
-          `address.ilike.${pattern}`,
-          `note.ilike.${pattern}`,
-          `company_name.ilike.${pattern}`,
-          `driver_name.ilike.${pattern}`
-        ].join(','));
+    if (orderType) {
+      const normalizedOrderType = normalizeOrderType(orderType);
+      if (!normalizedOrderType) {
+        return res.status(400).json({ message: 'نوع الطلب غير صالح' });
       }
-
-      if (role === 'admin') {
-        if (driverId) query = query.eq('driver_id', driverId);
-        if (companyId) query = query.eq('company_id', companyId);
-      }
-      if (rangeStart !== null && rangeEnd !== null) query = query.range(rangeStart, rangeEnd);
-      return query;
-    };
-
-    if (!shouldPaginate) {
-      const orders = [];
-      const batchSize = 1000;
-      for (let rangeStart = 0; rangeStart < 100000; rangeStart += batchSize) {
-        const { data, error } = await buildQuery({ rangeStart, rangeEnd: rangeStart + batchSize - 1 });
-        if (error) throw error;
-        orders.push(...(data || []));
-        if (!data || data.length < batchSize) return res.json(orders);
-      }
-      return res.status(413).json({ message: 'عدد الطلبات كبير جداً للعرض دفعة واحدة؛ استخدم الفلاتر لتضييق النتائج' });
+      query = query.eq('order_type', normalizedOrderType);
     }
 
-    const { data: orders, error, count } = await buildQuery({ includeCount: true, rangeStart: from, rangeEnd: to });
+    // 5. فلترة إضافية للمدير
+    if (role === 'admin') {
+      if (driverId) query = query.eq('driver_id', driverId);
+      if (companyId) query = query.eq('company_id', companyId);
+    }
+
+    // 6. تنفيذ الاستعلام
+    const { data: orders, error } = await query;
     if (error) throw error;
 
-    let summary = null;
-    if (role === 'company' && String(req.query.includeSummary || '') === '1') {
-      summary = await getCompanyOrderSummary(id, startDate, endDate);
-    }
-
-    const total = count || 0;
-    res.json({
-      orders: orders || [],
-      pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
-      summary
+    // 7. الفلترة الافتراضية (إذا لم يتم تحديد نطاق تاريخ)
+let filteredOrders = orders;
+if (!startDate && !endDate) {
+  if (role === 'company') {
+    // الشركة ترى جميع طلباتها دائمًا (بدون فلترة تاريخ)
+    filteredOrders = orders;
+  } else {
+    // للسائق والمدير: طلبات اليوم + قيد المتابعة
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    filteredOrders = orders.filter(o => {
+      try {
+        if (o.status === 'قيد المتابعة') return true;
+        
+        if (o.created_at) {
+          const createdAt = new Date(o.created_at);
+          if (!isNaN(createdAt.getTime()) && createdAt >= today) return true;
+        }
+        
+        if (o.updated_at) {
+          const updatedAt = new Date(o.updated_at);
+          if (!isNaN(updatedAt.getTime()) && updatedAt >= today) return true;
+        }
+      } catch (e) {
+        console.warn('خطأ في فلترة طلب:', e);
+      }
+      return false;
     });
+  }
+}
+
+    res.json(filteredOrders);
   } catch (err) {
     console.error('GET / error:', err);
     res.status(500).json({ message: err.message });
@@ -338,8 +291,11 @@ router.get('/', async (req, res) => {
 });
 
 // ==================== إنشاء طلب ====================
-router.post('/', async (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
   try {
+    if (!['admin', 'company'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'غير مصرح بإنشاء طلب أساسي' });
+    }
     const { orderNumber, customerNumber, customerName, address, price, currency, ratio, driverId, companyId, orderContents, orderType, note } = req.body;
     const creator = req.user;
     const normalizedOrderType = normalizeOrderType(orderType);
@@ -426,7 +382,7 @@ router.post('/', async (req, res) => {
 // ==================== المسارات الديناميكية (يجب أن تكون بعد الثابتة) ====================
 
 // تعيين سائق (PATCH /:id/assign-driver) - يجب أن يأتي قبل /:id
-router.patch('/:id/assign-driver', async (req, res) => {
+router.patch('/:id/assign-driver', authenticateToken, async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
       return res.status(403).json({ message: 'غير مصرح لك بتعيين سائق' });
@@ -466,8 +422,11 @@ router.patch('/:id/assign-driver', async (req, res) => {
 });
 
 // جلب طلب واحد (GET /:id)
-router.get('/:id', async (req, res) => {
+router.get('/:id', authenticateToken, async (req, res) => {
   try {
+    if (!['admin', 'driver', 'company'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'غير مصرح بمشاهدة الطلبات الأساسية' });
+    }
     const { data: order, error } = await supabase
       .from('orders')
       .select(`
@@ -497,10 +456,14 @@ router.get('/:id', async (req, res) => {
 });
 
 // تحديث حالة الطلب (PATCH /:id)
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', authenticateToken, async (req, res) => {
   try {
     const { status, note } = req.body;
     const currentUser = req.user;
+
+    if (!['admin', 'driver'].includes(currentUser.role)) {
+      return res.status(403).json({ message: 'غير مصرح بتعديل الطلبات الأساسية' });
+    }
 
     const { data: order, error: fetchError } = await supabase
       .from('orders')
@@ -544,7 +507,7 @@ router.patch('/:id', async (req, res) => {
 });
 
 // تحديث كامل للطلب (PUT /:id)
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticateToken, async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
       return res.status(403).json({ message: 'غير مصرح لك بتعديل الطلب' });
@@ -640,7 +603,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // حذف طلب (DELETE /:id)
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
       return res.status(403).json({ message: 'غير مصرح' });

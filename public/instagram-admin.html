@@ -3,95 +3,337 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="description" content="إدارة طلبات إنستغرام والمخزون في WolfOrder">
-  <title>طلبات إنستغرام | WolfOrder</title>
-  <link rel="stylesheet" href="/css/style.css">
-  <link rel="icon" href="/favicon.ico" sizes="any">
+  <meta name="description" content="إدارة طلبات Instagram في WolfOrder">
+  <title>طلبات الإنستغرام | WolfOrder</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/instagram.css">
+  <link rel="icon" href="/favicon.ico">
+  <meta name="theme-color" content="#4c1d95">
+  <style>
+    /* أنماط المودال */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-overlay[hidden] { display: none; }
+    .modal-content {
+      background: #fff;
+      border-radius: 16px;
+      width: min(480px, 90%);
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    }
+    .modal-header, .modal-footer {
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #eee;
+    }
+    .modal-footer { border-top: 1px solid #eee; border-bottom: 0; }
+    .modal-header h3 { margin: 0; }
+    .modal-close {
+      background: none;
+      border: 0;
+      font-size: 24px;
+      cursor: pointer;
+      color: #666;
+    }
+    .modal-body { padding: 18px; }
+    .modal-body .form-group { margin-bottom: 12px; }
+    .modal-body label { font-weight: 700; display: block; margin-bottom: 4px; }
+    .modal-body input, .modal-body select, .modal-body textarea {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font: inherit;
+      box-sizing: border-box;
+    }
+  </style>
 </head>
-<body class="dashboard-page role-admin instagram-admin-page">
+<body class="dashboard-page role-instagram-admin instagram-theme">
   <div class="app-shell">
     <aside class="app-sidebar" id="appSidebar" aria-label="التنقل الرئيسي">
-      <div class="sidebar-brand"><img src="/icons/icon-192x192.png" alt="WolfOrder" width="52" height="52"><div><strong>WOLFORDER</strong><span>طلبات إنستغرام</span></div></div>
-      <div class="sidebar-role"><span class="role-icon">◎</span><div><small>مساحة العمل</small><strong>مدير إنستغرام</strong></div></div>
-      <nav class="sidebar-nav">
-        <span class="nav-label">القائمة</span>
-        <a href="/admin.html"><span>← الطلبات الأساسية</span></a>
-        <a class="active" href="#instagramOrdersSection"><span>طلبات إنستغرام</span></a>
-        <a href="#instagramProductsSection"><span>الأصناف والمخزون</span></a>
-        <a href="#instagramInventorySection"><span>الجرد والمبيعات</span></a>
-        <a href="#instagramLinksSection"><span>روابط الشركات</span></a>
-        <a href="#instagramViewersSection"><span>حسابات المشاهدة</span></a>
-        <a href="#instagramExportSection"><span>تصدير Excel</span></a>
+      <div class="sidebar-brand"><img src="icons/icon-192x192.png" alt="WolfOrder" width="52" height="52"><div><strong lang="en">WOLFORDER</strong><span>قسم Instagram</span></div></div>
+      <div class="sidebar-role"><span class="role-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"></rect><circle cx="12" cy="12" r="4"></circle><circle cx="17.5" cy="6.5" r="1"></circle></svg></span><div><small>مساحة العمل</small><strong>طلبات الإنستغرام</strong></div></div>
+      <nav class="sidebar-nav" id="instagramAdminNav">
+        <span class="nav-label">القسم</span>
+        <button class="active" data-section="orders"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"></path></svg><span>طلبات الإنستغرام</span></button>
+        <button data-section="products"><svg viewBox="0 0 24 24"><path d="M4 7h16v13H4zM8 7V4h8v3M8 12h8"></path></svg><span>إدارة الأصناف</span></button>
+        <button data-section="inventory"><svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"></path></svg><span>الجرد والمبيعات</span></button>
+        <button data-section="reports"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM8 8h8M8 12h8M8 16h5"></path></svg><span>التقارير</span></button>
+        <button data-section="links"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"></path></svg><span>روابط طلبات الشركات</span></button>
+        <button data-section="viewers"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg><span>حسابات المشاهدة</span></button>
+        <a href="admin.html"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"></path></svg><span>العودة للطلبات الأساسية</span></a>
       </nav>
-      <div class="sidebar-footer"><span class="status-dot"></span><div><strong>النظام متصل</strong><small>Instagram Orders</small></div></div>
+      <div class="sidebar-footer"><span class="status-dot"></span><div><strong>قسم مستقل</strong><small>Instagram Orders</small></div></div>
     </aside>
     <button class="sidebar-overlay" type="button" data-sidebar-close aria-label="إغلاق القائمة"></button>
 
     <main class="app-main">
       <header class="dashboard-header">
-        <div class="header-title-row"><button class="icon-button mobile-menu-button" type="button" data-sidebar-toggle aria-controls="appSidebar" aria-label="فتح القائمة">☰</button><div class="page-heading"><span class="eyebrow">قناة المبيعات</span><h1>الطلبات القادمة من الإنستغرام</h1><p>إدارة منفصلة للطلبات والأصناف وحركة المخزون</p></div></div>
-        <div class="user-info"><button class="icon-button" type="button" data-theme-toggle aria-label="الوضع الداكن"></button><div class="user-chip"><span class="user-avatar">م</span><div><small>المدير</small><strong id="userNameDisplay"></strong></div></div><button class="btn btn-secondary btn-sm" onclick="logout()">تسجيل الخروج</button></div>
+        <div class="header-title-row">
+          <button class="icon-button mobile-menu-button" type="button" data-sidebar-toggle aria-controls="appSidebar"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button>
+          <span class="instagram-mark"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"></rect><circle cx="12" cy="12" r="4"></circle><circle cx="17.5" cy="6.5" r="1"></circle></svg></span>
+          <div class="page-heading"><span class="eyebrow">WolfOrder Instagram</span><h1 id="instagramPageTitle">طلبات الإنستغرام</h1><p>طلبات وأصناف ومخزون مستقل تماماً عن الطلبات الأساسية</p></div>
+        </div>
+        <div class="user-info"><button class="icon-button" type="button" data-theme-toggle></button><div class="user-chip"><span class="user-avatar">م</span><div><small>المدير</small><strong id="userNameDisplay"></strong></div></div><button class="btn btn-secondary btn-sm" onclick="logout()">تسجيل الخروج</button></div>
       </header>
 
       <div class="workspace-content">
-        <section class="card dashboard-card" id="instagramOrdersSection">
-          <div class="section-heading section-heading-split"><div><h2>طلبات إنستغرام</h2><p>لا تظهر هذه الطلبات ضمن قائمة الطلبات الأساسية.</p></div><button class="btn btn-secondary btn-sm" id="refreshInstagramOrders">تحديث</button></div>
-          <div class="instagram-type-tabs" role="group"><button class="btn btn-primary btn-sm" data-instagram-type="">الكل</button><button class="btn btn-secondary btn-sm" data-instagram-type="توصيل">طلبات التوصيل</button><button class="btn btn-secondary btn-sm" data-instagram-type="شحن">طلبات الشحن</button><button class="btn btn-accent btn-sm" id="createShippingBatch" type="button" hidden>تجميع المحدد وتسليمه للشريكة</button></div>
-          <div class="filters-panel"><div class="filters-section">
-            <div class="form-group search-field"><label for="instagramSearch">بحث</label><input id="instagramSearch" placeholder="رقم الطلب، الزبون، الهاتف أو العنوان"></div>
-            <div class="form-group"><label for="instagramCompanyFilter">الشركة</label><select id="instagramCompanyFilter"><option value="">الكل</option></select></div>
-            <div class="form-group"><label for="instagramStatusFilter">الحالة</label><select id="instagramStatusFilter"><option value="">الكل</option><option>قيد المتابعة</option><option>تم</option><option>مؤجل</option><option>ملغي</option><option>مرتجع</option></select></div>
-            <div class="form-group"><label for="instagramStartDate">من</label><input type="date" id="instagramStartDate"></div>
-            <div class="form-group"><label for="instagramEndDate">إلى</label><input type="date" id="instagramEndDate"></div>
-            <div class="filter-actions"><button class="btn btn-primary" id="applyInstagramFilters">تطبيق</button><button class="btn btn-ghost" id="clearInstagramFilters">مسح</button></div>
-          </div></div>
-          <div id="instagramBulkControls" class="bulk-controls" style="display:none;"><strong>الإجراء على المحدد:</strong><select id="instagramBulkAction"><option value="">-- اختر الإجراء --</option><option value="print">طباعة المحدد</option><option value="status">تغيير الحالة</option><option value="driver">تعيين سائق</option><option value="delete">حذف الطلبات</option></select><select id="instagramBulkStatus" style="display:none;"><option value="قيد المتابعة">قيد المتابعة</option><option value="تم">تم</option><option value="مؤجل">مؤجل</option><option value="مرتجع">مرتجع</option><option value="ملغي">ملغي</option></select><select id="instagramBulkDriver" style="display:none;"><option value="">-- اختر سائقًا --</option></select><button class="btn btn-primary" id="applyInstagramBulkAction" type="button">تطبيق</button><span id="instagramSelectedCount"></span></div>
-          <div class="table-responsive"><table><thead><tr><th><input type="checkbox" id="selectAllInstagramOrders" aria-label="تحديد كل طلبات إنستغرام الظاهرة"></th><th>#</th><th>الطلب</th><th>الشركة</th><th>الزبون</th><th>العنوان</th><th>النوع</th><th>الأصناف</th><th>الحالة</th><th>السائق</th><th>التاريخ</th><th>إجراء</th></tr></thead><tbody id="instagramOrdersBody"></tbody></table></div>
-          <div class="pagination-controls"><button class="btn btn-secondary btn-sm" id="instagramPrevPage">السابق</button><span id="instagramPageInfo">صفحة 1</span><button class="btn btn-secondary btn-sm" id="instagramNextPage">التالي</button></div>
+        <!-- قسم الطلبات -->
+        <section class="instagram-section" id="igSectionOrders" data-section-panel="orders">
+          <div class="ig-stats-grid" id="instagramOrderStats"></div>
+          <div class="card dashboard-card">
+            <div class="section-heading section-heading-split"><div class="section-heading-main"><span class="section-icon">◎</span><div><h2>طلبات Instagram</h2><p>توصيل أو شحن فقط</p></div></div><button class="btn btn-secondary btn-sm" id="refreshInstagramOrders">تحديث</button></div>
+            <div class="ig-type-tabs"><button class="ig-type-tab active" data-type="">الكل</button><button class="ig-type-tab" data-type="توصيل">توصيل</button><button class="ig-type-tab" data-type="شحن">شحن</button></div>
+            <div class="filters-panel"><div class="filters-section">
+              <div class="form-group search-field"><label>بحث</label><input id="igOrderSearch" placeholder="رقم الطلب، الزبون، الموبايل أو الشركة"></div>
+              <div class="form-group"><label>الشركة</label><select id="igOrderCompany"><option value="">الكل</option></select></div>
+              <div class="form-group"><label>الحالة</label><select id="igOrderStatus"><option value="">الكل</option><option>قيد المتابعة</option><option>تم</option><option>مؤجل</option><option>مرتجع</option><option>إلغاء</option></select></div>
+              <div class="form-group"><label>السائق</label><select id="igOrderDriver"><option value="">الكل</option></select></div>
+              <div class="form-group"><label>من تاريخ</label><input type="date" id="igOrderStart"></div>
+              <div class="form-group"><label>إلى تاريخ</label><input type="date" id="igOrderEnd"></div>
+              <div class="filter-actions"><button class="btn btn-primary" id="applyInstagramOrderFilters">تطبيق</button><button class="btn btn-ghost" id="clearInstagramOrderFilters">مسح</button></div>
+            </div></div>
+            <div class="ig-bulk-bar" id="igBulkBar" hidden>
+              <strong id="igSelectedCount">0 محدد</strong>
+              <div class="form-group"><label>الحالة</label><select id="igBulkStatus"><option value="">تغيير الحالة</option><option>قيد المتابعة</option><option>تم</option><option>مؤجل</option><option>مرتجع</option><option>إلغاء</option></select></div>
+              <button class="btn btn-primary btn-sm" id="igApplyBulkStatus">تطبيق الحالة</button>
+              <div class="form-group"><label>السائق</label><select id="igBulkDriver"><option value="">اختر السائق</option></select></div>
+              <button class="btn btn-primary btn-sm" id="igApplyBulkDriver">تعيين للتوصيل</button>
+              <button class="btn btn-secondary btn-sm" id="igBulkShippingDelivered">تم التسليم للشركة</button>
+              <button class="btn btn-secondary btn-sm" id="igPrintSelected">طباعة المحدد</button>
+              <button class="btn btn-danger btn-sm" id="igArchiveSelected">أرشفة</button>
+            </div>
+            <div class="table-responsive"><table><thead><tr>
+              <th><input type="checkbox" id="igSelectAll"></th>
+              <th>رقم</th>
+              <th>النوع</th>
+              <th>الزبون</th>
+              <th>الموبايل</th>
+              <th>العنوان</th>
+              <th>الأصناف</th>
+              <th>الإجمالي</th>
+              <th>نسبة</th>
+              <th>الحالة</th>
+              <th>السائق/التسليم</th>
+              <th>الشركة</th>
+              <th>ملاحظة</th>
+              <th>التاريخ</th>
+              <th style="min-width:110px">الإجراءات</th>
+            </tr></thead><tbody id="instagramOrdersBody"></tbody></table></div>
+          </div>
         </section>
 
-        <section class="card dashboard-card" id="instagramProductsSection">
-          <div class="section-heading"><div><h2>إدارة الأصناف</h2><p>أضف الصنف وتركيبات اللون والمقاس والكمية الأساسية.</p></div></div>
-          <form id="instagramProductForm">
-            <div class="form-row"><div class="form-group"><label for="productCompany">الشركة *</label><select id="productCompany" required><option value="">اختر الشركة</option></select></div><div class="form-group"><label for="productName">اسم الصنف *</label><input id="productName" maxlength="120" required></div><label class="inline-check"><input id="productActive" type="checkbox" checked><span>الصنف مفعّل</span></label></div>
-            <div class="section-heading-split"><strong>اللون + المقاس + الكمية</strong><button class="btn btn-secondary btn-sm" id="addVariantRow" type="button">+ تركيبة</button></div>
-            <div id="variantRows"></div>
-            <div class="form-actions"><button class="btn btn-primary" type="submit">حفظ الصنف</button></div>
-          </form>
-          <div id="instagramProductsList" class="instagram-product-list"></div>
+        <!-- قسم الأصناف -->
+        <section class="instagram-section" id="igSectionProducts" data-section-panel="products" hidden>
+          <div class="card dashboard-card">
+            <div class="section-heading"><span class="section-icon">＋</span><div><h2>إضافة صنف Instagram</h2><p>المخزون مستقل لكل لون ومقاس</p></div></div>
+            <form id="createInstagramProductForm">
+              <div class="form-row"><div class="form-group"><label>الشركة *</label><select id="productCompany" required></select></div><div class="form-group"><label>اسم الصنف *</label><input id="productName" required></div><div class="form-group"><label>السعر *</label><input id="productPrice" type="number" min="0" step="0.01" required></div><div class="form-group"><label>العملة</label><select id="productCurrency"><option>ل.س</option><option>دولار</option></select></div></div>
+              <div id="productVariantBuilder"></div>
+              <div class="form-actions"><button type="button" class="btn btn-secondary" id="addProductVariantRow">+ لون ومقاس</button><button class="btn btn-primary" type="submit">حفظ الصنف</button></div>
+            </form>
+          </div>
+          <div class="filters-panel"><div class="filters-section"><div class="form-group"><label>فلترة الشركة</label><select id="productCompanyFilter"><option value="">كل الشركات</option></select></div><button class="btn btn-primary" id="loadInstagramProducts">عرض الأصناف</button></div></div>
+          <div class="ig-card-grid" id="instagramProductsGrid"></div>
         </section>
 
-        <section class="card dashboard-card" id="instagramInventorySection">
-          <div class="section-heading section-heading-split"><div><h2>الجرد والمبيعات</h2><p>الحساب حسب عدد القطع لكل صنف ولون ومقاس.</p></div><button class="btn btn-secondary btn-sm" id="refreshInstagramInventory">تحديث</button></div>
-          <div class="instagram-inventory-toolbar"><div class="form-group"><label for="inventoryOrderType">عرض المبيعات حسب النوع</label><select id="inventoryOrderType"><option value="">كل الطلبات</option><option value="توصيل">التوصيل</option><option value="شحن">الشحن</option></select></div><div class="instagram-shipping-summary" aria-label="ملخص طلبات الشحن غير المسلمة"><div><span>طلبات الشحن</span><strong id="pendingShippingOrdersCount">0</strong></div><div><span>قطع الشحن</span><strong id="pendingShippingPiecesCount">0</strong></div><small>طلبات قيد المتابعة أو مؤجلة ولم تُسلَّم بعد</small></div></div>
-          <div class="table-responsive"><table><thead><tr><th>الشركة</th><th>الصنف</th><th>اللون</th><th>المقاس</th><th>الأساسية</th><th>المباعة</th><th>المحجوزة</th><th>المؤجلة</th><th>الملغية</th><th>المرتجعة</th><th>المتبقية</th><th>الإجراءات</th></tr></thead><tbody id="instagramInventoryBody"></tbody></table></div>
-          <div class="pagination-controls"><button class="btn btn-secondary btn-sm" id="inventoryPrevPage">السابق</button><span id="inventoryPageInfo">صفحة 1</span><button class="btn btn-secondary btn-sm" id="inventoryNextPage">التالي</button></div>
+        <!-- قسم الجرد -->
+        <section class="instagram-section" id="igSectionInventory" data-section-panel="inventory" hidden>
+          <div class="card dashboard-card">
+            <div class="section-heading section-heading-split"><div class="section-heading-main"><span class="section-icon">▥</span><div><h2>الجرد والمبيعات</h2><p>الأرقام محسوبة تلقائياً من الطلبات والمخزون</p></div></div><button class="btn btn-primary" id="exportInstagramInventory">تصدير Excel</button></div>
+            <div class="filters-panel"><div class="filters-section"><div class="form-group"><label>الشركة</label><select id="inventoryCompany"><option value="">كل الشركات</option></select></div><div class="form-group"><label>الصنف</label><select id="inventoryProduct"><option value="">كل الأصناف</option></select></div><button class="btn btn-primary" id="loadInstagramInventory">تطبيق</button></div></div>
+            <div class="table-responsive"><table><thead><tr><th>الشركة</th><th>الصنف</th><th>اللون</th><th>المقاس</th><th>الكلية</th><th>محجوز توصيل</th><th>محجوز شحن</th><th>المباعة</th><th>المؤجلة</th><th>المرتجع</th><th>الإلغاء</th><th>المتبقية</th></tr></thead><tbody id="instagramInventoryBody"></tbody></table></div>
+          </div>
         </section>
 
-        <section class="card dashboard-card" id="instagramLinksSection">
-          <div class="section-heading"><div><h2>روابط طلبات الشركات</h2><p>الرابط العشوائي هو الذي يحدد الشركة، ولا يقبل النموذج معرّف شركة من الزبون.</p></div></div>
-          <div id="instagramCompanyLinks" class="instagram-links-list"></div>
+     <!-- قسم التقارير -->
+<section class="instagram-section" id="igSectionReports" data-section-panel="reports" hidden>
+  <div class="card dashboard-card">
+    <div class="section-heading section-heading-split">
+      <div class="section-heading-main">
+        <span class="section-icon">▤</span>
+        <div><h2>تقارير الطلبات</h2><p>فلترة حسب الصنف والتاريخ والشركة</p></div>
+      </div>
+      <button class="btn btn-primary" id="exportInstagramOrdersReport">تصدير Excel</button>
+    </div>
+    <div class="filters-panel">
+      <div class="filters-section">
+        <div class="form-group"><label>الشركة</label><select id="reportCompany"><option value="">كل الشركات</option></select></div>
+        <div class="form-group"><label>الصنف</label><select id="reportProduct"><option value="">كل الأصناف</option></select></div>
+        <div class="form-group"><label>من تاريخ</label><input type="date" id="reportStart"></div>
+        <div class="form-group"><label>إلى تاريخ</label><input type="date" id="reportEnd"></div>
+        <button class="btn btn-primary" id="loadInstagramReports">عرض</button>
+      </div>
+    </div>
+
+    <!-- بطاقات الإجماليات -->
+    <div class="ig-stats-grid" style="margin-bottom: 15px;">
+      <div class="ig-stat"><span>إجمالي الطلبات</span><strong id="igReportCount">0</strong></div>
+      <div class="ig-stat"><span>إجمالي السعر (ل.س)</span><strong id="igReportTotalSYR">0 ل.س</strong></div>
+      <div class="ig-stat"><span>إجمالي السعر ($)</span><strong id="igReportTotalUSD">0 $</strong></div>
+      <div class="ig-stat"><span>إجمالي النسبة</span><strong id="igReportTotalRatio">0</strong></div>
+    </div>
+
+    <div class="table-responsive">
+      <table>
+        <thead>
+          <tr>
+            <th>رقم الطلب</th>
+            <th>التاريخ</th>
+            <th>الشركة</th>
+            <th>النوع</th>
+            <th>الزبون</th>
+            <th>الأصناف</th>
+            <th>الإجمالي</th>
+            <th>النسبة</th>
+            <th>الحالة</th>
+            <th>ملاحظة</th>
+          </tr>
+        </thead>
+        <tbody id="instagramReportsBody"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+        <!-- قسم الروابط -->
+        <section class="instagram-section" id="igSectionLinks" data-section-panel="links" hidden>
+          <div class="card dashboard-card"><div class="section-heading"><span class="section-icon">↗</span><div><h2>روابط طلبات الشركات</h2><p>رابط عام سريع لكل شركة</p></div></div><div class="ig-card-grid" id="instagramLinksGrid"></div></div>
         </section>
 
-        <section class="card dashboard-card" id="instagramViewersSection">
-          <div class="section-heading"><div><h2>حساب مشاهدة للشركة</h2><p>حساب مستقل للقراءة فقط لا يدخل اللوحات الأساسية.</p></div></div>
-          <form id="instagramViewerForm"><div class="form-row"><div class="form-group"><label for="viewerUsername">اسم المستخدم</label><input id="viewerUsername" required></div><div class="form-group"><label for="viewerPassword">كلمة المرور</label><input id="viewerPassword" type="password" minlength="8" required></div><div class="form-group"><label for="viewerName">الاسم</label><input id="viewerName" required></div><div class="form-group"><label for="viewerCompany">الشركة</label><select id="viewerCompany" required><option value="">اختر الشركة</option></select></div></div><button class="btn btn-primary" type="submit">إنشاء حساب المشاهدة</button></form>
-        </section>
-
-        <section class="card dashboard-card" id="instagramExportSection">
-          <div class="section-heading"><div><h2>تصدير جرد إنستغرام إلى Excel</h2><p>ملخص شامل وصفحة مستقلة لكل صنف.</p></div></div>
-          <div class="form-row"><div class="form-group"><label for="exportPeriod">الفترة</label><select id="exportPeriod"><option value="day">اليوم</option><option value="week">هذا الأسبوع</option><option value="month" selected>هذا الشهر</option><option value="custom">مخصصة</option></select></div><div class="form-group"><label for="exportStartDate">من</label><input id="exportStartDate" type="date"></div><div class="form-group"><label for="exportEndDate">إلى</label><input id="exportEndDate" type="date"></div><div class="form-group"><label for="exportOrderType">النوع</label><select id="exportOrderType"><option value="">الكل</option><option value="توصيل">التوصيل</option><option value="شحن">الشحن</option></select></div><div class="form-group"><label for="exportStatus">الحالة</label><select id="exportStatus"><option value="">كل الحالات</option><option>قيد المتابعة</option><option>تم</option><option>مؤجل</option><option>ملغي</option><option>مرتجع</option></select></div><div class="form-group"><label for="exportCompany">الشركة</label><select id="exportCompany"><option value="">الكل</option></select></div><div class="form-group"><label for="exportProduct">الصنف</label><select id="exportProduct"><option value="">كل الأصناف</option></select></div></div>
-          <button class="btn btn-primary" id="exportInstagramExcel">تصدير Excel</button>
+        <!-- قسم المشاهدين -->
+        <section class="instagram-section" id="igSectionViewers" data-section-panel="viewers" hidden>
+          <div class="card dashboard-card">
+            <div class="section-heading"><span class="section-icon">◉</span><div><h2>إنشاء حساب مشاهدة Instagram</h2><p>مشاهدة الطلبات والجرد لشركة واحدة فقط</p></div></div>
+            <form id="createInstagramViewerForm"><div class="form-row"><div class="form-group"><label>الاسم *</label><input id="viewerName" required></div><div class="form-group"><label>اسم المستخدم *</label><input id="viewerUsername" required></div><div class="form-group"><label>كلمة المرور *</label><input id="viewerPassword" type="password" minlength="6" required></div><div class="form-group"><label>الشركة *</label><select id="viewerCompany" required></select></div></div><button class="btn btn-primary" type="submit">إنشاء الحساب</button></form>
+          </div>
+          <div class="ig-card-grid" id="instagramViewersGrid"></div>
         </section>
       </div>
     </main>
   </div>
-  <div id="instagramAssignDriverModal" class="modal" style="display:none;"><div class="card modal-card modal-sm"><div class="modal-heading"><h3>تعيين سائق لطلب إنستغرام</h3><button type="button" class="modal-close" data-close-instagram-modal="instagramAssignDriverModal" aria-label="إغلاق">×</button></div><form id="instagramAssignDriverForm"><input type="hidden" id="instagramAssignOrderId"><div class="form-group"><label for="instagramAssignDriverSelect">اختر السائق</label><select id="instagramAssignDriverSelect" required><option value="">-- اختر سائقًا --</option></select></div><div class="form-actions"><button type="submit" class="btn btn-primary">تعيين</button><button type="button" class="btn btn-secondary" data-close-instagram-modal="instagramAssignDriverModal">إلغاء</button></div></form></div></div>
-  <div id="instagramEditOrderModal" class="modal" style="display:none;"><div class="card modal-card modal-lg"><div class="modal-heading"><h3>تعديل طلب إنستغرام</h3><button type="button" class="modal-close" data-close-instagram-modal="instagramEditOrderModal" aria-label="إغلاق">×</button></div><form id="instagramEditOrderForm"><input type="hidden" id="instagramEditOrderId"><div class="form-row"><div class="form-group"><label for="instagramEditCustomerName">اسم الزبون *</label><input id="instagramEditCustomerName" maxlength="100" required></div><div class="form-group"><label for="instagramEditCustomerPhone">رقم الموبايل *</label><input id="instagramEditCustomerPhone" maxlength="16" required></div><div class="form-group form-group-wide"><label for="instagramEditAddress">العنوان *</label><input id="instagramEditAddress" maxlength="300" required></div></div><div class="form-row"><div class="form-group"><label for="instagramEditStatus">الحالة</label><select id="instagramEditStatus"><option value="قيد المتابعة">قيد المتابعة</option><option value="تم">تم</option><option value="مؤجل">مؤجل</option><option value="مرتجع">مرتجع</option><option value="ملغي">ملغي</option></select></div><div class="form-group form-group-wide"><label for="instagramEditNote">ملاحظة</label><textarea id="instagramEditNote" maxlength="500" rows="3"></textarea></div></div><div class="form-actions"><button type="submit" class="btn btn-primary">حفظ التعديلات</button><button type="button" class="btn btn-secondary" data-close-instagram-modal="instagramEditOrderModal">إلغاء</button></div></form></div></div>
+
+  <!-- مودال تعديل الطلب -->
+  <div class="modal-overlay" id="igEditModal" hidden>
+    <div class="modal-content" style="width: min(600px, 95%);">
+      <div class="modal-header">
+        <h3>تعديل الطلب</h3>
+        <button class="modal-close" data-close-modal>&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="igEditOrderId">
+        <div class="form-row">
+          <div class="form-group">
+            <label>رقم الطلب</label>
+            <input id="igEditOrderNumber">
+          </div>
+          <div class="form-group">
+            <label>اسم الزبون</label>
+            <input id="igEditCustomerName">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>رقم العميل</label>
+            <input id="igEditCustomerNumber">
+          </div>
+          <div class="form-group">
+            <label>العنوان</label>
+            <input id="igEditAddress">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>المحتويات</label>
+          <textarea id="igEditOrderContents" rows="3" readonly></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>السائق</label>
+            <select id="igEditDriverId">
+              <option value="">بدون سائق</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>الشركة</label>
+            <select id="igEditCompanyId">
+              <option value="">بدون شركة</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>السعر</label>
+            <input type="number" id="igEditTotalPrice" min="0" step="0.01">
+          </div>
+          <div class="form-group">
+            <label>النسبة</label>
+            <input type="number" id="igEditRatio" min="0" step="0.1">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>الحالة</label>
+            <select id="igEditStatus">
+              <option>قيد المتابعة</option>
+              <option>تم</option>
+              <option>مؤجل</option>
+              <option>مرتجع</option>
+              <option>إلغاء</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>ملاحظة</label>
+            <input type="text" id="igEditNote" maxlength="200" style="height: 34px;">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: space-between; width: 100%;">
+        <button class="btn btn-primary" id="igSaveEditOrder">حفظ التعديلات</button>
+        <button class="btn btn-secondary" data-close-modal>إلغاء</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- مودال تعيين السائق -->
+  <div class="modal-overlay" id="igAssignModal" hidden>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>تعيين سائق</h3>
+        <button class="modal-close" data-close-modal>&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="igAssignOrderId">
+        <div class="form-group">
+          <label>اختر السائق</label>
+          <select id="igAssignDriver">
+            <option value="">اختر السائق</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>نسبة السائق (%)</label>
+          <input type="number" id="igAssignPercentage" min="0" max="100" step="0.1" placeholder="مثال: 10">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-close-modal>إلغاء</button>
+        <button class="btn btn-primary" id="igConfirmAssign">تعيين</button>
+      </div>
+    </div>
+  </div>
+
   <div id="notificationArea"></div>
-  <script src="/js/dashboard-ui.js"></script>
-  <script src="/js/api-client.js"></script>
-  <script src="/js/auth.js"></script>
-  <script src="/js/instagram-admin.js"></script>
+  <script src="js/dashboard-ui.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/instagram-admin.js"></script>
 </body>
 </html>

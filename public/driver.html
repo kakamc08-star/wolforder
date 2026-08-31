@@ -6,6 +6,7 @@
   <meta name="description" content="لوحة سائق WolfOrder لمتابعة الطلبات وتحديث حالتها">
   <title>لوحة السائق | WolfOrder</title>
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/instagram.css">
   <link rel="manifest" href="/manifest.json">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <meta name="mobile-web-app-capable" content="yes">
@@ -53,7 +54,7 @@
       <div class="workspace-content">
         <section class="card dashboard-card" id="ordersSection">
           <div class="section-heading section-heading-split">
-            <div class="section-heading-main"><span class="section-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"></path></svg></span><div><h2>طلباتي</h2><p>الطلبات الأساسية وطلبات إنستغرام المعيّنة لك ضمن قائمة واحدة</p></div></div>
+            <div class="section-heading-main"><span class="section-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"></path></svg></span><div><h2>طلباتي</h2><p>كل الطلبات المعيّنة لك مع بيانات التواصل والتوصيل</p></div></div>
             <div class="update-meta"><span id="lastUpdateTime"></span><button class="btn btn-sm btn-secondary" type="button" onclick="fetchOrders()">تحديث الآن</button></div>
           </div>
           <div class="filters-panel"><div class="filters-section">
@@ -63,9 +64,9 @@
           </div></div>
           <div class="table-responsive">
             <table id="ordersTable">
-              <thead><tr><th>العداد</th><th>المصدر</th><th>رقم الطلب</th><th class="text-wrap-column">المحتويات</th><th>اسم العميل</th><th>رقم العميل</th><th>العنوان</th><th>السعر</th><th>النسبة</th><th>الحالة</th><th>الشركة</th><th class="text-wrap-column">ملاحظة</th><th>التاريخ</th><th>إجراء</th></tr></thead>
+              <thead><tr><th>العداد</th><th>رقم الطلب</th><th>المصدر</th><th>النوع</th><th class="text-wrap-column">المحتويات</th><th>اسم العميل</th><th>رقم العميل</th><th>العنوان</th><th>السعر</th><th>النسبة</th><th>الحالة</th><th>الشركة</th><th class="text-wrap-column">ملاحظة</th><th>التاريخ</th><th>إجراء</th></tr></thead>
               <tbody id="ordersTableBody"></tbody>
-              <tfoot id="ordersTableFoot"><tr><td colspan="14"><div class="totals-grid"><div class="total-card total-green"><span>إجمالي السعر (ل.س)</span><strong id="totalPriceSYR">0 ل.س</strong></div><div class="total-card total-blue"><span>إجمالي السعر ($)</span><strong id="totalPriceUSD">0 $</strong></div><div class="total-card total-orange"><span>إجمالي النسبة</span><strong id="totalRatioSum">0</strong></div></div></td></tr></tfoot>
+              <tfoot id="ordersTableFoot"><tr><td colspan="15"><div class="totals-grid"><div class="total-card total-green"><span>إجمالي السعر (ل.س)</span><strong id="totalPriceSYR">0 ل.س</strong></div><div class="total-card total-blue"><span>إجمالي السعر ($)</span><strong id="totalPriceUSD">0 $</strong></div><div class="total-card total-orange"><span>إجمالي النسبة</span><strong id="totalRatioSum">0</strong></div></div></td></tr></tfoot>
             </table>
           </div>
         </section>
@@ -76,13 +77,12 @@
   <div id="editModal" class="modal" style="display:none;">
     <div class="card modal-card modal-sm">
       <div class="modal-heading"><h3>تحديث حالة الطلب</h3><button type="button" class="modal-close" onclick="closeModal()" aria-label="إغلاق">×</button></div>
-      <form id="editOrderForm"><input type="hidden" id="editOrderId"><input type="hidden" id="editOrderSource"><div class="form-group"><label for="editStatus">الحالة</label><select id="editStatus" required></select></div><div class="form-group"><label for="editNote">ملاحظة</label><textarea id="editNote" rows="3" placeholder="أضف تفاصيل تساعد في المتابعة..."></textarea><small id="editNoteHint"></small></div><div class="form-actions"><button type="submit" class="btn btn-primary">حفظ التحديث</button><button type="button" class="btn btn-secondary" onclick="closeModal()">إلغاء</button></div></form>
+      <form id="editOrderForm"><input type="hidden" id="editOrderId"><div class="form-group"><label for="editStatus">الحالة</label><select id="editStatus" required><option value="تم">تم</option><option value="مؤجل">مؤجل</option><option value="مرتجع">مرتجع</option><option value="إلغاء">إلغاء</option></select></div><div class="form-group"><label for="editNote">ملاحظة</label><textarea id="editNote" rows="3" placeholder="أضف تفاصيل تساعد في المتابعة..."></textarea></div><div class="form-actions"><button type="submit" class="btn btn-primary">حفظ التحديث</button><button type="button" class="btn btn-secondary" onclick="closeModal()">إلغاء</button></div></form>
     </div>
   </div>
 
   <div id="notificationArea"></div>
   <script src="js/dashboard-ui.js"></script>
-  <script src="js/api-client.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/driver-offline.js"></script>
   <script src="js/driver.js"></script>

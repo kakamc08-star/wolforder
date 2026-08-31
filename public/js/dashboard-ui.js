@@ -5,7 +5,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const closeTargets = document.querySelectorAll('[data-sidebar-close]');
   const themeButton = document.querySelector('[data-theme-toggle]');
   const navLinks = Array.from(document.querySelectorAll('.sidebar-nav a[href^="#"]'));
-  const dashboardRole = ['admin', 'company', 'driver'].find((role) => body.classList.contains(`role-${role}`));
+  const dashboardRole = ['admin', 'company', 'driver', 'instagram-admin', 'instagram-viewer']
+    .find((role) => body.classList.contains(`role-${role}`));
   const desktopSidebarQuery = window.matchMedia('(min-width: 981px)');
   const sidebarStorageKey = dashboardRole ? `${dashboardRole}SidebarCollapsed` : 'dashboardSidebarCollapsed';
 

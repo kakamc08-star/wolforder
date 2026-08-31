@@ -98,9 +98,9 @@
               <div class="form-group"><label for="address">العنوان *</label><input type="text" id="address" required></div>
             </div>
             <div class="form-row form-row-short">
-              <div class="form-group"><label for="orderType">نوع الطلب *</label><select id="orderType" required><option value="توصيل" selected>توصيل</option><option value="شحن">شحن</option><option value="شحن لباب المنزل">شحن لباب المنزل</option></select></div>
               <div class="form-group"><label for="price">السعر *</label><input type="number" id="price" required></div>
               <div class="form-group form-group-compact"><label for="currency">العملة</label><select id="currency"><option value="ل.س" selected>ل.س</option><option value="دولار">دولار</option></select></div>
+              <div class="form-group"><label for="orderType">نوع الطلب *</label><select id="orderType" required><option value="توصيل" selected>توصيل</option><option value="شحن">شحن</option><option value="شحن لباب المنزل">شحن لباب المنزل</option></select></div>
               <div class="form-group"><label for="orderNote">ملاحظة (اختياري)</label><input type="text" id="orderNote" placeholder="أي تفاصيل إضافية..."></div>
             </div>
             <div class="form-actions"><button type="submit" class="btn btn-primary" id="createOrderSubmitBtn">إنشاء الطلب</button></div>
@@ -139,7 +139,6 @@
               <tfoot id="ordersTableFoot"><tr><td colspan="12"><div class="totals-grid totals-grid-two"><div class="total-card total-green"><span>إجمالي السعر (ل.س)</span><strong id="totalPriceSYR">0 ل.س</strong></div><div class="total-card total-blue"><span>إجمالي السعر ($)</span><strong id="totalPriceUSD">0 $</strong></div></div></td></tr></tfoot>
             </table>
           </div>
-          <div class="pagination-controls"><button class="btn btn-secondary btn-sm" id="ordersPrevPage" type="button">السابق</button><span id="ordersPageInfo">صفحة 1</span><button class="btn btn-secondary btn-sm" id="ordersNextPage" type="button">التالي</button></div>
         </section>
       </div>
     </main>
@@ -164,7 +163,6 @@
 
   <div id="notificationArea"></div>
   <script src="js/dashboard-ui.js"></script>
-  <script src="js/api-client.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/company.js"></script>
 </body>

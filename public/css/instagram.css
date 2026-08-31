@@ -1,0 +1,342 @@
+:root {
+  --ig-purple: #7c3aed;
+  --ig-pink: #db2777;
+  --ig-orange: #f97316;
+  --ig-soft: #f5f0ff;
+  --ig-border: #e8ddff;
+  --ig-ink: #22143b;
+}
+
+.instagram-theme .dashboard-header {
+  background: linear-gradient(135deg, #24113e 0%, #4c1d95 55%, #9d174d 100%);
+}
+
+.instagram-theme .sidebar-role,
+.instagram-theme .section-icon,
+.instagram-theme .instagram-mark {
+  background: linear-gradient(135deg, var(--ig-purple), var(--ig-pink), var(--ig-orange));
+  color: #fff;
+}
+
+.instagram-theme .sidebar-nav a.active,
+.instagram-theme .sidebar-nav button.active {
+  background: linear-gradient(90deg, rgba(124, 58, 237, .2), rgba(219, 39, 119, .12));
+  color: #f5dfff;
+}
+
+.sidebar-nav button {
+  appearance: none;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: right;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+}
+
+.sidebar-nav button svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+.instagram-nav-link { border: 1px solid rgba(219, 39, 119, .3); }
+.instagram-section[hidden] { display: none !important; }
+
+.instagram-mark {
+  width: 48px;
+  height: 48px;
+  border-radius: 15px;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 12px 28px rgba(124, 58, 237, .24);
+}
+
+.instagram-mark svg { width: 28px; height: 28px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+
+.ig-stats-grid,
+.ig-card-grid,
+.viewer-home-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 14px;
+}
+
+.ig-stat,
+.ig-mini-card,
+.viewer-home-card {
+  border: 1px solid var(--ig-border);
+  background: linear-gradient(145deg, #fff, #fbf9ff);
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 8px 24px rgba(65, 35, 95, .06);
+}
+
+.ig-stat span { color: #745f89; font-size: .86rem; }
+.ig-stat strong { display: block; margin-top: 8px; font-size: 1.65rem; color: var(--ig-ink); }
+
+.ig-type-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.ig-type-tab {
+  border: 1px solid var(--ig-border);
+  background: #fff;
+  color: var(--ig-ink);
+  border-radius: 999px;
+  padding: 9px 18px;
+  cursor: pointer;
+  font-weight: 700;
+}
+.ig-type-tab.active { color: #fff; border-color: transparent; background: linear-gradient(90deg, var(--ig-purple), var(--ig-pink)); }
+
+.ig-bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+  border: 1px dashed #c8b5ef;
+  background: var(--ig-soft);
+  padding: 12px;
+  border-radius: 14px;
+  margin: 12px 0;
+}
+
+.ig-bulk-bar[hidden] { display: none; }
+.ig-bulk-bar .form-group { min-width: 150px; margin: 0; }
+.ig-actions { display: flex; flex-wrap: wrap; gap: 6px; min-width: 235px; }
+.ig-actions select { min-width: 120px; }
+
+/* أزرار عمودية للإجراءات */
+.ig-actions-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+  min-width: 110px;
+}
+.ig-actions-vertical .btn {
+  width: 100%;
+  margin: 0;
+  white-space: nowrap;
+  font-size: 12px;
+  padding: 6px 10px;
+}
+
+.source-badge,
+.order-type-badge,
+.availability-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: .76rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.source-basic { color: #075985; background: #e0f2fe; }
+.source-instagram { color: #86198f; background: #fae8ff; }
+.order-type-delivery { color: #166534; background: #dcfce7; }
+.order-type-shipping { color: #9a3412; background: #ffedd5; }
+.availability-on { color: #166534; background: #dcfce7; }
+.availability-off { color: #991b1b; background: #fee2e2; }
+
+.ig-order-items { margin: 0; padding-right: 16px; min-width: 210px; }
+.ig-order-items li { margin: 3px 0; }
+.shipping-delivered { color: #166534; font-weight: 800; }
+.shipping-pending { color: #9a3412; font-weight: 700; }
+
+.variant-builder-row,
+.variant-edit-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 130px auto;
+  gap: 8px;
+  align-items: end;
+  margin: 8px 0;
+}
+
+.product-admin-card { overflow: hidden; }
+.product-admin-head {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.5fr) 150px 115px auto;
+  gap: 10px;
+  align-items: end;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--ig-border);
+}
+.product-variants-list { margin-top: 14px; }
+.product-variant-line {
+  display: grid;
+  grid-template-columns: 1fr 1fr 120px auto auto;
+  gap: 8px;
+  align-items: center;
+  border-bottom: 1px solid #eee7f6;
+  padding: 9px 0;
+}
+.product-variant-line:last-child { border-bottom: 0; }
+.product-add-variant { background: var(--ig-soft); border-radius: 12px; padding: 10px; margin-top: 12px; }
+
+.link-card h3,
+.viewer-card h3 { margin: 0 0 12px; }
+.link-card .link-preview { direction: ltr; text-align: left; color: var(--ig-purple); word-break: break-all; font-size: .86rem; }
+.link-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+
+.viewer-home-card {
+  appearance: none;
+  text-align: right;
+  cursor: pointer;
+  min-height: 175px;
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.viewer-home-card:hover { transform: translateY(-3px); box-shadow: 0 16px 34px rgba(83, 42, 120, .14); }
+.viewer-home-card strong { display: block; font-size: 1.25rem; color: var(--ig-ink); margin: 14px 0 6px; }
+.viewer-home-card span { font-size: 2rem; }
+
+/* أنماط صفحة المتجر العامة (Storefront) */
+.storefront-page {
+  margin: 0;
+  min-height: 100vh;
+  color: #251839;
+  background: linear-gradient(180deg, #f7efff 0, #fff 420px);
+  font-family: inherit;
+}
+
+.storefront-shell { width: min(760px, calc(100% - 24px)); margin: 0 auto; padding: 24px 0 50px; }
+.storefront-header { text-align: center; padding: 18px 12px 28px; }
+.storefront-logo {
+  width: 70px; height: 70px; border-radius: 22px; margin: 0 auto 14px;
+  display: grid; place-items: center; color: #fff;
+  background: linear-gradient(135deg, var(--ig-purple), var(--ig-pink), var(--ig-orange));
+  box-shadow: 0 18px 38px rgba(124, 58, 237, .25);
+}
+.storefront-logo svg { width: 38px; height: 38px; fill: none; stroke: currentColor; stroke-width: 1.7; }
+.storefront-header h1 { margin: 0; font-size: clamp(1.45rem, 5vw, 2.1rem); }
+.storefront-header p { color: #71627e; margin: 8px 0 0; }
+.storefront-card { background: #fff; border: 1px solid #eadff4; border-radius: 20px; padding: 18px; margin-bottom: 14px; box-shadow: 0 12px 32px rgba(64, 32, 86, .08); }
+.storefront-card h2 { font-size: 1.05rem; margin: 0 0 14px; }
+.storefront-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.storefront-field { display: flex; flex-direction: column; gap: 6px; }
+.storefront-field.full { grid-column: 1 / -1; }
+.storefront-field label { font-weight: 800; font-size: .9rem; }
+.storefront-field input,
+.storefront-field select,
+.storefront-field textarea {
+  width: 100%; box-sizing: border-box; min-height: 46px; border: 1px solid #dcd1e6;
+  border-radius: 12px; padding: 10px 12px; background: #fff; font: inherit;
+}
+.storefront-field input:focus,
+.storefront-field select:focus,
+.storefront-field textarea:focus { outline: 3px solid rgba(124, 58, 237, .12); border-color: var(--ig-purple); }
+.order-kind-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.order-kind {
+  position: relative; border: 1px solid #ddd0ea; border-radius: 14px; padding: 13px;
+  cursor: pointer; display: flex; align-items: center; gap: 9px; font-weight: 800;
+}
+.order-kind:has(input:checked) { border-color: var(--ig-purple); background: var(--ig-soft); color: #5b21b6; }
+.storefront-item { border: 1px solid #eadff4; background: #fcfaff; border-radius: 16px; padding: 13px; margin: 10px 0; }
+.storefront-item-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr 100px; gap: 8px; }
+.storefront-item-summary { display: flex; justify-content: space-between; gap: 10px; margin-top: 10px; font-size: .9rem; }
+.storefront-remove { border: 0; color: #b91c1c; background: transparent; cursor: pointer; font-weight: 800; }
+.storefront-add,
+.storefront-submit {
+  width: 100%; border: 0; border-radius: 14px; min-height: 50px; font: inherit; font-weight: 900; cursor: pointer;
+}
+.storefront-add { color: #6d28d9; background: var(--ig-soft); border: 1px dashed #ad8fea; }
+.storefront-submit { color: #fff; background: linear-gradient(90deg, var(--ig-purple), var(--ig-pink)); box-shadow: 0 12px 26px rgba(124, 58, 237, .22); }
+.storefront-submit:disabled { opacity: .66; cursor: wait; }
+.storefront-total { display: flex; align-items: center; justify-content: space-between; font-size: 1.08rem; padding: 14px 0; }
+.storefront-total strong { font-size: 1.35rem; color: #6d28d9; }
+.storefront-message { border-radius: 15px; padding: 14px; margin: 12px 0; font-weight: 800; }
+.storefront-message.error { color: #991b1b; background: #fee2e2; }
+.storefront-success { text-align: center; padding: 32px 18px; }
+.storefront-success .success-heart { font-size: 2.5rem; }
+.storefront-loading { text-align: center; padding: 60px 20px; color: #6d28d9; font-weight: 800; }
+
+/* ====== إضافات معالجة الأسماء الطويلة ====== */
+.sidebar-role strong,
+.sidebar-role small,
+.sidebar-brand strong,
+.sidebar-brand span,
+.user-chip strong,
+.user-chip small,
+.page-heading h1,
+.page-heading p,
+.eyebrow {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+
+.table-responsive td,
+.table-responsive th {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  white-space: normal !important;
+}
+
+.table-responsive td[data-label="الشركة"],
+.table-responsive td[data-label="الزبون"],
+.table-responsive td[data-label="العنوان"],
+.table-responsive td[data-label="الأصناف"] {
+  max-width: 220px;
+  word-break: break-word;
+}
+
+.viewer-home-card strong,
+.viewer-home-card small {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.status-quick-box {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* تحسين الجداول على الشاشات المتوسطة والصغيرة */
+@media (max-width: 900px) {
+  .table-responsive td[data-label="الشركة"],
+  .table-responsive td[data-label="الزبون"],
+  .table-responsive td[data-label="العنوان"],
+  .table-responsive td[data-label="الأصناف"] {
+    max-width: 150px;
+  }
+}
+
+@media (max-width: 760px) {
+  .storefront-grid,
+  .storefront-item-grid,
+  .product-admin-head,
+  .variant-builder-row,
+  .variant-edit-row { grid-template-columns: 1fr; }
+  .storefront-field.full { grid-column: auto; }
+  .product-variant-line { grid-template-columns: 1fr 1fr; }
+  .product-variant-line .variant-actions { grid-column: 1 / -1; }
+  .ig-actions { min-width: 0; }
+  .instagram-theme .table-responsive table thead { display: none; }
+  .instagram-theme .table-responsive table,
+  .instagram-theme .table-responsive tbody,
+  .instagram-theme .table-responsive tr,
+  .instagram-theme .table-responsive td { display: block; width: 100%; box-sizing: border-box; }
+  .instagram-theme .table-responsive tr { margin: 12px 0; border: 1px solid var(--ig-border); border-radius: 16px; padding: 10px; background: #fff; }
+  .instagram-theme .table-responsive td { border: 0; display: flex; justify-content: space-between; gap: 12px; padding: 7px; text-align: left; }
+  .instagram-theme .table-responsive td::before { content: attr(data-label); font-weight: 800; text-align: right; color: #5f4b6e; }
+  .instagram-theme .table-responsive tfoot { display: none; }
+
+  /* إلغاء الحدود القصوى في الموبايل */
+  .table-responsive td,
+  .table-responsive td[data-label] {
+    max-width: none;
+    width: 100%;
+    word-break: break-word;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 480px) {
+  .storefront-shell { width: min(100% - 16px, 760px); padding-top: 10px; }
+  .storefront-card { padding: 14px; border-radius: 17px; }
+  .order-kind-grid { grid-template-columns: 1fr; }
+}

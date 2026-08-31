@@ -136,31 +136,13 @@ function resetAutoNumber() {
 
 // ==================== دوال مساعدة ====================
 let previousOrderIds = new Set();
-let autoRefresh = null;
+let autoRefresh = setInterval(fetchOrders, 5000);
 let allOrders = [];
-let orderSummary = null;
 let adminPhone = '';
 let currentSort = 'default';
 let suppressNewOrderNotifications = false;
 let activeOrderCategory = '';
 let ordersLoadingTimer = null;
-let ordersPage = 1;
-let ordersTotalPages = 1;
-let ordersFetchController = null;
-let companySearchTimer = null;
-const ORDERS_PAGE_SIZE = 50;
-
-function startCompanyPolling() {
-    if (autoRefresh) return;
-    autoRefresh = setInterval(() => {
-        if (!document.hidden && navigator.onLine) fetchOrders();
-    }, 30000);
-}
-
-window.addEventListener('beforeunload', () => {
-    if (autoRefresh) clearInterval(autoRefresh);
-    if (ordersFetchController) ordersFetchController.abort();
-});
 
 const categoryLabels = {
     pending: 'طلبات قيد المتابعة',
@@ -217,7 +199,7 @@ function matchesOrderCategory(order, category) {
 }
 
 function updateStatusCards() {
-    const counts = orderSummary || {
+    const counts = {
         pending: allOrders.filter(order => matchesOrderCategory(order, 'pending')).length,
         postponed: allOrders.filter(order => matchesOrderCategory(order, 'postponed')).length,
         done: allOrders.filter(order => matchesOrderCategory(order, 'done')).length,
@@ -296,14 +278,12 @@ function selectOrderCategory(category = '') {
 
     const label = document.getElementById('activeCategoryLabel');
     if (label) label.textContent = categoryLabels[category] || 'جميع الطلبات';
-    ordersPage = 1;
-    fetchOrders();
+    applyFiltersAndRender();
 }
 
 function setSortAndRender(direction) {
     currentSort = direction;
-    ordersPage = 1;
-    fetchOrders();
+    applyFiltersAndRender();
 }
 
 function formatDate(date) {
@@ -396,8 +376,6 @@ document.addEventListener('DOMContentLoaded', updateOnlineStatus);
 
 // ==================== جلب الطلبات ====================
 async function fetchOrders() {
-    if (ordersFetchController) ordersFetchController.abort();
-    ordersFetchController = new AbortController();
     setOrdersLoading(true);
     try {
         const startDateEl = document.getElementById('startDate');
@@ -417,33 +395,13 @@ async function fetchOrders() {
             endDate = new Date(endDateInput + 'T23:59:59').toISOString();
         }
 
-        const params = new URLSearchParams({
-            paginate: '1',
-            page: String(ordersPage),
-            limit: String(ORDERS_PAGE_SIZE),
-            includeSummary: '1'
-        });
-        if (startDate) params.set('startDate', startDate);
-        if (endDate) params.set('endDate', endDate);
-        if (searchInput.trim()) params.set('search', searchInput.trim());
-        if (activeOrderCategory === 'shipping') params.set('shipping', '1');
-        const statusByCategory = { pending: 'قيد المتابعة', postponed: 'مؤجل', done: 'تم', returned: 'مرتجع', cancelled: 'إلغاء' };
-        if (statusByCategory[activeOrderCategory]) params.set('status', statusByCategory[activeOrderCategory]);
-        if (currentSort === 'asc' || currentSort === 'desc') params.set('sort', currentSort);
+        let url = '/api/orders?all=true&';
+        if (startDate) url += `startDate=${startDate}&`;
+        if (endDate) url += `endDate=${endDate}&`;
 
-        const res = await apiFetch(`/api/orders?${params}`, {
-            headers: { 'Authorization': `Bearer ${token}` },
-            signal: ordersFetchController.signal
-        });
+        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
         if (!res.ok) throw new Error('فشل جلب الطلبات');
-        const data = await res.json();
-        const orders = data.orders || [];
-        orderSummary = data.summary || orderSummary;
-        ordersTotalPages = data.pagination?.totalPages || 1;
-        if (ordersPage > ordersTotalPages) {
-            ordersPage = ordersTotalPages;
-            return fetchOrders();
-        }
+        const orders = await res.json();
 
         const filterKey = `${activeOrderCategory}|${startDateInput}|${endDateInput}|${searchInput}`;
         if (window._lastFilterKey !== filterKey) {
@@ -468,7 +426,6 @@ async function fetchOrders() {
         allOrders = orders;
         updateStatusCards();
         applyFiltersAndRender();
-        updateOrdersPagination(data.pagination || {});
 
         if (startDateEl && startDateEl.value !== startDateInput) startDateEl.value = startDateInput;
         if (endDateEl && endDateEl.value !== endDateInput) endDateEl.value = endDateInput;
@@ -476,26 +433,10 @@ async function fetchOrders() {
 
         document.getElementById('lastUpdateTime').textContent = `آخر تحديث: ${new Date().toLocaleTimeString('ar')}`;
     } catch (err) {
-        if (err.name !== 'AbortError') console.error('fetchOrders error:', err);
+        console.error('fetchOrders error:', err);
     } finally {
         setOrdersLoading(false);
     }
-}
-
-function updateOrdersPagination(pagination) {
-    const info = document.getElementById('ordersPageInfo');
-    const previous = document.getElementById('ordersPrevPage');
-    const next = document.getElementById('ordersNextPage');
-    if (info) info.textContent = `صفحة ${pagination.page || ordersPage} من ${pagination.totalPages || ordersTotalPages} — ${pagination.total || 0} طلب`;
-    if (previous) previous.disabled = ordersPage <= 1;
-    if (next) next.disabled = ordersPage >= ordersTotalPages;
-}
-
-function changeOrdersPage(delta) {
-    const target = ordersPage + delta;
-    if (target < 1 || target > ordersTotalPages) return;
-    ordersPage = target;
-    fetchOrders();
 }
 
 function applyFiltersAndRender() {
@@ -516,8 +457,8 @@ function clearFilters() {
     document.getElementById('startDate').value = '';
     document.getElementById('endDate').value = '';
     document.getElementById('searchInput').value = '';
-    ordersPage = 1;
     selectOrderCategory('');
+    fetchOrders();
 }
 
 // ==================== عرض الجدول ====================
@@ -551,7 +492,7 @@ function renderTable(orders) {
         const note = order.note || '';
         const createdAt = order.created_at || order.createdAt;
         tr.innerHTML = `
-            <td data-label="عداد الطلبات :">${((ordersPage - 1) * ORDERS_PAGE_SIZE) + index + 1}</td>
+            <td data-label="عداد الطلبات :">${index + 1}</td>
             <td data-label="رقم الطلب :">${orderNumber}</td>
             <td data-label="نوع الطلب :"><span class="order-type-badge ${getOrderTypeClass(getOrderType(order))}">${getOrderType(order)}</span></td>
             <td class="text-wrap-column" data-label="محتويات الطلب :">${order.order_contents || order.orderContents || '-'}</td>
@@ -587,11 +528,11 @@ function filterOrdersBySearch(orders, searchText) {
     const searchLower = searchText.trim().toLowerCase();
     return orders.filter(order => {
         return (
-            String(order.order_number || order.orderNumber || '').toLowerCase().includes(searchLower) ||
-            String(order.customer_name || order.customerName || '').toLowerCase().includes(searchLower) ||
-            String(order.customer_number || order.customerNumber || '').toLowerCase().includes(searchLower) ||
-            String(order.address || '').toLowerCase().includes(searchLower) ||
-            String(order.note || '').toLowerCase().includes(searchLower)
+            (order.order_number || order.orderNumber || '').toLowerCase().includes(searchLower) ||
+            (order.customer_name || order.customerName || '').toLowerCase().includes(searchLower) ||
+            (order.customer_number || order.customerNumber || '').toString().includes(searchLower) ||
+            (order.address || '').toLowerCase().includes(searchLower) ||
+            (order.note || '').toLowerCase().includes(searchLower)
         );
     });
 }
@@ -649,7 +590,7 @@ document.getElementById('createOrderForm').addEventListener('submit', async (e) 
 
     setCreateOrderSubmitting(true);
     try {
-        const res = await apiFetch('/api/orders', {
+        const res = await fetch('/api/orders', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -722,7 +663,7 @@ document.getElementById('editRequestForm')?.addEventListener('submit', async (e)
     };
 
     try {
-        const res = await apiFetch('/api/edit-requests', {
+        const res = await fetch('/api/edit-requests', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -741,7 +682,7 @@ document.getElementById('editRequestForm')?.addEventListener('submit', async (e)
 // ==================== مراسلة المدير ====================
 async function loadAdminPhone() {
     try {
-        const res = await apiFetch('/api/auth/admin-phone', {
+        const res = await fetch('/api/auth/admin-phone', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
@@ -808,17 +749,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // ربط البحث
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {
-        searchInput.addEventListener('input', () => {
-            clearTimeout(companySearchTimer);
-            companySearchTimer = setTimeout(() => {
-                ordersPage = 1;
-                fetchOrders();
-            }, 400);
-        });
+        searchInput.addEventListener('input', applyFiltersAndRender);
     }
-
-    document.getElementById('ordersPrevPage')?.addEventListener('click', () => changeOrdersPage(-1));
-    document.getElementById('ordersNextPage')?.addEventListener('click', () => changeOrdersPage(1));
 
     // زر مراسلة المدير
     const contactBtn = document.getElementById('contactAdminBtn');
@@ -855,4 +787,3 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // ==================== بدء التطبيق ====================
 fetchOrders();
-startCompanyPolling();
