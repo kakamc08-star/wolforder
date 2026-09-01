@@ -28,6 +28,39 @@ function cleanText(value, maxLength = 500) {
   return String(value ?? '').trim().slice(0, maxLength);
 }
 
+function normalizeInstagramSearch(value) {
+  return cleanText(value, 200)
+    .toLocaleLowerCase('ar')
+    .replace(/[٠-٩]/g, (digit) => String(digit.charCodeAt(0) - '٠'.charCodeAt(0)))
+    .replace(/[۰-۹]/g, (digit) => String(digit.charCodeAt(0) - '۰'.charCodeAt(0)))
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ى/g, 'ي')
+    .replace(/ة/g, 'ه')
+    .replace(/[\u064B-\u065F\u0670ـ]/g, '')
+    .replace(/[\s\-_/+#().,:؛،]/g, '');
+}
+
+function instagramOrderSearchValues(order) {
+  const itemValues = (Array.isArray(order.items) ? order.items : []).flatMap((item) => [
+    item.product_name,
+    item.color,
+    item.size,
+    item.quantity
+  ]);
+  return [
+    order.order_number,
+    order.customer_name,
+    order.customer_number,
+    order.address,
+    order.note,
+    order.company_name,
+    order.driver_name,
+    order.order_type,
+    order.status,
+    ...itemValues
+  ];
+}
+
 function parseNumber(value, fallback = 0) {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
@@ -347,16 +380,11 @@ router.get('/orders', requireRole('admin', 'instagram_viewer', 'driver'), async 
     const { data, error } = await query.limit(2000);
     if (error) throw error;
 
-    const term = cleanText(search, 200).toLowerCase();
+    const term = normalizeInstagramSearch(search);
     const filtered = term
       ? (data || []).filter((order) => [
-          order.order_number,
-          order.customer_name,
-          order.customer_number,
-          order.address,
-          order.note,
-          order.company_name
-        ].some((value) => String(value || '').toLowerCase().includes(term)))
+          ...instagramOrderSearchValues(order)
+        ].some((value) => normalizeInstagramSearch(value).includes(term)))
       : (data || []);
 
     res.json(filtered.map(normalizeInstagramOrder));
@@ -597,6 +625,52 @@ router.patch('/orders/bulk-status', requireRole('admin'), async (req, res) => {
     if (error) throw error;
     broadcastInstagramUpdate(req);
     res.json(data);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// تعيين شركة لعدة طلبات
+router.patch('/orders/bulk-company', requireRole('admin'), async (req, res) => {
+  try {
+    const ids = Array.isArray(req.body.ids) ? req.body.ids : [];
+    if (!validIdList(ids) || !isUuid(req.body.companyId)) {
+      return res.status(400).json({ message: 'يرجى تحديد الطلبات والشركة' });
+    }
+    const { data: company } = await supabase
+      .from('users')
+      .select('name')
+      .eq('id', req.body.companyId)
+      .eq('role', 'company')
+      .single();
+    if (!company) return res.status(400).json({ message: 'الشركة المحددة غير موجودة' });
+    const { error } = await supabase
+      .from('instagram_orders')
+      .update({ company_id: req.body.companyId, company_name: company.name })
+      .in('id', ids);
+    if (error) throw error;
+    broadcastInstagramUpdate(req);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// حذف عدة طلبات نهائياً
+router.post('/orders/bulk-delete', requireRole('admin'), async (req, res) => {
+  try {
+    const ids = Array.isArray(req.body.ids) ? req.body.ids : [];
+    if (!validIdList(ids)) return res.status(400).json({ message: 'لم يتم تحديد طلبات صالحة' });
+    let successCount = 0;
+    for (const id of ids) {
+      const { error } = await supabase.rpc('delete_instagram_order_atomic', {
+        p_order_id: id,
+        p_actor_user_id: req.user.id
+      });
+      if (!error) successCount++;
+    }
+    broadcastInstagramUpdate(req, 'INSTAGRAM_ORDER_DELETED');
+    res.json({ success: true, deleted_count: successCount });
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -1030,6 +1104,25 @@ router.post('/links', requireRole('admin'), async (req, res) => {
     });
     if (error) throw error;
     res.json(data);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+
+router.post('/links/order-start', requireRole('admin'), async (req, res) => {
+  try {
+    const { companyId, nextOrderNumber } = req.body;
+    if (!isUuid(companyId) || !Number.isInteger(nextOrderNumber) || nextOrderNumber < 1) {
+      return res.status(400).json({ message: 'بيانات غير صالحة' });
+    }
+    const { error } = await supabase
+      .from('instagram_company_links')
+      .update({ next_order_number: nextOrderNumber })
+      .eq('company_id', companyId);
+    if (error) throw error;
+    broadcastInstagramUpdate(req);
+    res.json({ success: true });
   } catch (error) {
     res.status(400).json({ message: error.message });
   }

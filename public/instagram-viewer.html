@@ -4,75 +4,69 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="حساب مشاهدة Instagram للشركة">
-  <title>مشاهدة Instagram | WolfOrder</title>
-  <link rel="stylesheet" href="css/style.css">
-  <link rel="stylesheet" href="css/instagram.css">
+  <title>لوحة الشركة | WolfOrder</title>
+  <link rel="stylesheet" href="css/style.css?v=20260901.1">
+  <link rel="stylesheet" href="css/instagram.css?v=20260901.4">
   <link rel="icon" href="/favicon.ico">
   <meta name="theme-color" content="#4c1d95">
-  <style>
-    /* تحسينات مخصصة للمشاهد */
-    .status-quick-boxes {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin: 12px 0;
-    }
-    .status-quick-box {
-      border: 1px solid var(--ig-border);
-      background: #fff;
-      color: var(--ig-ink);
-      border-radius: 12px;
-      padding: 8px 16px;
-      cursor: pointer;
-      font-weight: 700;
-      font-size: 0.9rem;
-      transition: all 0.2s;
-    }
-    .status-quick-box.active {
-      background: var(--ig-purple);
-      color: #fff;
-      border-color: var(--ig-purple);
-    }
-    .status-quick-box.shipping-box {
-      background: #fff7ed;
-      border-color: #fed7aa;
-    }
-    .status-quick-box.shipping-box.active {
-      background: #ea580c;
-      color: #fff;
-      border-color: #ea580c;
-    }
-    @media (max-width: 760px) {
-      .status-quick-box {
-        flex: 1 1 30%;
-        text-align: center;
-        padding: 8px 5px;
-      }
-    }
-  </style>
 </head>
 <body class="dashboard-page role-instagram-viewer instagram-theme">
   <div class="app-shell">
     <aside class="app-sidebar" id="appSidebar">
-      <div class="sidebar-brand"><img src="icons/icon-192x192.png" alt="WolfOrder" width="52" height="52"><div><strong>WOLFORDER</strong><span>Instagram Viewer</span></div></div>
-      <div class="sidebar-role"><span class="role-icon">◉</span><div><small>حساب مشاهدة</small><strong id="viewerSidebarName">Instagram</strong></div></div>
-      <nav class="sidebar-nav"><button class="active" data-viewer-section="home"><span>الرئيسية</span></button><button data-viewer-section="orders"><span>طلبات الإنستغرام</span></button><button data-viewer-section="inventory"><span>الجرد والمبيعات</span></button></nav>
-      <div class="sidebar-footer"><span class="status-dot"></span><div><strong>مشاهدة فقط</strong><small>لا يمكن التعديل</small></div></div>
+      <div class="sidebar-brand"><img src="icons/icon-192x192.png" alt="WolfOrder" width="52" height="52"><div><strong>WOLFORDER</strong><span>بوابة Instagram</span></div></div>
+      <div class="sidebar-role"><span class="role-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.4-6 9.5-6 9.5 6 9.5 6-3.4 6-9.5 6-9.5-6-9.5-6Z"></path><circle cx="12" cy="12" r="3"></circle></svg></span><div><small>حساب مشاهدة</small><strong id="viewerSidebarName">Instagram</strong></div></div>
+      <nav class="sidebar-nav">
+        <button class="active" data-viewer-section="home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 10 8-6 8 6v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z"></path><path d="M9 20v-6h6v6"></path></svg><span>الرئيسية</span></button>
+        <button data-viewer-section="orders"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"></path></svg><span>الطلبات</span></button>
+        <button data-viewer-section="inventory"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"></path></svg><span>الجرد والمبيعات</span></button>
+      </nav>
+      <div class="sidebar-footer"><span class="status-dot"></span><div><strong>وضع المشاهدة</strong><small>للاطلاع فقط</small></div></div>
     </aside>
     <button class="sidebar-overlay" data-sidebar-close></button>
     <main class="app-main">
-      <header class="dashboard-header"><div class="header-title-row"><button class="icon-button mobile-menu-button" data-sidebar-toggle><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button><span class="instagram-mark">◎</span><div class="page-heading"><span class="eyebrow">حساب مشاهدة Instagram</span><h1 id="viewerPageTitle">مرحباً بك</h1><p>طلبات وجرد شركتك فقط</p></div></div><div class="user-info"><button class="icon-button" data-theme-toggle></button><div class="user-chip"><span class="user-avatar">ش</span><strong id="userNameDisplay"></strong></div><button class="btn btn-secondary btn-sm" onclick="logout()">تسجيل الخروج</button></div></header>
+      <header class="dashboard-header">
+        <div class="header-title-row">
+          <button class="icon-button mobile-menu-button" data-sidebar-toggle><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button>
+          <span class="instagram-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"></rect><circle cx="12" cy="12" r="4"></circle><circle cx="17.5" cy="6.5" r="1"></circle></svg></span>
+          <div class="page-heading"><span class="eyebrow">WOLFORDER · INSTAGRAM</span><h1 id="viewerPageTitle">مرحباً بك</h1><p>متابعة الطلبات والمخزون لحظياً</p></div>
+        </div>
+        <div class="user-info">
+          <button class="icon-button" data-theme-toggle></button>
+          <div class="user-chip"><span class="user-avatar">ش</span><strong id="userNameDisplay"></strong></div>
+          <button class="btn btn-secondary btn-sm" onclick="logout()">تسجيل الخروج</button>
+        </div>
+      </header>
+
       <div class="workspace-content">
+        <!-- الرئيسية -->
         <section data-viewer-panel="home">
           <div class="viewer-home-grid">
-            <button class="viewer-home-card" data-open-viewer="orders"><span>📦</span><strong>طلبات الإنستغرام</strong><small>مشاهدة طلبات التوصيل والشحن وحالة تسليمها</small></button>
-            <button class="viewer-home-card" data-open-viewer="inventory"><span>📊</span><strong>الجرد والمبيعات</strong><small>مشاهدة المخزون والمبيعات الخاصة بشركتك</small></button>
+            <button class="viewer-home-card" data-open-viewer="orders">
+              <span>📦</span>
+              <strong>طلبات الإنستغرام</strong>
+              <small>مشاهدة طلبات التوصيل والشحن وحالة تسليمها</small>
+            </button>
+            <button class="viewer-home-card" data-open-viewer="inventory">
+              <span>📊</span>
+              <strong>الجرد والمبيعات</strong>
+              <small>مشاهدة المخزون والمبيعات الخاصة بشركتك</small>
+            </button>
           </div>
         </section>
 
+        <!-- الطلبات -->
         <section data-viewer-panel="orders" hidden>
           <div class="card dashboard-card">
-            <div class="section-heading section-heading-split"><div class="section-heading-main"><span class="section-icon">◎</span><div><h2>طلبات Instagram</h2><p>مشاهدة فقط</p></div></div><button class="btn btn-secondary btn-sm" id="viewerRefreshOrders">تحديث</button></div>
+            <div class="section-heading section-heading-split">
+              <div class="section-heading-main"><span class="section-icon">◎</span>
+                <div><h2>طلبات Instagram</h2><p>مشاهدة فقط</p></div>
+              </div>
+              <button class="btn btn-secondary btn-sm" id="viewerRefreshOrders">تحديث</button>
+            </div>
+
+            <div class="ig-stats-grid ig-summary-grid" id="viewerOrderStats">
+              <div class="ig-stat"><span>إجمالي المعروض</span><strong id="viewerVisibleCount">0</strong></div>
+            </div>
 
             <!-- تبويبات النوع -->
             <div class="ig-type-tabs">
@@ -89,35 +83,53 @@
               <button class="status-quick-box" data-status="مؤجل">مؤجل</button>
               <button class="status-quick-box" data-status="مرتجع">مرتجع</button>
               <button class="status-quick-box" data-status="إلغاء">إلغاء</button>
-              <button class="status-quick-box shipping-box" data-shipping="true">🚚 شحن</button>
             </div>
 
-            <!-- الفلاتر الأخرى -->
+            <!-- بحث -->
             <div class="filters-panel">
               <div class="filters-section">
-                <div class="form-group search-field"><label>بحث</label><input id="viewerOrderSearch" placeholder="رقم الطلب، الزبون أو الموبايل"></div>              
-                <button class="btn btn-primary" id="viewerApplyOrderFilter">تطبيق</button>
+                <div class="form-group search-field"><label for="viewerOrderSearch">بحث في الطلبات</label><input id="viewerOrderSearch" type="search" autocomplete="off" enterkeyhint="search" placeholder="رقم الطلب، الزبون أو الموبايل"></div>
+                <button class="btn btn-primary ig-search-button" id="viewerApplyOrderFilter" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 5 5"></path></svg><span>بحث وتطبيق</span></button>
               </div>
             </div>
 
-            <div class="table-responsive">
-              <table>
-                <thead><tr><th>الرقم</th><th>النوع</th><th>الزبون</th><th>الموبايل</th><th>العنوان</th><th>الأصناف</th><th>الإجمالي</th><th>الحالة</th><th>تسليم الشحن</th><th>التاريخ</th></tr></thead>
+            <div class="table-responsive ig-orders-wrap">
+              <table class="ig-orders-table">
+                <thead><tr><th>العداد</th><th>رقم الطلب</th><th>نوع الطلب</th><th>محتويات الطلب</th><th>اسم العميل</th><th>رقم العميل</th><th>العنوان</th><th>السعر</th><th>الحالة</th><th>تسليم الشحن</th><th>التاريخ</th></tr></thead>
                 <tbody id="viewerOrdersBody"></tbody>
+                <tfoot id="viewerOrdersFoot">
+                  <tr>
+                    <td colspan="11"><div class="totals-grid totals-grid-two"><div class="total-card total-green"><span>إجمالي السعر (ل.س)</span><strong id="viewerTotalSYR">0 ل.س</strong></div><div class="total-card total-blue"><span>إجمالي السعر ($)</span><strong id="viewerTotalUSD">0 $</strong></div></div>
+                    </td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
           </div>
         </section>
 
+        <!-- الجرد -->
         <section data-viewer-panel="inventory" hidden>
-          <div class="card dashboard-card"><div class="section-heading section-heading-split"><div class="section-heading-main"><span class="section-icon">▥</span><div><h2>الجرد والمبيعات</h2><p>بيانات شركتك حصراً</p></div></div><button class="btn btn-primary btn-sm" id="viewerExportInventory">تصدير Excel</button></div>
-            <div class="table-responsive"><table><thead><tr><th>الصنف</th><th>اللون</th><th>المقاس</th><th>الكلية</th><th>محجوز توصيل</th><th>محجوز شحن</th><th>المباعة</th><th>المؤجلة</th><th>المرتجع</th><th>الإلغاء</th><th>المتبقية</th></tr></thead><tbody id="viewerInventoryBody"></tbody></table></div>
+          <div class="card dashboard-card">
+            <div class="section-heading section-heading-split">
+              <div class="section-heading-main"><span class="section-icon">▥</span>
+                <div><h2>الجرد والمبيعات</h2><p>بيانات شركتك حصراً</p></div>
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table>
+                <thead><tr><th>الصنف</th><th>اللون</th><th>المقاس</th><th>الكلية</th><th>محجوز توصيل</th><th>محجوز شحن</th><th>المباعة</th><th>المؤجلة</th><th>المرتجع</th><th>الإلغاء</th><th>المتبقية</th></tr></thead>
+                <tbody id="viewerInventoryBody"></tbody>
+              </table>
+            </div>
           </div>
         </section>
       </div>
     </main>
   </div>
   <div id="notificationArea"></div>
-  <script src="js/dashboard-ui.js"></script><script src="js/auth.js"></script><script src="js/instagram-viewer.js"></script>
+  <script src="js/dashboard-ui.js?v=20260901.1"></script>
+  <script src="js/auth.js?v=20260901.1"></script>
+  <script src="js/instagram-viewer.js?v=20260901.5"></script>
 </body>
 </html>
