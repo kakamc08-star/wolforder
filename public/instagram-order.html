@@ -6,7 +6,7 @@
   <meta name="description" content="إنشاء طلب Instagram سريع وآمن">
   <title>طلب Instagram | WolfOrder</title>
   <link rel="stylesheet" href="/css/style.css?v=20260901.1">
-  <link rel="stylesheet" href="/css/instagram.css?v=20260901.4">
+  <link rel="stylesheet" href="/css/instagram.css?v=20260903.1">
   <meta name="theme-color" content="#4c1d95">
 </head>
 <body class="storefront-page">
@@ -27,28 +27,20 @@
           <h2><span class="storefront-step">01</span> بيانات الزبون</h2>
           <div class="storefront-grid">
             <div class="storefront-field"><label for="customerName">الاسم *</label><input id="customerName" autocomplete="name" required></div>
-            <div class="storefront-field"><label for="customerNumber">رقم الموبايل *</label><input id="customerNumber" type="tel" inputmode="tel" autocomplete="tel" required></div>
+            <div class="storefront-field"><label for="customerNumber">رقم العميل *</label><input id="customerNumber" type="tel" inputmode="numeric" autocomplete="tel" dir="ltr" maxlength="10" pattern="[0-9]{10}" required aria-describedby="customerNumberHint"><small id="customerNumberHint">أدخل 10 أرقام فقط</small></div>
             <div class="storefront-field full"><label for="customerAddress">العنوان *</label><textarea id="customerAddress" rows="2" autocomplete="street-address" required></textarea></div>
           </div>
         </section>
 
         <section class="storefront-card">
-          <h2><span class="storefront-step">02</span> نوع الطلب</h2>
-          <div class="order-kind-grid">
-            <label class="order-kind"><input type="radio" name="orderType" value="توصيل" checked><span class="order-kind-copy"><strong>توصيل</strong><small>استلام عبر كابتن التوصيل</small></span><span class="order-kind-check">✓</span></label>
-            <label class="order-kind"><input type="radio" name="orderType" value="شحن"><span class="order-kind-copy"><strong>شحن</strong><small>إرسال إلى شركة الشحن</small></span><span class="order-kind-check">✓</span></label>
-          </div>
-        </section>
-
-        <section class="storefront-card">
-          <h2><span class="storefront-step">03</span> الأصناف</h2>
+          <h2><span class="storefront-step">02</span> الأصناف</h2>
           <p>يمكنك اختيار أكثر من صنف ضمن نفس الطلب.</p>
           <div id="storefrontItems"></div>
           <button class="storefront-add" id="addStorefrontItem" type="button">+ إضافة صنف آخر</button>
         </section>
 
         <section class="storefront-card">
-          <h2><span class="storefront-step">04</span> المراجعة والتأكيد</h2>
+          <h2><span class="storefront-step">03</span> المراجعة والتأكيد</h2>
           <div class="storefront-field"><label for="customerNote">ملاحظة (اختياري)</label><textarea id="customerNote" rows="2" placeholder="أضف أي تفاصيل تساعدنا على تجهيز طلبك"></textarea></div>
           <div class="storefront-total"><span>إجمالي سعر الطلب بالكامل</span><strong id="storefrontTotal">0</strong></div>
           <div id="storefrontMessage" aria-live="polite"></div>
@@ -64,6 +56,6 @@
     </section>
     <footer class="storefront-footer">تجربة طلب بسيطة وآمنة عبر <strong>WOLFORDER</strong></footer>
   </main>
-  <script src="/js/instagram-order.js?v=20260901.2"></script>
+  <script src="/js/instagram-order.js?v=20260903.1"></script>
 </body>
 </html>

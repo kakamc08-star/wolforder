@@ -51,6 +51,23 @@ function setStorefrontMessage(message = '', type = 'error') {
     : '';
 }
 
+function normalizeCustomerNumber(value) {
+  return String(value ?? '')
+    .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+    .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+    .replace(/[^0-9]/g, '');
+}
+
+function normalizeCustomerNumberField() {
+  const input = document.getElementById('customerNumber');
+  if (!input) return '';
+  const normalized = normalizeCustomerNumber(input.value);
+  input.dataset.phoneTooLong = normalized.length > 10 ? 'true' : 'false';
+  const limited = normalized.slice(0, 10);
+  if (input.value !== limited) input.value = limited;
+  return limited;
+}
+
 function getProduct(productId) {
   return storefrontState.products.find((product) => product.product_id === productId);
 }
@@ -198,18 +215,22 @@ async function submitStorefrontOrder(event) {
   if (storefrontState.submitting) return;
 
   const customerName = document.getElementById('customerName').value.trim();
-  const customerNumber = document.getElementById('customerNumber').value.trim();
+  const customerNumber = normalizeCustomerNumberField();
   const address = document.getElementById('customerAddress').value.trim();
   const note = document.getElementById('customerNote').value.trim();
-  const orderType = document.querySelector('input[name="orderType"]:checked')?.value;
   const selectedItems = collectItems();
+
+  if (customerNumberInput.dataset.phoneTooLong === 'true' || !/^\d{10}$/.test(customerNumber)) {
+    setStorefrontMessage('رقم العميل يجب أن يتكون من 10 أرقام');
+    return;
+  }
 
   const invalidItems = !selectedItems.length || selectedItems.some((item) => (
     !item.product || !item.variantId || !Number.isInteger(item.quantity) || item.quantity < 1
   ));
   const currencies = unique(selectedItems.filter((item) => item.product).map((item) => item.product.currency));
 
-  if (!customerName || !customerNumber || !address || !orderType || invalidItems || currencies.length > 1) {
+  if (!customerName || !address || invalidItems || currencies.length > 1) {
     setStorefrontMessage('يرجى التأكد من تعبئة جميع البيانات المطلوبة قبل تأكيد الطلب.');
     return;
   }
@@ -229,7 +250,7 @@ async function submitStorefrontOrder(event) {
         customerNumber,
         address,
         note,
-        orderType,
+        orderType: 'توصيل',
         idempotencyKey: storefrontState.idempotencyKey,
         items: selectedItems.map((item) => ({
           variantId: item.variantId,
@@ -282,4 +303,16 @@ async function initializeStorefront() {
 
 storefrontElements.addItem.addEventListener('click', addStorefrontItem);
 storefrontElements.form.addEventListener('submit', submitStorefrontOrder);
+const customerNumberInput = document.getElementById('customerNumber');
+customerNumberInput.addEventListener('input', normalizeCustomerNumberField);
+customerNumberInput.addEventListener('blur', normalizeCustomerNumberField);
+customerNumberInput.addEventListener('paste', (event) => {
+  event.preventDefault();
+  const pastedText = event.clipboardData?.getData('text') || '';
+  customerNumberInput.value = normalizeCustomerNumber(pastedText);
+  customerNumberInput.dispatchEvent(new Event('input', { bubbles: true }));
+  if (customerNumberInput.dataset.phoneTooLong === 'true') {
+    setStorefrontMessage('رقم العميل يجب أن يتكون من 10 أرقام');
+  }
+});
 initializeStorefront();

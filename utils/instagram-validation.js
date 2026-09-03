@@ -1,6 +1,8 @@
 'use strict';
 
-const ORDER_TYPES = new Set(['توصيل', 'شحن']);
+// Instagram currently supports delivery only. Legacy shipping rows remain in
+// the database for history, but must not be accepted by the public form.
+const ORDER_TYPES = new Set(['توصيل']);
 const ORDER_STATUSES = new Set(['قيد المتابعة', 'تم', 'مؤجل', 'ملغي', 'مرتجع']);
 const INVENTORY_BUCKETS = Object.freeze({
   'قيد المتابعة': 'reserved',
@@ -22,7 +24,7 @@ function cleanText(value, maxLength) {
 }
 
 function normalizePhone(value) {
-  return normalizeDigits(value).replace(/[^0-9+]/g, '').slice(0, 16);
+  return normalizeDigits(value).replace(/[^0-9]/g, '');
 }
 
 function validatePublicOrder(body) {
@@ -38,7 +40,7 @@ function validatePublicOrder(body) {
 
   if (website) errors.push('تعذر قبول الطلب');
   if (customerName.length < 2) errors.push('الاسم مطلوب ويجب أن يتكون من حرفين على الأقل');
-  if (!/^\+?\d{8,15}$/.test(customerPhone)) errors.push('رقم الموبايل غير صالح');
+  if (!/^\d{10}$/.test(customerPhone)) errors.push('رقم العميل يجب أن يتكون من 10 أرقام');
   if (address.length < 5) errors.push('العنوان مطلوب ويجب أن يكون واضحاً');
   if (!ORDER_TYPES.has(orderType)) errors.push('نوع الطلب غير صالح');
   if (rawItems.length < 1 || rawItems.length > 20) errors.push('يجب اختيار صنف واحد على الأقل وبحد أقصى 20 صنفاً');
@@ -117,7 +119,7 @@ function sanitizeSearch(value) {
 }
 
 function inventoryBucket(status) {
-  return INVENTORY_BUCKETS[status] || null;
+  return INVENTORY_BUCKETS[status] || (status === 'إلغاء' ? 'released' : null);
 }
 
 module.exports = {

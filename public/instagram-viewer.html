@@ -6,7 +6,7 @@
   <meta name="description" content="حساب مشاهدة Instagram للشركة">
   <title>لوحة الشركة | WolfOrder</title>
   <link rel="stylesheet" href="css/style.css?v=20260901.1">
-  <link rel="stylesheet" href="css/instagram.css?v=20260901.4">
+  <link rel="stylesheet" href="css/instagram.css?v=20260903.1">
   <link rel="icon" href="/favicon.ico">
   <meta name="theme-color" content="#4c1d95">
 </head>
@@ -44,7 +44,7 @@
             <button class="viewer-home-card" data-open-viewer="orders">
               <span>📦</span>
               <strong>طلبات الإنستغرام</strong>
-              <small>مشاهدة طلبات التوصيل والشحن وحالة تسليمها</small>
+              <small>مشاهدة طلبات التوصيل وحالتها</small>
             </button>
             <button class="viewer-home-card" data-open-viewer="inventory">
               <span>📊</span>
@@ -68,13 +68,6 @@
               <div class="ig-stat"><span>إجمالي المعروض</span><strong id="viewerVisibleCount">0</strong></div>
             </div>
 
-            <!-- تبويبات النوع -->
-            <div class="ig-type-tabs">
-              <button class="ig-type-tab active" data-viewer-type="">الكل</button>
-              <button class="ig-type-tab" data-viewer-type="توصيل">توصيل</button>
-              <button class="ig-type-tab" data-viewer-type="شحن">شحن</button>
-            </div>
-
             <!-- مربعات الحالات السريعة -->
             <div class="status-quick-boxes" id="viewerStatusQuickBoxes">
               <button class="status-quick-box active" data-status="">الكل</button>
@@ -95,11 +88,11 @@
 
             <div class="table-responsive ig-orders-wrap">
               <table class="ig-orders-table">
-                <thead><tr><th>العداد</th><th>رقم الطلب</th><th>نوع الطلب</th><th>محتويات الطلب</th><th>اسم العميل</th><th>رقم العميل</th><th>العنوان</th><th>السعر</th><th>الحالة</th><th>تسليم الشحن</th><th>التاريخ</th></tr></thead>
+                <thead><tr><th>العداد</th><th>رقم الطلب</th><th>نوع الطلب</th><th>محتويات الطلب</th><th>اسم العميل</th><th>رقم العميل</th><th>العنوان</th><th>السعر</th><th>الحالة</th><th>التاريخ</th></tr></thead>
                 <tbody id="viewerOrdersBody"></tbody>
                 <tfoot id="viewerOrdersFoot">
                   <tr>
-                    <td colspan="11"><div class="totals-grid totals-grid-two"><div class="total-card total-green"><span>إجمالي السعر (ل.س)</span><strong id="viewerTotalSYR">0 ل.س</strong></div><div class="total-card total-blue"><span>إجمالي السعر ($)</span><strong id="viewerTotalUSD">0 $</strong></div></div>
+                    <td colspan="10"><div class="totals-grid totals-grid-two"><div class="total-card total-green"><span>إجمالي السعر (ل.س)</span><strong id="viewerTotalSYR">0 ل.س</strong></div><div class="total-card total-blue"><span>إجمالي السعر ($)</span><strong id="viewerTotalUSD">0 $</strong></div></div>
                     </td>
                   </tr>
                 </tfoot>
@@ -118,7 +111,7 @@
             </div>
             <div class="table-responsive">
               <table>
-                <thead><tr><th>الصنف</th><th>اللون</th><th>المقاس</th><th>الكلية</th><th>محجوز توصيل</th><th>محجوز شحن</th><th>المباعة</th><th>المؤجلة</th><th>المرتجع</th><th>الإلغاء</th><th>المتبقية</th></tr></thead>
+                <thead><tr><th>الصنف</th><th>اللون</th><th>المقاس</th><th>الكلية</th><th>محجوز التوصيل</th><th>المباعة</th><th>المؤجلة</th><th>المرتجع</th><th>الإلغاء</th><th>المتبقية</th></tr></thead>
                 <tbody id="viewerInventoryBody"></tbody>
               </table>
             </div>
@@ -130,6 +123,6 @@
   <div id="notificationArea"></div>
   <script src="js/dashboard-ui.js?v=20260901.1"></script>
   <script src="js/auth.js?v=20260901.1"></script>
-  <script src="js/instagram-viewer.js?v=20260901.5"></script>
+  <script src="js/instagram-viewer.js?v=20260903.1"></script>
 </body>
 </html>

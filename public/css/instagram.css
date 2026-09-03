@@ -744,8 +744,7 @@ body.dashboard-page.instagram-theme {
   min-width: 220px;
 }
 
-.instagram-theme .ig-orders-table td[data-label="السائق/التسليم"],
-.instagram-theme .ig-orders-table td[data-label="تسليم الشحن"] {
+.instagram-theme .ig-orders-table td[data-label="السائق"] {
   min-width: 155px;
   white-space: normal;
   line-height: 1.6;
@@ -803,16 +802,37 @@ body.dashboard-page.instagram-theme {
   white-space: nowrap;
 }
 
+/* مصدر الطلب في لوحة السائق: اللون يوضح القناة دون تغيير القيمة المخزنة. */
+.role-driver .source-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 27px;
+  padding: 4px 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.role-driver .source-badge.source-basic {
+  color: #174ea6;
+  border-color: #b8d4ff;
+  background: #e8f1ff;
+}
+
+.role-driver .source-badge.source-instagram {
+  color: #fff;
+  border-color: #65172f;
+  background: #7d1f3f;
+}
+
 .instagram-theme .order-type-delivery {
   color: #106849;
   border-color: #bfe7d4;
   background: #eafaf1;
-}
-
-.instagram-theme .order-type-shipping {
-  color: #9a4b18;
-  border-color: #f2d0b3;
-  background: #fff4e9;
 }
 
 .instagram-theme .status-قيد {
@@ -839,16 +859,6 @@ body.dashboard-page.instagram-theme {
   color: #a22937;
   border-color: #f0bdc4;
   background: #fff0f2;
-}
-
-.instagram-theme .shipping-delivered {
-  color: #0f704f;
-  font-weight: 800;
-}
-
-.instagram-theme .shipping-pending {
-  color: #9a4b18;
-  font-weight: 750;
 }
 
 .instagram-theme .highlight-new {
@@ -909,7 +919,12 @@ body.dashboard-page.instagram-theme {
 .instagram-theme .total-orange strong { color: #d36a21; }
 
 /* ==================== بقية أقسام لوحة المدير ==================== */
-.instagram-theme .ig-card-grid,
+.instagram-theme .ig-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
 .instagram-theme .viewer-home-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -926,7 +941,9 @@ body.dashboard-page.instagram-theme {
 }
 
 .instagram-theme .ig-mini-card {
+  min-width: 0;
   padding: 17px;
+  overflow-wrap: anywhere;
 }
 
 .instagram-theme .ig-mini-card h3 {
@@ -1042,6 +1059,98 @@ body.dashboard-page.instagram-theme {
   border: 1px dashed #e0b6cc;
   border-radius: 12px;
   background: #fff7fb;
+}
+
+.instagram-theme .ig-edit-items-section {
+  min-width: 0;
+}
+
+.instagram-theme .ig-edit-items-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 9px;
+}
+
+.instagram-theme .ig-edit-items-heading label {
+  margin: 0;
+}
+
+.instagram-theme .ig-edit-items {
+  display: grid;
+  gap: 10px;
+}
+
+.instagram-theme .ig-edit-item-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(150px, .7fr) minmax(150px, .8fr) auto;
+  gap: 9px;
+  align-items: end;
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid var(--ig-line);
+  border-radius: 13px;
+  background: var(--ig-surface-soft);
+}
+
+.instagram-theme .ig-edit-item-row .form-group {
+  min-width: 0;
+  margin: 0;
+}
+
+.instagram-theme .ig-edit-item-row select,
+.instagram-theme .ig-edit-item-row input {
+  min-width: 0;
+  width: 100%;
+}
+
+.instagram-theme .ig-edit-quantity-stepper {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: 5px;
+}
+
+.instagram-theme .ig-edit-quantity-stepper button {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--ig-line-strong);
+  border-radius: 9px;
+  color: var(--ig-purple);
+  background: #fff;
+  font-size: 20px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.instagram-theme .ig-edit-item-summary {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: var(--ig-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.instagram-theme .ig-edit-item-summary strong {
+  color: var(--ig-ink);
+  white-space: nowrap;
+}
+
+.instagram-theme .ig-edit-item-remove {
+  min-height: 35px;
+  white-space: nowrap;
+}
+
+.instagram-theme .ig-edit-items-hint {
+  display: block;
+  margin-top: 8px;
+  color: var(--ig-muted);
+  line-height: 1.6;
 }
 
 /* ==================== النوافذ والتنبيهات ==================== */
@@ -1491,73 +1600,6 @@ body.storefront-page {
   border-color: var(--ig-pink);
   outline: none;
   box-shadow: 0 0 0 4px rgba(193, 53, 132, .1);
-}
-
-.order-kind-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 11px;
-}
-
-.order-kind {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 72px;
-  padding: 12px 14px;
-  border: 1px solid #dce3ed;
-  border-radius: 15px;
-  cursor: pointer;
-  transition: border-color .18s ease, background .18s ease, box-shadow .18s ease;
-}
-
-.order-kind:has(input:checked) {
-  border-color: #d88db3;
-  background: #fff6fa;
-  box-shadow: 0 8px 20px rgba(193, 53, 132, .1);
-}
-
-.order-kind input {
-  width: 18px;
-  height: 18px;
-  margin: 0;
-  accent-color: var(--ig-pink);
-}
-
-.order-kind-copy {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.order-kind-copy strong {
-  color: #1b273c;
-  font-size: 14px;
-}
-
-.order-kind-copy small {
-  color: #7a8799;
-  font-size: 10px;
-}
-
-.order-kind-check {
-  display: grid;
-  width: 23px;
-  height: 23px;
-  margin-inline-start: auto;
-  place-items: center;
-  border-radius: 50%;
-  color: transparent;
-  background: #eef1f5;
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.order-kind:has(input:checked) .order-kind-check {
-  color: #fff;
-  background: var(--ig-pink);
 }
 
 .storefront-item {
@@ -2129,7 +2171,12 @@ body.login-page.instagram-login-page {
   .instagram-theme .product-admin-head,
   .instagram-theme .product-variant-line,
   .instagram-theme .variant-builder-row,
-  .instagram-theme .variant-edit-row {
+  .instagram-theme .variant-edit-row,
+  .instagram-theme .ig-edit-item-row {
+    grid-template-columns: 1fr;
+  }
+
+  .instagram-theme .ig-card-grid {
     grid-template-columns: 1fr;
   }
 
@@ -2159,7 +2206,6 @@ body.login-page.instagram-login-page {
   }
 
   .storefront-grid,
-  .order-kind-grid,
   .storefront-item-grid {
     grid-template-columns: 1fr;
   }
@@ -2245,8 +2291,7 @@ body.login-page.instagram-login-page {
   .instagram-theme .ig-orders-table td.text-wrap-column,
   .instagram-theme .ig-orders-table td[data-label="العنوان"],
   .instagram-theme .ig-orders-table td[data-label="ملاحظة"],
-  .instagram-theme .ig-orders-table td[data-label="السائق/التسليم"],
-  .instagram-theme .ig-orders-table td[data-label="تسليم الشحن"] {
+  .instagram-theme .ig-orders-table td[data-label="السائق"] {
     white-space: normal;
   }
 
@@ -2386,10 +2431,6 @@ body.login-page.instagram-login-page {
     white-space: nowrap;
   }
 
-  .role-instagram-viewer .ig-orders-table tbody td.shipping-delivery-empty {
-    display: none !important;
-  }
-
   .role-instagram-viewer .ig-orders-table tbody td[data-label="محتويات الطلب"] {
     align-items: start;
   }
@@ -2452,8 +2493,7 @@ body.login-page.instagram-login-page {
   .instagram-theme .ig-orders-table td[data-label="محتويات الطلب"],
   .instagram-theme .ig-orders-table td[data-label="العنوان"],
   .instagram-theme .ig-orders-table td[data-label="ملاحظة"],
-  .instagram-theme .ig-orders-table td[data-label="السائق/التسليم"],
-  .instagram-theme .ig-orders-table td[data-label="تسليم الشحن"] {
+  .instagram-theme .ig-orders-table td[data-label="السائق"] {
     min-width: 0;
     white-space: normal;
     overflow-wrap: anywhere;
@@ -2610,5 +2650,3 @@ body.login-page.instagram-login-page {
     transition-duration: .01ms !important;
   }
 }
-
-

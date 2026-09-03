@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wolforder-pwa-v6-instagram';
+const CACHE_NAME = 'wolforder-pwa-v7-instagram-edit';
 const APP_SHELL = [
   '/login.html',
   '/admin.html',

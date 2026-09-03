@@ -11,8 +11,8 @@ const igState = {
   inventoryProducts: [],
   inventory: [],
   reports: [],
+  orderEditProducts: [],
   selectedOrders: new Set(),
-  orderType: '',
   loadedSections: new Set(['orders']),
   previousOrderIds: new Set()
 };
@@ -157,7 +157,6 @@ function getOrderFilterQuery() {
     const value = document.getElementById(id)?.value;
     if (value) params.set(key, value);
   });
-  if (igState.orderType) params.set('orderType', igState.orderType);
   return params.toString();
 }
 
@@ -252,7 +251,7 @@ function orderItemsHtml(items = []) {
 }
 
 function orderActionHtml(order) {
-  const assignBtn = (order.order_type === 'توصيل' && !order.driver_id)
+  const assignBtn = !order.driver_id
     ? `<button class="btn btn-sm btn-secondary" data-action="assign">تعيين</button>`
     : '';
   const editBtn = `<button class="btn btn-sm btn-primary" data-action="edit">تعديل</button>`;
@@ -299,7 +298,7 @@ function renderInstagramOrders(newOrderIds = new Set()) {
       <td data-label="الرقم التسلسلي">${igEscape(order.serial_number || order.serialNumber || '')}</td>
       <td data-label="العداد">${index + 1}</td>
       <td data-label="رقم الطلب"><span class="ig-order-number">#${igEscape(order.order_number)}</span></td>
-      <td data-label="نوع الطلب"><span class="order-type-badge ${order.order_type === 'توصيل' ? 'order-type-delivery' : 'order-type-shipping'}">${igEscape(order.order_type)}</span></td>
+      <td data-label="نوع الطلب"><span class="order-type-badge order-type-delivery">توصيل</span></td>
       <td class="text-wrap-column" data-label="محتويات الطلب">${orderItemsHtml(order.items)}</td>
       <td data-label="اسم العميل">${igEscape(order.customer_name)}</td>
       <td data-label="رقم العميل"><a href="tel:${igEscape(order.customer_number)}">${igEscape(order.customer_number)}</a></td>
@@ -308,7 +307,7 @@ function renderInstagramOrders(newOrderIds = new Set()) {
       <td data-label="نسبة">${order.ratio ? igFormatNumber(order.ratio) : '-'}</td>
       <td data-label="الحالة"><span class="status-badge status-${igEscape(order.status)}">${igEscape(order.status)}</span></td>
       <td class="text-wrap-column" data-label="ملاحظة">${igEscape(order.note || '-')}</td>
-      <td data-label="السائق/التسليم">${order.order_type === 'توصيل' ? igEscape(order.driver_name || 'بدون سائق') : (order.shipping_delivery_status === 'delivered' ? `تم التسليم لـ ${igEscape(order.company_name)}<br>${igFormatDate(order.shipping_delivered_at, true)}` : 'بانتظار التسليم للشركة')}</td>
+      <td data-label="السائق">${igEscape(order.driver_name || 'بدون سائق')}</td>
       <td data-label="الشركة">${igEscape(order.company_name)}</td>
       <td data-label="التاريخ">${igFormatDate(order.created_at, true)}</td>
       <td data-label="إجراء">${orderActionHtml(order)}</td>
@@ -335,12 +334,6 @@ function updateBulkBar() {
 }
 
 function updateBulkActionOptions() {
-  const selectedOrders = igState.orders.filter(o => igState.selectedOrders.has(o.id));
-  const hasShipping = selectedOrders.some(o => o.order_type === 'شحن');
-  const shippingOption = document.querySelector('#igBulkAction option[value="shipping_delivered"]');
-  if (shippingOption) {
-    shippingOption.style.display = hasShipping ? '' : 'none';
-  }
   const action = document.getElementById('igBulkAction').value;
   document.getElementById('igBulkStatusGroup').style.display = action === 'status' ? 'inline-block' : 'none';
   document.getElementById('igBulkDriverGroup').style.display = action === 'driver' ? 'inline-block' : 'none';
@@ -379,7 +372,7 @@ document.getElementById('instagramOrdersBody').addEventListener('click', async (
     if (button.dataset.action === 'assign') {
       openAssignModal(order);
     } else if (button.dataset.action === 'edit') {
-      openEditOrderModal(order);
+      await openEditOrderModal(order);
     } else if (button.dataset.action === 'print') {
       printInstagramOrders([order]);
     } else if (button.dataset.action === 'delete') {
@@ -428,15 +421,131 @@ document.querySelectorAll('[data-close-modal]').forEach(btn => {
   });
 });
 
-function openEditOrderModal(order) {
+function getEditableInstagramVariants() {
+  return igState.orderEditProducts.flatMap((product) => (
+    (product.variants || []).map((variant) => ({
+      ...variant,
+      product_id: product.id,
+      product_name: product.name,
+      unit_price: product.unit_price,
+      currency: product.currency || 'ل.س',
+      product_status: product.status
+    }))
+  ));
+}
+
+function getEditableInstagramVariant(variantId) {
+  return getEditableInstagramVariants().find((variant) => variant.id === variantId) || null;
+}
+
+function editableVariantOptions(selectedId = '', snapshot = {}) {
+  const variants = getEditableInstagramVariants();
+  const selectedExists = variants.some((variant) => variant.id === selectedId);
+  const legacyOption = selectedId && !selectedExists
+    ? `<option value="${igEscape(selectedId)}" selected>${igEscape(snapshot.product_name || 'الصنف الحالي')} — ${igEscape(snapshot.color || '')} / ${igEscape(snapshot.size || '')}</option>`
+    : '';
+  return `<option value="">اختر الصنف واللون والمقاس</option>${legacyOption}${variants.map((variant) => (
+    `<option value="${igEscape(variant.id)}" ${variant.id === selectedId ? 'selected' : ''}>${igEscape(variant.product_name)} — ${igEscape(variant.color)} / ${igEscape(variant.size)}${variant.is_active ? '' : ' (متوقف)'}</option>`
+  )).join('')}`;
+}
+
+function addEditItemRow(item = {}) {
+  const container = document.getElementById('igEditItems');
+  const row = document.createElement('div');
+  row.className = 'ig-edit-item-row';
+  row.innerHTML = `
+    <div class="form-group ig-edit-item-variant-group">
+      <label>الصنف والاختيار</label>
+      <select class="ig-edit-item-variant">${editableVariantOptions(item.variant_id || '', item)} </select>
+    </div>
+    <div class="form-group ig-edit-item-quantity-group">
+      <label>الكمية</label>
+      <div class="ig-edit-quantity-stepper">
+        <button type="button" data-item-action="decrease" aria-label="إنقاص الكمية">−</button>
+        <input class="ig-edit-item-quantity" type="number" min="1" max="1000" step="1" value="${Math.max(1, Number(item.quantity) || 1)}" inputmode="numeric">
+        <button type="button" data-item-action="increase" aria-label="زيادة الكمية">+</button>
+      </div>
+    </div>
+    <div class="ig-edit-item-summary">
+      <span>سعر القطعة: <strong data-edit-item-unit-price>-</strong></span>
+      <span>الإجمالي: <strong data-edit-item-line-total>-</strong></span>
+    </div>
+    <button type="button" class="btn btn-danger btn-sm ig-edit-item-remove" data-item-action="remove">حذف الصنف</button>`;
+  container.appendChild(row);
+  updateEditItemsSummary();
+}
+
+function renderEditItems(items = []) {
+  const container = document.getElementById('igEditItems');
+  container.innerHTML = '';
+  (items.length ? items : [{}]).forEach((item) => addEditItemRow(item));
+}
+
+function updateEditItemsSummary() {
+  const priceInput = document.getElementById('igEditTotalPrice');
+  const rows = [...document.querySelectorAll('#igEditItems .ig-edit-item-row')];
+  let total = 0;
+  let currency = '';
+  let mixedCurrency = false;
+
+  rows.forEach((row) => {
+    const variant = getEditableInstagramVariant(row.querySelector('.ig-edit-item-variant')?.value);
+    const quantityInput = row.querySelector('.ig-edit-item-quantity');
+    const quantity = Math.max(1, Math.min(1000, Number(quantityInput?.value) || 1));
+    if (quantityInput) quantityInput.value = quantity;
+    const unitPrice = Number(variant?.unit_price) || 0;
+    const rowCurrency = variant?.currency || '';
+    if (variant) {
+      if (currency && currency !== rowCurrency) mixedCurrency = true;
+      currency ||= rowCurrency;
+      total += unitPrice * quantity;
+    }
+    const unitPriceElement = row.querySelector('[data-edit-item-unit-price]');
+    const lineTotalElement = row.querySelector('[data-edit-item-line-total]');
+    if (unitPriceElement) unitPriceElement.textContent = variant ? `${igFormatNumber(unitPrice)} ${rowCurrency}` : '-';
+    if (lineTotalElement) lineTotalElement.textContent = variant ? `${igFormatNumber(unitPrice * quantity)} ${rowCurrency}` : '-';
+  });
+
+  if (priceInput?.dataset.autoTotal === 'true' && (mixedCurrency || !currency)) {
+    priceInput.dataset.autoTotal = 'false';
+  }
+  if (priceInput?.dataset.autoTotal === 'true' && !mixedCurrency && currency) {
+    priceInput.value = Number.isInteger(total) ? String(total) : total.toFixed(2);
+  }
+}
+
+function collectEditItems() {
+  const quantityByVariant = new Map();
+  for (const row of document.querySelectorAll('#igEditItems .ig-edit-item-row')) {
+    const variantId = row.querySelector('.ig-edit-item-variant')?.value || '';
+    const quantity = Number(row.querySelector('.ig-edit-item-quantity')?.value);
+    if (!variantId) {
+      igNotify('اختر الصنف لكل سطر قبل الحفظ', 'error');
+      return null;
+    }
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 1000) {
+      igNotify('الكمية يجب أن تكون بين 1 و1000', 'error');
+      return null;
+    }
+    const mergedQuantity = (quantityByVariant.get(variantId) || 0) + quantity;
+    if (mergedQuantity > 1000) {
+      igNotify('إجمالي كمية الصنف الواحد يتجاوز الحد المسموح', 'error');
+      return null;
+    }
+    quantityByVariant.set(variantId, mergedQuantity);
+  }
+  return [...quantityByVariant].map(([variant_id, quantity]) => ({ variant_id, quantity }));
+}
+
+async function openEditOrderModal(order) {
+  igState.orderEditProducts = await igApi('/api/instagram/products');
   document.getElementById('igEditOrderId').value = order.id;
   document.getElementById('igEditOrderNumber').value = order.order_number || '';
   document.getElementById('igEditCustomerName').value = order.customer_name || '';
   document.getElementById('igEditCustomerNumber').value = order.customer_number || '';
   document.getElementById('igEditAddress').value = order.address || '';
-  document.getElementById('igEditOrderContents').value = order.order_contents || '';
   document.getElementById('igEditTotalPrice').value = order.total_price || 0;
-  document.getElementById('igEditRatio').value = order.ratio || '';
+  document.getElementById('igEditRatio').value = order.ratio ?? 0;
   document.getElementById('igEditNote').value = order.note || '';
   document.getElementById('igEditStatus').value = order.status || 'قيد المتابعة';
 
@@ -452,45 +561,85 @@ function openEditOrderModal(order) {
       `<option value="${company.id}" ${company.id === order.company_id ? 'selected' : ''}>${igEscape(company.name)}</option>`
     ).join('');
 
+  renderEditItems(order.items || []);
+  const originalItemsTotal = (order.items || []).reduce((sum, item) => (
+    sum + (Number(item.unit_price) || 0) * (Number(item.quantity) || 0)
+  ), 0);
+  const originalCurrencies = new Set((order.items || []).map((item) => (
+    item.currency || getEditableInstagramVariant(item.variant_id)?.currency
+  )).filter(Boolean));
+  const autoTotal = originalCurrencies.size <= 1
+    && (order.items || []).length > 0
+    && Math.abs((Number(order.total_price) || 0) - originalItemsTotal) < 0.01;
+  document.getElementById('igEditTotalPrice').dataset.autoTotal = autoTotal ? 'true' : 'false';
+  updateEditItemsSummary();
   document.getElementById('igEditModal').hidden = false;
 }
+
+document.getElementById('igEditItems').addEventListener('change', updateEditItemsSummary);
+document.getElementById('igEditItems').addEventListener('input', updateEditItemsSummary);
+document.getElementById('igEditItems').addEventListener('click', (event) => {
+  const button = event.target.closest('[data-item-action]');
+  if (!button) return;
+  const row = button.closest('.ig-edit-item-row');
+  const input = row?.querySelector('.ig-edit-item-quantity');
+  if (!row || !input) return;
+  const action = button.dataset.itemAction;
+  if (action === 'remove') {
+    const rows = document.querySelectorAll('#igEditItems .ig-edit-item-row');
+    if (rows.length <= 1) return igNotify('لا يمكن حذف جميع أصناف الطلب', 'error');
+    row.remove();
+  } else if (action === 'increase') {
+    input.value = Math.min(1000, Number(input.value) + 1);
+  } else if (action === 'decrease') {
+    input.value = Math.max(1, Number(input.value) - 1);
+  }
+  updateEditItemsSummary();
+});
+
+document.getElementById('igAddEditItem').addEventListener('click', () => addEditItemRow());
+document.getElementById('igEditTotalPrice').addEventListener('input', (event) => {
+  event.target.dataset.autoTotal = 'false';
+});
 
 document.getElementById('igSaveEditOrder').addEventListener('click', async () => {
   const id = document.getElementById('igEditOrderId').value;
   const originalOrder = igState.orders.find(o => o.id === id);
-  const newStatus = document.getElementById('igEditStatus').value;
-  const driverId = document.getElementById('igEditDriverId').value;
-  const companyId = document.getElementById('igEditCompanyId').value;
-  const ratioValue = document.getElementById('igEditRatio').value;
+  const items = collectEditItems();
+  if (!items) return;
+  const totalPrice = Number(document.getElementById('igEditTotalPrice').value);
+  const ratio = Number(document.getElementById('igEditRatio').value || 0);
+  if (!Number.isFinite(totalPrice) || totalPrice < 0 || !Number.isFinite(ratio) || ratio < 0) {
+    return igNotify('السعر أو النسبة غير صالح', 'error');
+  }
 
+  const saveButton = document.getElementById('igSaveEditOrder');
   const body = {
     order_number: document.getElementById('igEditOrderNumber').value,
     customer_name: document.getElementById('igEditCustomerName').value,
     customer_number: document.getElementById('igEditCustomerNumber').value,
     address: document.getElementById('igEditAddress').value,
-    total_price: Number(document.getElementById('igEditTotalPrice').value) || 0,
+    total_price: totalPrice,
+    ratio,
     note: document.getElementById('igEditNote').value,
-    driver_id: driverId || null,
-    company_id: companyId || null,
-    ratio: ratioValue ? Number(ratioValue) : null
+    status: document.getElementById('igEditStatus').value,
+    driver_id: document.getElementById('igEditDriverId').value || null,
+    company_id: document.getElementById('igEditCompanyId').value || originalOrder?.company_id || null,
+    items,
+    recalculate_total_price: document.getElementById('igEditTotalPrice').dataset.autoTotal === 'true'
   };
 
+  saveButton.disabled = true;
   try {
     await igApi(`/api/instagram/orders/${id}`, { method: 'PATCH', body });
-
-    if (newStatus !== (originalOrder?.status || '')) {
-      await igApi(`/api/instagram/orders/${id}/status`, {
-        method: 'PATCH',
-        body: { status: newStatus, note: body.note || null }
-      });
-    }
-
-    igNotify('تم تعديل الطلب');
+    igNotify('تم حفظ تعديلات الطلب والأصناف');
     closeModal(document.getElementById('igEditModal'));
     await loadInstagramOrders(false);
     if (igState.loadedSections.has('inventory')) await loadInstagramInventory();
   } catch (error) {
     igNotify(error.message, 'error');
+  } finally {
+    saveButton.disabled = false;
   }
 });
 
@@ -522,7 +671,6 @@ document.getElementById('igConfirmAssign').addEventListener('click', async () =>
 document.querySelectorAll('.ig-type-tab').forEach((button) => button.addEventListener('click', () => {
   document.querySelectorAll('.ig-type-tab').forEach((item) => item.classList.remove('active'));
   button.classList.add('active');
-  igState.orderType = button.dataset.type;
   loadInstagramOrders(false);
 }));
 
@@ -545,7 +693,6 @@ igSearchInput.addEventListener('keydown', (event) => {
 });
 document.getElementById('clearInstagramOrderFilters').addEventListener('click', () => {
   ['igOrderSearch', 'igOrderCompany', 'igOrderStatus', 'igOrderDriver', 'igOrderStart', 'igOrderEnd'].forEach((id) => { document.getElementById(id).value = ''; });
-  igState.orderType = '';
   document.querySelectorAll('.ig-type-tab').forEach((item) => item.classList.toggle('active', item.dataset.type === ''));
   loadInstagramOrders(false);
 });
@@ -580,10 +727,6 @@ document.getElementById('igApplyBulkAction').addEventListener('click', async () 
       await igApi('/api/instagram/orders/bulk-company', { method: 'PATCH', body: { ids, companyId } });
       igNotify('تم تعيين الشركة');
       await loadInstagramOrders(false);
-    } else if (action === 'shipping_delivered') {
-      const shippingIds = igState.orders.filter(o => igState.selectedOrders.has(o.id) && o.order_type === 'شحن').map(o => o.id);
-      if (!shippingIds.length) return igNotify('حدد طلب شحن واحداً على الأقل', 'error');
-      await performOrderAction('/api/instagram/orders/shipping-delivered', { ids: shippingIds }, 'تم تسليم طلبات الشحن');
     } else if (action === 'delete') {
       if (!confirm(`هل أنت متأكد من حذف ${ids.length} طلبات نهائياً؟`)) return;
       await igApi('/api/instagram/orders/bulk-delete', { method: 'POST', body: { ids } });
@@ -602,11 +745,6 @@ function printInstagramOrders(orders) {
   const printWindow = window.open('', '_blank', 'width=600,height=400');
 
   const cardsHtml = orders.map((order) => {
-    const isDelivery = order.order_type === 'توصيل';
-    const orderTypeLine = isDelivery
-      ? `<div class="detail-row"><span class="detail-label">أجور التوصيل:</span><span class="detail-value">ضمن دمشق 200 ل.س<br>خارج دمشق 400 ل.س</span></div>`
-      : `<div class="detail-row"><span class="detail-label">نوع الطلب:</span><span class="detail-value">${order.order_type}</span></div>`;
-
     const contentsPlain = order.order_contents || (order.items || []).map(item =>
       `${item.product_name} - ${item.color}/${item.size} × ${item.quantity}`
     ).join('، ');
@@ -620,7 +758,7 @@ function printInstagramOrders(orders) {
       <div class="detail-row"><span class="detail-label">رقم العميل:</span><span class="detail-value">${igEscape(order.customer_number || '-')}</span></div>
       <div class="detail-row"><span class="detail-label">العنوان:</span><span class="detail-value">${igEscape(order.address)}</span></div>
       <div class="detail-row"><span class="detail-label">السعر:</span><span class="detail-value">${igFormatNumber(order.total_price)} ${igEscape(order.currency)}</span></div>
-      ${orderTypeLine}
+      <div class="detail-row"><span class="detail-label">نوع الطلب:</span><span class="detail-value">توصيل</span></div>
       <div class="detail-row"><span class="detail-label">اسم الشركة:</span><span class="detail-value">${igEscape(order.company_name || '-')}</span></div>
       <div class="detail-row"><span class="detail-label">ملاحظة:</span><span class="detail-value">${igEscape(order.note || '-')}</span></div>
       <div class="footer">
@@ -780,7 +918,7 @@ async function loadInstagramInventory() {
     if (document.getElementById('inventoryProduct').value) params.set('productId', document.getElementById('inventoryProduct').value);
     igState.inventory = await igApi(`/api/instagram/inventory?${params}`);
     igState.loadedSections.add('inventory');
-    document.getElementById('instagramInventoryBody').innerHTML = igState.inventory.length ? igState.inventory.map((row) => `<tr><td data-label="الشركة">${igEscape(row.company_name)}</td><td data-label="الصنف">${igEscape(row.product_name)}</td><td data-label="اللون">${igEscape(row.color)}</td><td data-label="المقاس">${igEscape(row.size)}</td><td data-label="الكلية">${row.quantity_total}</td><td data-label="محجوز توصيل">${row.reserved_delivery}</td><td data-label="محجوز شحن">${row.reserved_shipping}</td><td data-label="المباعة">${row.sold}</td><td data-label="المؤجلة">${row.postponed}</td><td data-label="المرتجع">${row.returned}</td><td data-label="الإلغاء">${row.cancelled}</td><td data-label="المتبقية"><strong>${row.remaining}</strong></td></tr>`).join('') : '<tr><td colspan="12">لا توجد بيانات جرد.</td></tr>';
+    document.getElementById('instagramInventoryBody').innerHTML = igState.inventory.length ? igState.inventory.map((row) => `<tr><td data-label="الشركة">${igEscape(row.company_name)}</td><td data-label="الصنف">${igEscape(row.product_name)}</td><td data-label="اللون">${igEscape(row.color)}</td><td data-label="المقاس">${igEscape(row.size)}</td><td data-label="الكلية">${row.quantity_total}</td><td data-label="محجوز التوصيل">${row.reserved_delivery}</td><td data-label="المباعة">${row.sold}</td><td data-label="المؤجلة">${row.postponed}</td><td data-label="المرتجع">${row.returned}</td><td data-label="الإلغاء">${row.cancelled}</td><td data-label="المتبقية"><strong>${row.remaining}</strong></td></tr>`).join('') : '<tr><td colspan="11">لا توجد بيانات جرد.</td></tr>';
   } catch (error) { igNotify(error.message, 'error'); }
 }
 document.getElementById('loadInstagramInventory').addEventListener('click', loadInstagramInventory);

@@ -3,9 +3,10 @@ const bcrypt = require('bcryptjs');
 const { randomUUID } = require('crypto');
 const supabase = require('../config/db');
 const authenticateToken = require('../middleware/auth');
+const { normalizePhone } = require('../utils/instagram-validation');
 
 const router = express.Router();
-const INSTAGRAM_ORDER_TYPES = new Set(['توصيل', 'شحن']);
+const INSTAGRAM_ORDER_TYPES = new Set(['توصيل']);
 const INSTAGRAM_STATUSES = new Set(['قيد المتابعة', 'تم', 'مؤجل', 'مرتجع', 'إلغاء']);
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const publicOrderAttempts = new Map();
@@ -66,6 +67,10 @@ function parseNumber(value, fallback = 0) {
   return Number.isFinite(number) ? number : fallback;
 }
 
+function normalizeInstagramPhone(value) {
+  return normalizePhone(value);
+}
+
 function isUuid(value) {
   return UUID_PATTERN.test(String(value || ''));
 }
@@ -122,8 +127,17 @@ function summarizeItems(items = []) {
 
 function normalizeInstagramOrder(order) {
   const items = Array.isArray(order.items) ? order.items : [];
+  const {
+    shipping_delivery_status: _shippingDeliveryStatus,
+    shipping_delivered_at: _shippingDeliveredAt,
+    shipping_delivered_by: _shippingDeliveredBy,
+    shipping_batch_id: _shippingBatchId,
+    shipping_partner: _shippingPartner,
+    shipping_handed_at: _shippingHandedAt,
+    ...safeOrder
+  } = order;
   return {
-    ...order,
+    ...safeOrder,
     items,
     order_source: 'instagram',
     price: order.total_price,
@@ -148,7 +162,6 @@ function inventoryToExcelXml(rows) {
     ['size', 'المقاس'],
     ['quantity_total', 'الكمية الكلية'],
     ['reserved_delivery', 'المحجوزة من التوصيل'],
-    ['reserved_shipping', 'المحجوزة من الشحن'],
     ['sold', 'المباعة'],
     ['postponed', 'المؤجلة'],
     ['returned', 'المرتجع'],
@@ -205,7 +218,7 @@ async function loadInventoryForUser(user, filters = {}) {
 
   const { data, error } = await query;
   if (error) throw error;
-  return data || [];
+  return (data || []).map(({ reserved_shipping: _reservedShipping, ...row }) => row);
 }
 
 // =========================================================
@@ -238,14 +251,20 @@ router.get('/storefront/:slug', async (req, res) => {
 router.post('/storefront/:slug/orders', publicRateLimit, async (req, res) => {
   try {
     const customerName = cleanText(req.body.customerName, 200);
-    const customerNumber = cleanText(req.body.customerNumber, 50);
+    const customerNumber = normalizeInstagramPhone(req.body.customerNumber);
     const address = cleanText(req.body.address, 500);
     const note = cleanText(req.body.note, 1000);
-    const orderType = cleanText(req.body.orderType, 20);
+    const requestedOrderType = cleanText(req.body.orderType, 20);
+    const orderType = 'توصيل';
     const idempotencyKey = cleanText(req.body.idempotencyKey, 50);
     const items = Array.isArray(req.body.items) ? req.body.items : [];
 
-    if (!customerName || !customerNumber || !address || !INSTAGRAM_ORDER_TYPES.has(orderType)) {
+    if (!/^[0-9]{10}$/.test(customerNumber)) {
+      return res.status(400).json({ message: 'رقم العميل يجب أن يتكون من 10 أرقام' });
+    }
+
+    if (!customerName || !address
+      || (requestedOrderType && !INSTAGRAM_ORDER_TYPES.has(requestedOrderType))) {
       return res.status(400).json({
         message: 'يرجى التأكد من تعبئة جميع البيانات المطلوبة قبل تأكيد الطلب.'
       });
@@ -352,6 +371,7 @@ router.get('/orders', requireRole('admin', 'instagram_viewer', 'driver'), async 
     let query = supabase
       .from('instagram_orders')
       .select('*, items:instagram_order_items(*)')
+      .eq('order_type', 'توصيل')
       .eq('is_archived', false)
       .order('created_at', { ascending: false });
 
@@ -415,6 +435,7 @@ router.get('/orders/report', requireRole('admin'), async (req, res) => {
           )
         )
       `)
+      .eq('order_type', 'توصيل')
       .eq('is_archived', false)
       .order('created_at', { ascending: false });
 
@@ -500,6 +521,7 @@ router.get('/orders/export', requireRole('admin'), async (req, res) => {
           )
         )
       `)
+      .eq('order_type', 'توصيل')
       .eq('is_archived', false)
       .order('created_at', { ascending: false });
 
@@ -563,6 +585,7 @@ router.get('/orders/:id', requireRole('admin', 'instagram_viewer', 'driver'), as
       .from('instagram_orders')
       .select('*, items:instagram_order_items(*)')
       .eq('id', req.params.id)
+      .eq('order_type', 'توصيل')
       .eq('is_archived', false);
 
     if (req.user.role === 'instagram_viewer') {
@@ -718,22 +741,6 @@ router.patch('/orders/unassign-driver', requireRole('admin'), async (req, res) =
   }
 });
 
-router.patch('/orders/shipping-delivered', requireRole('admin'), async (req, res) => {
-  try {
-    const ids = Array.isArray(req.body.ids) ? req.body.ids : [];
-    if (!validIdList(ids)) return res.status(400).json({ message: 'لم يتم تحديد طلبات شحن صالحة' });
-    const { data, error } = await supabase.rpc('mark_instagram_shipping_delivered_atomic', {
-      p_order_ids: ids,
-      p_actor_user_id: req.user.id
-    });
-    if (error) throw error;
-    broadcastInstagramUpdate(req);
-    res.json(data);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-});
-
 router.patch('/orders/archive', requireRole('admin'), async (req, res) => {
   try {
     const ids = Array.isArray(req.body.ids) ? req.body.ids : [];
@@ -792,7 +799,7 @@ router.patch('/orders/:id/status', requireRole('admin', 'driver'), async (req, r
   }
 });
 
-// ✅ المسار الجديد: تعديل تفاصيل الطلب (للمدير فقط)
+// تعديل تفاصيل الطلب والأصناف في معاملة واحدة (للمدير فقط).
 router.patch('/orders/:id', requireRole('admin'), async (req, res) => {
   try {
     const orderId = req.params.id;
@@ -800,60 +807,102 @@ router.patch('/orders/:id', requireRole('admin'), async (req, res) => {
       return res.status(400).json({ message: 'معرف الطلب غير صالح' });
     }
 
-    // الحقول المسموح بتعديلها مباشرة
-    const allowedFields = [
+    const hasOwn = (field) => Object.prototype.hasOwnProperty.call(req.body, field);
+    const hasItems = hasOwn('items');
+    const editableFields = [
       'order_number', 'customer_name', 'customer_number', 'address',
-      'driver_id', 'company_id', 'total_price', 'ratio', 'note'
+      'driver_id', 'company_id', 'total_price', 'ratio', 'note', 'status'
     ];
-    const updates = {};
-    allowedFields.forEach(field => {
-      if (req.body[field] !== undefined) {
-        updates[field] = req.body[field];
-      }
-    });
-
-    if (Object.keys(updates).length === 0) {
+    if (!hasItems && !editableFields.some(hasOwn)) {
       return res.status(400).json({ message: 'لم يتم إرسال أي تعديل' });
     }
 
-    // إذا تم تغيير السائق، اجلب اسمه
-    if (updates.driver_id) {
-      const { data: driver } = await supabase
-        .from('users')
-        .select('name')
-        .eq('id', updates.driver_id)
-        .eq('role', 'driver')
-        .single();
-      if (!driver) return res.status(400).json({ message: 'السائق المحدد غير موجود' });
-      updates.driver_name = driver.name;
-    } else if (updates.driver_id === null) {
-      updates.driver_name = null;
-    }
-
-    // إذا تم تغيير الشركة، اجلب اسمها
-    if (updates.company_id) {
-      const { data: company } = await supabase
-        .from('users')
-        .select('name')
-        .eq('id', updates.company_id)
-        .eq('role', 'company')
-        .single();
-      if (!company) return res.status(400).json({ message: 'الشركة المحددة غير موجودة' });
-      updates.company_name = company.name;
-    } else if (updates.company_id === null) {
-      updates.company_name = null;
-    }
-
-    const { data, error } = await supabase
+    const { data: currentOrder, error: currentOrderError } = await supabase
       .from('instagram_orders')
-      .update(updates)
+      .select('company_id, driver_id')
       .eq('id', orderId)
-      .select()
-      .single();
+      .eq('order_type', 'توصيل')
+      .eq('is_archived', false)
+      .maybeSingle();
+    if (currentOrderError) throw currentOrderError;
+    if (!currentOrder) return res.status(404).json({ message: 'طلب Instagram غير موجود' });
+
+    const companyId = hasOwn('company_id') && isUuid(req.body.company_id)
+      ? req.body.company_id
+      : currentOrder.company_id;
+    const driverId = hasOwn('driver_id')
+      ? (req.body.driver_id && isUuid(req.body.driver_id) ? req.body.driver_id : null)
+      : (currentOrder.driver_id || null);
+
+    if (!isUuid(companyId) || (driverId && !isUuid(driverId))) {
+      return res.status(400).json({ message: 'الشركة أو السائق المحدد غير صالح' });
+    }
+
+    let orderNumber = null;
+    if (hasOwn('order_number') && String(req.body.order_number ?? '').trim() !== '') {
+      const rawOrderNumber = String(req.body.order_number).trim();
+      if (!/^\d+$/.test(rawOrderNumber)) {
+        return res.status(400).json({ message: 'رقم الطلب غير صالح' });
+      }
+      orderNumber = Number(rawOrderNumber);
+      if (!Number.isSafeInteger(orderNumber) || orderNumber < 1) {
+        return res.status(400).json({ message: 'رقم الطلب غير صالح' });
+      }
+    }
+
+    const totalPrice = hasOwn('total_price') && req.body.total_price !== '' && req.body.total_price !== null
+      ? parseNumber(req.body.total_price, -1)
+      : null;
+    const ratio = hasOwn('ratio') && req.body.ratio !== '' && req.body.ratio !== null
+      ? parseNumber(req.body.ratio, -1)
+      : (hasOwn('ratio') ? 0 : null);
+    if ((totalPrice !== null && totalPrice < 0) || (ratio !== null && ratio < 0)) {
+      return res.status(400).json({ message: 'السعر أو النسبة غير صالح' });
+    }
+
+    let items = null;
+    if (hasItems) {
+      if (!Array.isArray(req.body.items) || req.body.items.length < 1 || req.body.items.length > 50) {
+        return res.status(400).json({ message: 'يجب أن يحتوي الطلب على صنف واحد على الأقل' });
+      }
+
+      const quantityByVariant = new Map();
+      for (const item of req.body.items) {
+        const variantId = cleanText(item?.variant_id ?? item?.variantId, 50);
+        const quantity = Number(item?.quantity);
+        if (!isUuid(variantId) || !Number.isInteger(quantity) || quantity < 1 || quantity > 1000) {
+          return res.status(400).json({ message: 'الصنف أو الكمية غير صالحة' });
+        }
+        const mergedQuantity = (quantityByVariant.get(variantId) || 0) + quantity;
+        if (mergedQuantity > 1000) {
+          return res.status(400).json({ message: 'إجمالي كمية الصنف الواحد يتجاوز الحد المسموح' });
+        }
+        quantityByVariant.set(variantId, mergedQuantity);
+      }
+      items = [...quantityByVariant].map(([variant_id, quantity]) => ({ variant_id, quantity }));
+    }
+
+    const { data, error } = await supabase.rpc('update_instagram_order_atomic', {
+      p_order_id: orderId,
+      p_actor_user_id: req.user.id,
+      p_order_number: orderNumber,
+      p_customer_name: hasOwn('customer_name') ? cleanText(req.body.customer_name, 100) : null,
+      p_customer_number: hasOwn('customer_number') ? cleanText(req.body.customer_number, 50) : null,
+      p_address: hasOwn('address') ? cleanText(req.body.address, 300) : null,
+      p_total_price: totalPrice,
+      p_ratio: ratio,
+      p_note: hasOwn('note') ? cleanText(req.body.note, 1000) : null,
+      p_status: hasOwn('status') ? cleanText(req.body.status, 30) : null,
+      p_driver_id: driverId,
+      p_company_id: companyId,
+      p_items: items,
+      p_recalculate_total_price: hasItems && Boolean(req.body.recalculate_total_price)
+    });
 
     if (error) throw error;
 
     broadcastInstagramUpdate(req);
+    if (hasItems) broadcastInstagramUpdate(req, 'INSTAGRAM_INVENTORY_UPDATED');
     res.json(data);
   } catch (error) {
     console.error('Update Instagram order details error:', error);
