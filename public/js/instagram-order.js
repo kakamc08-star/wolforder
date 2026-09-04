@@ -15,11 +15,22 @@ const storefrontElements = {
   items: document.getElementById('storefrontItems'),
   addItem: document.getElementById('addStorefrontItem'),
   total: document.getElementById('storefrontTotal'),
+  deliveryTotal: document.getElementById('storefrontDeliveryTotal'),
+  shippingSummary: document.getElementById('storefrontShippingSummary'),
+  itemsTotal: document.getElementById('storefrontItemsTotal'),
+  shippingFee: document.getElementById('storefrontShippingFee'),
+  finalTotal: document.getElementById('storefrontFinalTotal'),
+  shippingNotice: document.getElementById('shippingNotice'),
+  customerNameLabel: document.getElementById('customerNameLabel'),
+  customerNameHint: document.getElementById('customerNameHint'),
   message: document.getElementById('storefrontMessage'),
   submit: document.getElementById('confirmInstagramOrder'),
   success: document.getElementById('storefrontSuccess'),
-  successTitle: document.getElementById('storefrontSuccessTitle')
+  successTitle: document.getElementById('storefrontSuccessTitle'),
+  successDescription: document.getElementById('storefrontSuccessDescription')
 };
+
+const INSTAGRAM_SHIPPING_FEE = 10000;
 
 function createUuid() {
   if (window.crypto && typeof window.crypto.randomUUID === 'function') {
@@ -195,19 +206,57 @@ function collectItems() {
   });
 }
 
+function getSelectedOrderType() {
+  return document.querySelector('input[name="orderType"]:checked')?.value || 'توصيل';
+}
+
+function updateShippingUi() {
+  const isShipping = getSelectedOrderType() === 'شحن';
+  if (storefrontElements.shippingNotice) storefrontElements.shippingNotice.hidden = !isShipping;
+  if (storefrontElements.shippingSummary) storefrontElements.shippingSummary.hidden = !isShipping;
+  if (storefrontElements.deliveryTotal) storefrontElements.deliveryTotal.hidden = isShipping;
+  if (storefrontElements.customerNameHint) storefrontElements.customerNameHint.hidden = !isShipping;
+  if (storefrontElements.customerNameLabel) {
+    storefrontElements.customerNameLabel.textContent = isShipping ? 'الاسم الثلاثي *' : 'الاسم *';
+  }
+  updateOrderTotal();
+}
+
 function updateOrderTotal() {
+  const isShipping = getSelectedOrderType() === 'شحن';
   const rows = collectItems().filter((item) => item.product);
   const currencies = unique(rows.map((item) => item.product.currency));
   if (!rows.length) {
     storefrontElements.total.textContent = '0';
+    if (storefrontElements.itemsTotal) storefrontElements.itemsTotal.textContent = isShipping ? '0' : '';
+    if (storefrontElements.shippingFee) storefrontElements.shippingFee.textContent = isShipping ? formatMoney(INSTAGRAM_SHIPPING_FEE, 'ل.س') : '';
+    if (storefrontElements.finalTotal) storefrontElements.finalTotal.textContent = isShipping ? '0' : '';
     return;
   }
   if (currencies.length > 1) {
     storefrontElements.total.textContent = 'عملات مختلفة';
+    if (storefrontElements.itemsTotal) storefrontElements.itemsTotal.textContent = isShipping ? 'عملات مختلفة' : '';
+    if (storefrontElements.shippingFee) storefrontElements.shippingFee.textContent = isShipping ? formatMoney(INSTAGRAM_SHIPPING_FEE, 'ل.س') : '';
+    if (storefrontElements.finalTotal) storefrontElements.finalTotal.textContent = isShipping ? 'غير متاح' : '';
     return;
   }
   const total = rows.reduce((sum, item) => sum + Number(item.product.unit_price) * (item.quantity || 0), 0);
-  storefrontElements.total.textContent = formatMoney(total, currencies[0]);
+  const currency = currencies[0];
+  storefrontElements.total.textContent = formatMoney(total, currency);
+  if (storefrontElements.itemsTotal) storefrontElements.itemsTotal.textContent = isShipping ? formatMoney(total, currency) : '';
+  if (storefrontElements.shippingFee) storefrontElements.shippingFee.textContent = isShipping ? formatMoney(INSTAGRAM_SHIPPING_FEE, 'ل.س') : '';
+  if (storefrontElements.finalTotal) {
+    storefrontElements.finalTotal.textContent = !isShipping
+      ? ''
+      : currency === 'ل.س'
+        ? formatMoney(total + INSTAGRAM_SHIPPING_FEE, currency)
+        : 'غير متاح';
+  }
+  if (isShipping && currency !== 'ل.س') {
+    setStorefrontMessage('أجور الشحن محددة بالليرة السورية، لذلك يجب اختيار أصناف مسعّرة بالليرة السورية.', 'error');
+  } else if (storefrontElements.message.querySelector('.storefront-message')?.textContent?.includes('أجور الشحن محددة')) {
+    setStorefrontMessage('');
+  }
 }
 
 async function submitStorefrontOrder(event) {
@@ -218,6 +267,7 @@ async function submitStorefrontOrder(event) {
   const customerNumber = normalizeCustomerNumberField();
   const address = document.getElementById('customerAddress').value.trim();
   const note = document.getElementById('customerNote').value.trim();
+  const orderType = getSelectedOrderType();
   const selectedItems = collectItems();
 
   if (customerNumberInput.dataset.phoneTooLong === 'true' || !/^\d{10}$/.test(customerNumber)) {
@@ -230,7 +280,16 @@ async function submitStorefrontOrder(event) {
   ));
   const currencies = unique(selectedItems.filter((item) => item.product).map((item) => item.product.currency));
 
-  if (!customerName || !address || invalidItems || currencies.length > 1) {
+  const nameParts = customerName.split(/\s+/).filter(Boolean);
+  if (orderType === 'شحن' && nameParts.length < 3) {
+    setStorefrontMessage('لطلبات الشحن يجب إدخال الاسم الثلاثي (3 أجزاء على الأقل).');
+    return;
+  }
+  if (orderType === 'شحن' && currencies[0] !== 'ل.س') {
+    setStorefrontMessage('أجور الشحن محددة بالليرة السورية، لذلك يجب اختيار أصناف مسعّرة بالليرة السورية.');
+    return;
+  }
+  if (!customerName || invalidItems || currencies.length > 1) {
     setStorefrontMessage('يرجى التأكد من تعبئة جميع البيانات المطلوبة قبل تأكيد الطلب.');
     return;
   }
@@ -250,7 +309,7 @@ async function submitStorefrontOrder(event) {
         customerNumber,
         address,
         note,
-        orderType: 'توصيل',
+        orderType,
         idempotencyKey: storefrontState.idempotencyKey,
         items: selectedItems.map((item) => ({
           variantId: item.variantId,
@@ -264,6 +323,11 @@ async function submitStorefrontOrder(event) {
 
     storefrontElements.form.hidden = true;
     storefrontElements.successTitle.textContent = `شكراً لطلبك من ${storefrontState.companyName} ❤️`;
+    if (storefrontElements.successDescription) {
+      storefrontElements.successDescription.textContent = orderType === 'شحن'
+        ? 'تم استلام طلب الشحن، وهو بانتظار موافقة الشركة قبل اعتماده.'
+        : 'تم استلام طلب التوصيل بنجاح، وسيتم التواصل معك لمتابعة الطلب.';
+    }
     storefrontElements.success.hidden = false;
     storefrontElements.success.scrollIntoView({ behavior: 'smooth', block: 'center' });
   } catch (error) {
@@ -303,6 +367,9 @@ async function initializeStorefront() {
 
 storefrontElements.addItem.addEventListener('click', addStorefrontItem);
 storefrontElements.form.addEventListener('submit', submitStorefrontOrder);
+document.querySelectorAll('input[name="orderType"]').forEach((input) => {
+  input.addEventListener('change', updateShippingUi);
+});
 const customerNumberInput = document.getElementById('customerNumber');
 customerNumberInput.addEventListener('input', normalizeCustomerNumberField);
 customerNumberInput.addEventListener('blur', normalizeCustomerNumberField);
@@ -315,4 +382,5 @@ customerNumberInput.addEventListener('paste', (event) => {
     setStorefrontMessage('رقم العميل يجب أن يتكون من 10 أرقام');
   }
 });
+updateShippingUi();
 initializeStorefront();

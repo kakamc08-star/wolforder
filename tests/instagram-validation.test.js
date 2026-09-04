@@ -32,18 +32,21 @@ test('يدعم الأرقام الفارسية ويحافظ على الصفر ا
   assert.equal(normalizePhone('(۰۹۳۳) ۱۲۳-۴۵۶'), '0933123456');
 });
 
-test('يرفض نوع الشحن وأرقام الهاتف الأقصر أو الأطول', () => {
+test('يقبل الشحن بالاسم الثلاثي ويرفض الاسم غير الثلاثي وأرقام الهاتف الأقصر أو الأطول', () => {
   const base = {
     customerName: 'عميل',
     address: 'عنوان واضح',
     items: [{ inventoryId: '11111111-1111-4111-8111-111111111111', quantity: 1 }]
   };
-  const shipping = validatePublicOrder({ ...base, customerPhone: '0991234567', orderType: 'شحن' });
+  const shipping = validatePublicOrder({ ...base, customerName: 'عميل أول ثالث', customerPhone: '0991234567', orderType: 'شحن' });
+  const shippingShortName = validatePublicOrder({ ...base, customerName: 'عميل أول', customerPhone: '0991234567', orderType: 'شحن' });
   const shortPhone = validatePublicOrder({ ...base, customerPhone: '099123456', orderType: 'توصيل' });
   const longPhone = validatePublicOrder({ ...base, customerPhone: '09912345678', orderType: 'توصيل' });
 
-  assert.equal(shipping.valid, false);
-  assert.match(shipping.errors.join(' '), /نوع الطلب/);
+  assert.equal(shipping.valid, true);
+  assert.equal(shipping.value.orderType, 'شحن');
+  assert.equal(shippingShortName.valid, false);
+  assert.match(shippingShortName.errors.join(' '), /الاسم الثلاثي/);
   assert.match(shortPhone.errors.join(' '), /رقم العميل يجب أن يتكون من 10 أرقام/);
   assert.match(longPhone.errors.join(' '), /رقم العميل يجب أن يتكون من 10 أرقام/);
 });

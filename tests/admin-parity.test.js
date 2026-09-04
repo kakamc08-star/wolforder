@@ -26,7 +26,7 @@ test('لوحة مدير Instagram تدعم تعديل البيانات والأ�
   assert.match(route, /update_instagram_order_atomic/);
 });
 
-test('الشحن غير موجود في واجهات Instagram ومساراته الحالية', () => {
+test('واجهات Instagram ومساراته تميز التوصيل عن الشحن', () => {
   const instagramUi = [
     'public/instagram-admin.html',
     'public/instagram-viewer.html',
@@ -38,9 +38,12 @@ test('الشحن غير موجود في واجهات Instagram ومساراته 
   ].map(read).join('\n');
   const route = read('routes/instagram.js');
 
-  assert.doesNotMatch(instagramUi, /شحن|shipping_delivered|order-type-shipping|shipping-delivery/i);
-  assert.match(route, /const INSTAGRAM_ORDER_TYPES = new Set\(\['توصيل'\]\)/);
-  assert.doesNotMatch(route, /router\.patch\('\/orders\/shipping-delivered'/);
+  assert.match(instagramUi, /شحن|shipping_delivered|order-type-shipping|shipping-delivery/i);
+  assert.match(route, /const INSTAGRAM_ORDER_TYPES = new Set\(\['توصيل', 'شحن'\]\)/);
+  assert.match(route, /const INSTAGRAM_SHIPPING_FEE = 10000/);
+  assert.match(route, /router\.patch\('\/orders\/shipping-delivered'/);
+  assert.match(route, /router\.post\('\/orders\/:id\/shipping\/approve'/);
+  assert.match(route, /router\.post\('\/orders\/:id\/shipping\/reject'/);
   assert.match(route, /\.eq\('order_type', 'توصيل'\)/);
 });
 

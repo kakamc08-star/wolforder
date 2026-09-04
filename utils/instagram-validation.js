@@ -1,9 +1,16 @@
 'use strict';
 
-// Instagram currently supports delivery only. Legacy shipping rows remain in
-// the database for history, but must not be accepted by the public form.
-const ORDER_TYPES = new Set(['توصيل']);
-const ORDER_STATUSES = new Set(['قيد المتابعة', 'تم', 'مؤجل', 'ملغي', 'مرتجع']);
+// Instagram supports both delivery and shipping. The Arabic values are the
+// values stored by the current database; the English aliases keep API clients
+// from having to depend on presentation language.
+const ORDER_TYPE_ALIASES = Object.freeze({
+  'توصيل': 'توصيل',
+  delivery: 'توصيل',
+  'شحن': 'شحن',
+  shipping: 'شحن'
+});
+const ORDER_TYPES = new Set(Object.keys(ORDER_TYPE_ALIASES));
+const ORDER_STATUSES = new Set(['قيد المتابعة', 'تم', 'مؤجل', 'ملغي', 'إلغاء', 'مرتجع']);
 const INVENTORY_BUCKETS = Object.freeze({
   'قيد المتابعة': 'reserved',
   'مؤجل': 'reserved',
@@ -27,19 +34,28 @@ function normalizePhone(value) {
   return normalizeDigits(value).replace(/[^0-9]/g, '');
 }
 
+function normalizeOrderType(value, fallback = '') {
+  const key = cleanText(value, 20).toLocaleLowerCase('en-US');
+  return ORDER_TYPE_ALIASES[key] || fallback;
+}
+
 function validatePublicOrder(body) {
   const source = body && typeof body === 'object' ? body : {};
   const customerName = cleanText(source.customerName, 100);
   const customerPhone = normalizePhone(source.customerPhone);
   const address = cleanText(source.address, 300);
   const note = cleanText(source.note, 500);
-  const orderType = cleanText(source.orderType, 20);
+  const orderType = normalizeOrderType(source.orderType);
   const website = cleanText(source.website, 100);
   const rawItems = Array.isArray(source.items) ? source.items : [];
   const errors = [];
 
   if (website) errors.push('تعذر قبول الطلب');
+  const nameParts = customerName.split(/\s+/).filter(Boolean);
   if (customerName.length < 2) errors.push('الاسم مطلوب ويجب أن يتكون من حرفين على الأقل');
+  if (orderType === 'شحن' && nameParts.length < 3) {
+    errors.push('لطلبات الشحن يجب إدخال الاسم الثلاثي (3 أجزاء على الأقل)');
+  }
   if (!/^\d{10}$/.test(customerPhone)) errors.push('رقم العميل يجب أن يتكون من 10 أرقام');
   if (address.length < 5) errors.push('العنوان مطلوب ويجب أن يكون واضحاً');
   if (!ORDER_TYPES.has(orderType)) errors.push('نوع الطلب غير صالح');
@@ -47,7 +63,7 @@ function validatePublicOrder(body) {
 
   const merged = new Map();
   for (const rawItem of rawItems) {
-    const inventoryId = cleanText(rawItem && rawItem.inventoryId, 80);
+    const inventoryId = cleanText(rawItem && (rawItem.variantId || rawItem.inventoryId), 80);
     const quantity = Number(normalizeDigits(rawItem && rawItem.quantity));
     if (!/^[0-9a-f-]{16,80}$/i.test(inventoryId)) {
       errors.push('أحد الأصناف المختارة غير صالح');
@@ -63,10 +79,15 @@ function validatePublicOrder(body) {
   const items = Array.from(merged, ([inventoryId, quantity]) => ({ inventoryId, quantity }));
   if (items.some(item => item.quantity > 100)) errors.push('إجمالي كمية الصنف الواحد يتجاوز الحد المسموح');
 
+  const identifierKey = rawItems.some(item => item && item.variantId !== undefined)
+    ? 'variantId'
+    : 'inventoryId';
+  const normalizedItems = items.map(item => ({ [identifierKey]: item.inventoryId, quantity: item.quantity }));
+
   return {
     valid: errors.length === 0,
     errors: Array.from(new Set(errors)),
-    value: { customerName, customerPhone, address, note, orderType, items }
+    value: { customerName, customerPhone, address, note, orderType, items: normalizedItems }
   };
 }
 
@@ -128,6 +149,7 @@ module.exports = {
   cleanText,
   normalizeDigits,
   normalizePhone,
+  normalizeOrderType,
   validatePublicOrder,
   validateProduct,
   parsePagination,

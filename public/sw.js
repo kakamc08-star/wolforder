@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wolforder-pwa-v7-instagram-edit';
+const CACHE_NAME = 'wolforder-pwa-v12-instagram-shipping-fixes';
 const APP_SHELL = [
   '/login.html',
   '/admin.html',
@@ -9,6 +9,7 @@ const APP_SHELL = [
   '/instagram-order.html',
   '/css/style.css',
   '/css/instagram.css',
+  '/css/company-instagram.css',
   '/js/pwa.js',
   '/js/dashboard-ui.js',
   '/js/auth.js',

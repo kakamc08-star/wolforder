@@ -6,7 +6,7 @@
   <meta name="description" content="إنشاء طلب Instagram سريع وآمن">
   <title>طلب Instagram | WolfOrder</title>
   <link rel="stylesheet" href="/css/style.css?v=20260901.1">
-  <link rel="stylesheet" href="/css/instagram.css?v=20260903.1">
+  <link rel="stylesheet" href="/css/instagram.css?v=20260904.4">
   <meta name="theme-color" content="#4c1d95">
 </head>
 <body class="storefront-page">
@@ -24,25 +24,39 @@
 
       <form id="instagramCustomerOrderForm" novalidate>
         <section class="storefront-card">
-          <h2><span class="storefront-step">01</span> بيانات الزبون</h2>
+          <h2><span class="storefront-step">01</span> نوع الطلب</h2>
+          <div class="storefront-order-type-options" role="radiogroup" aria-label="نوع الطلب">
+            <label class="storefront-order-type-option"><input type="radio" name="orderType" value="توصيل" checked><span>توصيل</span></label>
+            <label class="storefront-order-type-option"><input type="radio" name="orderType" value="شحن"><span>شحن</span></label>
+          </div>
+          <div id="shippingNotice" class="storefront-shipping-notice" hidden>سيتم إضافة 10,000 ل.س أجور شحن إلى قيمة الطلب، والشحن حصرًا عن طريق شركة القدموس.</div>
+        </section>
+
+        <section class="storefront-card">
+          <h2><span class="storefront-step">02</span> بيانات الزبون</h2>
           <div class="storefront-grid">
-            <div class="storefront-field"><label for="customerName">الاسم *</label><input id="customerName" autocomplete="name" required></div>
+            <div class="storefront-field"><label for="customerName" id="customerNameLabel">الاسم *</label><input id="customerName" autocomplete="name" required aria-describedby="customerNameHint"><small id="customerNameHint" hidden>لطلب الشحن أدخل الاسم الثلاثي (3 أجزاء على الأقل).</small></div>
             <div class="storefront-field"><label for="customerNumber">رقم العميل *</label><input id="customerNumber" type="tel" inputmode="numeric" autocomplete="tel" dir="ltr" maxlength="10" pattern="[0-9]{10}" required aria-describedby="customerNumberHint"><small id="customerNumberHint">أدخل 10 أرقام فقط</small></div>
-            <div class="storefront-field full"><label for="customerAddress">العنوان *</label><textarea id="customerAddress" rows="2" autocomplete="street-address" required></textarea></div>
+            <div class="storefront-field full"><label for="customerAddress">العنوان</label><textarea id="customerAddress" rows="2" maxlength="300" autocomplete="street-address"></textarea></div>
           </div>
         </section>
 
         <section class="storefront-card">
-          <h2><span class="storefront-step">02</span> الأصناف</h2>
+          <h2><span class="storefront-step">03</span> الأصناف</h2>
           <p>يمكنك اختيار أكثر من صنف ضمن نفس الطلب.</p>
           <div id="storefrontItems"></div>
           <button class="storefront-add" id="addStorefrontItem" type="button">+ إضافة صنف آخر</button>
         </section>
 
         <section class="storefront-card">
-          <h2><span class="storefront-step">03</span> المراجعة والتأكيد</h2>
+          <h2><span class="storefront-step">04</span> المراجعة والتأكيد</h2>
           <div class="storefront-field"><label for="customerNote">ملاحظة (اختياري)</label><textarea id="customerNote" rows="2" placeholder="أضف أي تفاصيل تساعدنا على تجهيز طلبك"></textarea></div>
-          <div class="storefront-total"><span>إجمالي سعر الطلب بالكامل</span><strong id="storefrontTotal">0</strong></div>
+          <div class="storefront-total" id="storefrontDeliveryTotal"><span>إجمالي سعر الطلب بالكامل</span><strong id="storefrontTotal">0</strong></div>
+          <div class="storefront-pricing-summary" id="storefrontShippingSummary" hidden>
+            <div><span>قيمة الأصناف</span><strong id="storefrontItemsTotal">0</strong></div>
+            <div><span>أجور الشحن</span><strong id="storefrontShippingFee">10,000 ل.س</strong></div>
+            <div class="final"><span>الإجمالي النهائي</span><strong id="storefrontFinalTotal">0</strong></div>
+          </div>
           <div id="storefrontMessage" aria-live="polite"></div>
           <button class="storefront-submit" id="confirmInstagramOrder" type="submit">تأكيد الطلب</button>
         </section>
@@ -52,10 +66,10 @@
     <section id="storefrontSuccess" class="storefront-card storefront-success" hidden>
       <div class="success-heart">❤️</div>
       <h2 id="storefrontSuccessTitle"></h2>
-      <p>تم استلام طلبك بنجاح، وسيتم التواصل معك لمتابعة الطلب.</p>
+      <p id="storefrontSuccessDescription">تم استلام طلبك بنجاح، وسيتم التواصل معك لمتابعة الطلب.</p>
     </section>
     <footer class="storefront-footer">تجربة طلب بسيطة وآمنة عبر <strong>WOLFORDER</strong></footer>
   </main>
-  <script src="/js/instagram-order.js?v=20260903.1"></script>
+  <script src="/js/instagram-order.js?v=20260904.4"></script>
 </body>
 </html>

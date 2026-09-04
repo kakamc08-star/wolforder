@@ -16,7 +16,7 @@ if (!viewerHasSession) {
 document.getElementById('userNameDisplay').textContent = viewerUser?.name || viewerUser?.username || '';
 document.getElementById('viewerSidebarName').textContent = viewerUser?.name || 'Instagram';
 
-const viewerState = { orders: [], allOrders: [], inventory: [], status: '' };
+const viewerState = { orders: [], allOrders: [], inventory: [], status: '', orderType: '' };
 const viewerEscape = (value) => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 const viewerDate = (value, time = false) => value ? new Date(value).toLocaleString('en-GB', time ? { dateStyle: 'short', timeStyle: 'short' } : { dateStyle: 'short' }) : '-';
 const viewerNumber = (value) => (Number(value) || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
@@ -85,6 +85,27 @@ async function viewerApi(url) {
   return data;
 }
 
+async function submitViewerShippingDecision(orderId, action) {
+  const response = await fetch(`/api/instagram/orders/${encodeURIComponent(orderId)}/shipping/${action}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${viewerToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: '{}'
+  });
+  const data = await response.json().catch(() => ({}));
+  if (response.status === 401 || response.status === 403) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    window.location.replace('/instagram-login.html');
+    throw new Error('انتهت جلسة الدخول، يرجى تسجيل الدخول من جديد');
+  }
+  if (!response.ok) throw new Error(data.message || 'تعذر تنفيذ العملية');
+  return data;
+}
+
 function showViewerPanel(panel) {
   document.querySelectorAll('[data-viewer-panel]').forEach((item) => { item.hidden = item.dataset.viewerPanel !== panel; });
   document.querySelectorAll('[data-viewer-section]').forEach((item) => item.classList.toggle('active', item.dataset.viewerSection === panel));
@@ -103,6 +124,15 @@ document.querySelectorAll('.status-quick-box').forEach((box) => {
     box.classList.add('active');
 
     viewerState.status = box.dataset.status || '';
+    loadViewerOrders();
+  });
+});
+
+document.querySelectorAll('[data-viewer-order-type]').forEach((button) => {
+  button.addEventListener('click', () => {
+    document.querySelectorAll('[data-viewer-order-type]').forEach((item) => item.classList.remove('active'));
+    button.classList.add('active');
+    viewerState.orderType = button.dataset.viewerOrderType || '';
     loadViewerOrders();
   });
 });
@@ -131,7 +161,19 @@ function renderViewerOrders() {
   const body = document.getElementById('viewerOrdersBody');
   const visibleCount = document.getElementById('viewerVisibleCount');
   if (visibleCount) visibleCount.textContent = viewerState.orders.length.toLocaleString('en-US');
-  body.innerHTML = viewerState.orders.length ? viewerState.orders.map((order, index) => `<tr><td data-label="العداد">${index + 1}</td><td data-label="رقم الطلب"><span class="ig-order-number">#${viewerEscape(order.order_number)}</span></td><td data-label="نوع الطلب"><span class="order-type-badge order-type-delivery">توصيل</span></td><td class="text-wrap-column" data-label="محتويات الطلب"><ul class="ig-order-items">${(Array.isArray(order.items) ? order.items : []).map((item) => `<li>${viewerEscape(item.product_name)} — ${viewerEscape(item.color)} / ${viewerEscape(item.size)} × ${item.quantity}</li>`).join('')}</ul></td><td data-label="اسم العميل">${viewerEscape(order.customer_name)}</td><td data-label="رقم العميل">${viewerEscape(order.customer_number)}</td><td data-label="العنوان">${viewerEscape(order.address)}</td><td data-label="السعر">${viewerNumber(order.total_price)} ${viewerEscape(order.currency)}</td><td data-label="الحالة"><span class="status-badge status-${viewerEscape(order.status)}">${viewerEscape(order.status)}</span></td><td data-label="التاريخ">${viewerDate(order.created_at, true)}</td></tr>`).join('') : '<tr><td colspan="10">لا توجد طلبات.</td></tr>';
+  body.innerHTML = viewerState.orders.length ? viewerState.orders.map((order, index) => {
+    const orderType = order.order_type || 'توصيل';
+    const isShipping = orderType === 'شحن';
+    const itemsTotal = Number(order.items_total) || Math.max(0, (Number(order.total_price) || 0) - (Number(order.shipping_fee) || 0));
+    const priceHtml = isShipping
+      ? `<div class="viewer-price-breakdown"><span>الأصناف: ${viewerNumber(itemsTotal)} ${viewerEscape(order.currency)}</span><span>الشحن: ${viewerNumber(order.shipping_fee || 0)} ل.س</span><strong>النهائي: ${viewerNumber(order.total_price)} ${viewerEscape(order.currency)}</strong></div>`
+      : `${viewerNumber(order.total_price)} ${viewerEscape(order.currency)}`;
+    const approval = order.shipping_approval_status || (isShipping ? 'pending' : 'not_required');
+    const actionHtml = isShipping && approval === 'pending'
+      ? '<div class="instagram-viewer-decision-actions"><button type="button" class="btn btn-success btn-sm" data-viewer-instagram-action="approve">قبول</button><button type="button" class="btn btn-danger btn-sm" data-viewer-instagram-action="reject">رفض</button></div>'
+      : isShipping ? '<span class="viewer-order-decision-status">تمت معالجة الطلب</span>' : '-';
+    return `<tr data-viewer-instagram-order-id="${viewerEscape(order.id)}"><td data-label="العداد">${index + 1}</td><td data-label="رقم الطلب"><span class="ig-order-number">#${viewerEscape(order.order_number)}</span></td><td data-label="نوع الطلب"><span class="order-type-badge ${isShipping ? 'order-type-shipping' : 'order-type-delivery'}">${viewerEscape(orderType)}</span></td><td class="text-wrap-column" data-label="محتويات الطلب"><ul class="ig-order-items">${(Array.isArray(order.items) ? order.items : []).map((item) => `<li>${viewerEscape(item.product_name)} — ${viewerEscape(item.color)} / ${viewerEscape(item.size)} × ${item.quantity}</li>`).join('')}</ul></td><td data-label="اسم العميل">${viewerEscape(order.customer_name)}</td><td data-label="رقم العميل">${viewerEscape(order.customer_number)}</td><td data-label="العنوان">${viewerEscape(order.address)}</td><td data-label="السعر">${priceHtml}</td><td data-label="الحالة"><span class="status-badge status-${viewerEscape(order.status)}">${viewerEscape(order.status)}</span></td><td data-label="التاريخ">${viewerDate(order.created_at, true)}</td><td class="viewer-order-actions-cell" data-label="الإجراء">${actionHtml}</td></tr>`;
+  }).join('') : '<tr><td colspan="11">لا توجد طلبات.</td></tr>';
 
   updateViewerTotals();
 }
@@ -141,6 +183,7 @@ async function loadViewerOrders() {
     const params = new URLSearchParams();
     const status = viewerState.status || '';
     if (status) params.set('status', status);
+    if (viewerState.orderType) params.set('orderType', viewerState.orderType);
     viewerState.allOrders = await viewerApi(`/api/instagram/orders?${params}`);
     const search = document.getElementById('viewerOrderSearch')?.value || '';
     viewerState.orders = viewerState.allOrders.filter((order) => matchesViewerSearch(order, search));
@@ -149,6 +192,26 @@ async function loadViewerOrders() {
 }
 
 document.getElementById('viewerRefreshOrders').addEventListener('click', loadViewerOrders);
+document.getElementById('viewerOrdersBody').addEventListener('click', async (event) => {
+  const button = event.target.closest('[data-viewer-instagram-action]');
+  if (!button) return;
+  const row = button.closest('[data-viewer-instagram-order-id]');
+  const orderId = row?.dataset.viewerInstagramOrderId;
+  const action = button.dataset.viewerInstagramAction;
+  if (!orderId || !['approve', 'reject'].includes(action)) return;
+  if (action === 'reject' && !confirm('هل أنت متأكد من رفض وحذف طلب الشحن نهائياً؟')) return;
+
+  row.querySelectorAll('[data-viewer-instagram-action]').forEach((item) => { item.disabled = true; });
+  try {
+    await submitViewerShippingDecision(orderId, action);
+    viewerNotify(action === 'approve' ? 'تم قبول طلب الشحن وخصم المحجوز من المخزون' : 'تم رفض طلب الشحن وحذفه نهائياً', 'success');
+    await loadViewerOrders();
+    if (action === 'approve') await loadViewerInventory();
+  } catch (error) {
+    viewerNotify(error.message);
+    row.querySelectorAll('[data-viewer-instagram-action]').forEach((item) => { item.disabled = false; });
+  }
+});
 document.getElementById('viewerApplyOrderFilter').addEventListener('click', () => {
   if (viewerState.allOrders.length) applyViewerOrderSearch();
   else loadViewerOrders();
@@ -169,7 +232,7 @@ viewerSearchInput.addEventListener('keydown', (event) => {
 async function loadViewerInventory() {
   try {
     viewerState.inventory = await viewerApi('/api/instagram/inventory');
-    document.getElementById('viewerInventoryBody').innerHTML = viewerState.inventory.length ? viewerState.inventory.map((row) => `<tr><td data-label="الصنف">${viewerEscape(row.product_name)}</td><td data-label="اللون">${viewerEscape(row.color)}</td><td data-label="المقاس">${viewerEscape(row.size)}</td><td data-label="الكلية">${row.quantity_total}</td><td data-label="محجوز التوصيل">${row.reserved_delivery}</td><td data-label="المباعة">${row.sold}</td><td data-label="المؤجلة">${row.postponed}</td><td data-label="المرتجع">${row.returned}</td><td data-label="الإلغاء">${row.cancelled}</td><td data-label="المتبقية"><strong>${row.remaining}</strong></td></tr>`).join('') : '<tr><td colspan="10">لا توجد بيانات جرد.</td></tr>';
+    document.getElementById('viewerInventoryBody').innerHTML = viewerState.inventory.length ? viewerState.inventory.map((row) => `<tr><td data-label="الصنف">${viewerEscape(row.product_name)}</td><td data-label="اللون">${viewerEscape(row.color)}</td><td data-label="المقاس">${viewerEscape(row.size)}</td><td data-label="الكلية">${row.quantity_total}</td><td data-label="محجوز التوصيل">${row.reserved_delivery}</td><td data-label="محجوز الشحن">${row.reserved_shipping}</td><td data-label="المباعة">${row.sold}</td><td data-label="المؤجلة">${row.postponed}</td><td data-label="المرتجع">${row.returned}</td><td data-label="الإلغاء">${row.cancelled}</td><td data-label="المتبقية"><strong>${row.remaining}</strong></td></tr>`).join('') : '<tr><td colspan="11">لا توجد بيانات جرد.</td></tr>';
   } catch (error) { viewerNotify(error.message); }
 }
 

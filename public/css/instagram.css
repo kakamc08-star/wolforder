@@ -551,6 +551,19 @@ body.dashboard-page.instagram-theme {
   stroke-linecap: round;
 }
 
+.instagram-theme .ig-order-top-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 15px;
+}
+
+.instagram-theme .ig-order-top-filters .ig-type-tabs {
+  margin-bottom: 0;
+}
+
 .instagram-theme .ig-type-tabs,
 .instagram-theme .status-quick-boxes {
   display: flex;
@@ -765,23 +778,86 @@ body.dashboard-page.instagram-theme {
   text-align: right;
 }
 
-.instagram-theme .ig-order-items li {
-  margin: 3px 0;
-}
-
 .instagram-theme .ig-actions-vertical {
   display: flex;
-  min-width: 0;
   flex-direction: column;
-  gap: 5px;
+  min-width: 154px;
+  gap: 6px;
   align-items: stretch;
 }
 
 .instagram-theme .ig-actions-vertical .btn {
   width: 100%;
-  min-height: 32px;
+  min-height: 35px;
+  padding: 6px 8px;
+  font-size: 11px;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+.instagram-theme .ig-actions-vertical .btn {
+  width: 100%;
+  min-width: 0;
+  min-height: 35px;
   padding: 5px 8px;
   font-size: 11px;
+  line-height: 1.25;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.instagram-theme .ig-actions-vertical .btn[data-action="shipping-deliver"] {
+  grid-column: 1 / -1;
+}
+
+.instagram-theme .ig-actions-cell {
+  min-width: 174px;
+  vertical-align: top;
+}
+
+.instagram-theme .ig-shipping-delivery-details {
+  display: grid;
+  gap: 5px;
+  min-width: 145px;
+  line-height: 1.55;
+}
+
+.instagram-theme .ig-shipping-delivery-details small {
+  color: var(--ig-muted);
+  font-size: 10px;
+}
+
+.instagram-theme .viewer-price-breakdown {
+  display: grid;
+  gap: 3px;
+  min-width: 125px;
+  color: var(--ig-muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.instagram-theme .viewer-price-breakdown strong {
+  color: var(--ig-ink);
+  font-size: 11px;
+}
+
+.role-instagram-viewer .instagram-viewer-decision-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(54px, 1fr));
+  gap: 6px;
+  min-width: 142px;
+}
+
+.role-instagram-viewer .instagram-viewer-decision-actions .btn {
+  min-height: 35px;
+  padding: 6px 8px;
+  font-size: 11px;
+}
+
+.role-instagram-viewer .viewer-order-decision-status {
+  color: #16815d;
+  font-size: 11px;
+  font-weight: 800;
   white-space: nowrap;
 }
 
@@ -830,6 +906,24 @@ body.dashboard-page.instagram-theme {
 }
 
 .instagram-theme .order-type-delivery {
+  color: #106849;
+  border-color: #bfe7d4;
+  background: #eafaf1;
+}
+
+.instagram-theme .order-type-shipping {
+  color: #8d3d0b;
+  border-color: #f2c48d;
+  background: #fff5e8;
+}
+
+.instagram-theme .shipping-state-pending {
+  color: #8d5d0b;
+  border-color: #f2d49d;
+  background: #fff9e8;
+}
+
+.instagram-theme .shipping-state-accepted {
   color: #106849;
   border-color: #bfe7d4;
   background: #eafaf1;
@@ -1594,6 +1688,53 @@ body.storefront-page {
   resize: vertical;
 }
 
+.storefront-order-type-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.storefront-order-type-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 52px;
+  padding: 10px 13px;
+  border: 1px solid #d5deea;
+  border-radius: 12px;
+  color: #344257;
+  background: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.storefront-order-type-option:has(input:checked) {
+  border-color: #c13584;
+  color: #8c2765;
+  background: #fff4fa;
+  box-shadow: 0 0 0 3px rgba(193, 53, 132, .08);
+}
+
+.storefront-order-type-option input {
+  width: 17px;
+  height: 17px;
+  min-height: 0;
+  accent-color: #c13584;
+}
+
+.storefront-shipping-notice {
+  margin-top: 11px;
+  padding: 11px 13px;
+  border: 1px solid #f0cf9e;
+  border-radius: 11px;
+  color: #7c450f;
+  background: #fff8ec;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.7;
+}
+
 .storefront-field input:focus,
 .storefront-field select:focus,
 .storefront-field textarea:focus {
@@ -1717,6 +1858,47 @@ body.storefront-page {
   color: var(--ig-pink);
   font-size: 20px;
   font-variant-numeric: tabular-nums;
+}
+
+.storefront-pricing-summary {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0 13px;
+  padding: 13px 15px;
+  border: 1px solid #f0d6e3;
+  border-radius: 13px;
+  background: linear-gradient(100deg, #fff8fb, #fff);
+}
+
+.storefront-pricing-summary[hidden] {
+  display: none !important;
+}
+
+.storefront-pricing-summary > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #67758a;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.storefront-pricing-summary strong {
+  color: #27334a;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.storefront-pricing-summary .final {
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px dashed #e0b5ca;
+}
+
+.storefront-pricing-summary .final strong {
+  color: var(--ig-pink);
+  font-size: 20px;
 }
 
 .storefront-message {
@@ -2435,6 +2617,15 @@ body.login-page.instagram-login-page {
     align-items: start;
   }
 
+  .role-instagram-viewer .ig-orders-table tbody td[data-label="الإجراء"] {
+    align-items: stretch;
+  }
+
+  .role-instagram-viewer .instagram-viewer-decision-actions {
+    min-width: 0;
+    width: 100%;
+  }
+
   .role-instagram-viewer .ig-orders-table .ig-order-items {
     min-width: 0;
     padding-inline-start: 17px;
@@ -2504,7 +2695,7 @@ body.login-page.instagram-login-page {
   }
 
   .instagram-theme .ig-actions-vertical {
-    min-width: 0;
+    min-width: 154px;
   }
 
   .role-instagram-admin .ig-orders-table th:first-child,
@@ -2587,6 +2778,12 @@ body.login-page.instagram-login-page {
   .role-instagram-admin .ig-orders-table th:nth-child(17),
   .role-instagram-admin .ig-orders-table td:nth-child(17) {
     width: 9%;
+  }
+
+  .role-instagram-admin .ig-orders-table th:nth-child(18),
+  .role-instagram-admin .ig-orders-table td:nth-child(18) {
+    width: 13%;
+    min-width: 174px;
   }
 }
 

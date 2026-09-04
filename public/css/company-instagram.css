@@ -1,0 +1,281 @@
+/* Instagram approval board for company accounts. All selectors are scoped so
+   the existing company order form keeps its current appearance and behavior. */
+.role-company .instagram-company-panel {
+  --company-ig-pink: #c13584;
+  --company-ig-purple: #833ab4;
+  --company-ig-line: #e3e8f1;
+  --company-ig-muted: #718096;
+}
+
+.role-company .company-home-card-instagram .company-home-card-icon {
+  color: #fff;
+  background: linear-gradient(135deg, #833ab4, #c13584 60%, #f77737);
+  font-size: 25px;
+}
+
+.role-company .instagram-company-panel .section-heading-main .section-icon {
+  color: #fff;
+  background: linear-gradient(135deg, var(--company-ig-purple), var(--company-ig-pink));
+}
+
+.role-company .instagram-company-type-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.role-company .instagram-company-type-tabs button {
+  min-height: 38px;
+  padding: 8px 15px;
+  border: 1px solid #ccd6e4;
+  border-radius: 999px;
+  color: #56647a;
+  background: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.role-company .instagram-company-type-tabs button.is-active {
+  border-color: transparent;
+  color: #fff;
+  background: linear-gradient(135deg, var(--company-ig-purple), var(--company-ig-pink));
+}
+
+.role-company .instagram-company-filters {
+  margin-bottom: 16px;
+}
+
+.role-company .instagram-company-table-wrap {
+  overflow-x: auto;
+}
+
+.role-company .instagram-company-orders-table {
+  min-width: 1120px;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.role-company .instagram-company-orders-table th,
+.role-company .instagram-company-orders-table td {
+  padding: 11px 9px;
+  border-bottom: 1px solid var(--company-ig-line);
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.role-company .instagram-company-orders-table th {
+  color: #4b5870;
+  background: #f8f3f8;
+  font-size: 12px;
+}
+
+.role-company .instagram-company-orders-table td.company-instagram-items,
+.role-company .instagram-company-orders-table td.company-instagram-address {
+  max-width: 210px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+  text-align: right;
+}
+
+.role-company .company-instagram-items-list {
+  margin: 0;
+  padding: 0 16px 0 0;
+  text-align: right;
+}
+
+.role-company .company-instagram-items-list li {
+  margin: 3px 0;
+}
+
+.role-company .company-instagram-type {
+  display: inline-flex;
+  min-height: 27px;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.role-company .company-instagram-type.delivery {
+  color: #106849;
+  background: #eafaf1;
+}
+
+.role-company .company-instagram-type.shipping {
+  color: #8d3d0b;
+  background: #fff5e8;
+}
+
+.role-company .company-instagram-status {
+  display: inline-block;
+  color: #59667a;
+  line-height: 1.6;
+}
+
+.role-company .company-instagram-status.pending {
+  color: #8d5d0b;
+  font-weight: 800;
+}
+
+.role-company .company-instagram-actions {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+
+.role-company .company-instagram-account {
+  display: grid;
+  gap: 2px;
+  margin-bottom: 7px;
+  padding: 7px 9px;
+  border: 1px solid #ead5e2;
+  border-radius: 9px;
+  color: #7b5870;
+  background: #fff8fc;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.role-company .company-instagram-account strong {
+  color: #7b1f5b;
+  font-size: 12px;
+}
+
+.role-company .company-instagram-decision-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.role-company .company-instagram-actions .btn {
+  min-height: 34px;
+  padding: 6px 9px;
+  font-size: 11px;
+}
+
+.role-company .company-instagram-empty {
+  padding: 25px !important;
+  color: var(--company-ig-muted);
+}
+
+@media (max-width: 760px) {
+  .role-company .instagram-company-panel .filters-section {
+    grid-template-columns: 1fr;
+  }
+
+  .role-company .instagram-company-panel .filters-section .search-field {
+    grid-column: auto;
+  }
+
+  .role-company .instagram-company-table-wrap {
+    overflow: visible;
+  }
+
+  .role-company .instagram-company-orders-table {
+    display: block;
+    min-width: 0;
+  }
+
+  .role-company .instagram-company-orders-table thead {
+    display: none;
+  }
+
+  .role-company .instagram-company-orders-table tbody {
+    display: grid;
+    gap: 12px;
+  }
+
+  .role-company .instagram-company-orders-table tbody tr {
+    display: block;
+    padding: 10px 13px;
+    border: 1px solid #ead5e2;
+    border-radius: 16px;
+    background: linear-gradient(150deg, #fff 0%, #fff9fc 100%);
+    box-shadow: 0 8px 22px rgba(25, 42, 68, .07);
+  }
+
+  .role-company .instagram-company-orders-table tbody td {
+    display: grid;
+    grid-template-columns: minmax(95px, .34fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 10px;
+    width: 100%;
+    max-width: none;
+    padding: 8px 0;
+    border-bottom: 1px dashed #eadde5;
+    text-align: right;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.6;
+  }
+
+  .role-company .instagram-company-orders-table tbody td::before {
+    color: #8a7181;
+    content: attr(data-label) " :";
+    font-size: 11px;
+    font-weight: 850;
+    white-space: nowrap;
+  }
+
+  .role-company .instagram-company-orders-table tbody td:last-child {
+    border-bottom: 0;
+  }
+
+  .role-company .instagram-company-orders-table tbody td.company-instagram-items,
+  .role-company .instagram-company-orders-table tbody td.company-instagram-address {
+    max-width: none;
+  }
+
+  .role-company .instagram-company-orders-table tbody td[data-label="رقم الطلب"]::before {
+    color: var(--company-ig-pink);
+  }
+
+  .role-company .instagram-company-orders-table tbody td[data-label="الإجراء"] {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding-bottom: 2px;
+  }
+
+  .role-company .instagram-company-orders-table tbody td[data-label="الإجراء"]::before {
+    color: #7b1f5b;
+  }
+
+  .role-company .company-instagram-actions {
+    width: 100%;
+  }
+
+  .role-company .company-instagram-decision-actions .btn {
+    min-height: 40px;
+    font-size: 13px;
+  }
+}
+
+.role-company.dark-mode .instagram-company-panel .instagram-company-type-tabs button {
+  border-color: #405069;
+  color: #edf2fb;
+  background: #111b2a;
+}
+
+.role-company.dark-mode .instagram-company-orders-table th {
+  color: #d3dceb;
+  background: #1b2637;
+}
+
+.role-company.dark-mode .company-instagram-account {
+  border-color: #594050;
+  color: #d8b8ca;
+  background: #251a29;
+}
+
+.role-company.dark-mode .company-instagram-account strong {
+  color: #f2b7d8;
+}
