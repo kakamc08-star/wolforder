@@ -4,7 +4,8 @@ const storefrontState = {
   products: [],
   submitting: false,
   idempotencyKey: null,
-  nextRowId: 1
+  nextRowId: 1,
+  catalogRefreshing: false
 };
 
 const storefrontElements = {
@@ -338,28 +339,94 @@ async function submitStorefrontOrder(event) {
   }
 }
 
+function storefrontProductOptions(selectedProductId = '') {
+  return '<option value="">اختر الصنف</option>'
+    + storefrontState.products.map((product) => `<option value="${escapeHtml(product.product_id)}" ${product.product_id === selectedProductId ? 'selected' : ''}>${escapeHtml(product.name)}</option>`).join('');
+}
+
+function refreshStorefrontProductSelectors() {
+  storefrontElements.items.querySelectorAll('.storefront-item').forEach((row) => {
+    const fields = getRowElements(row);
+    const selectedProductId = fields.product.value;
+    fields.product.innerHTML = storefrontProductOptions(selectedProductId);
+    updateRowColors(row);
+  });
+}
+
+function applyStorefrontCatalog(data, initial = false) {
+  const previousProducts = storefrontState.products;
+  const nextProducts = Array.isArray(data.products) ? data.products : [];
+  const hadProducts = previousProducts.length > 0;
+
+  storefrontState.companyName = data.company_name || '';
+  storefrontState.products = nextProducts;
+  storefrontElements.companyName.textContent = storefrontState.companyName;
+  document.title = `اطلب من ${storefrontState.companyName}`;
+  storefrontElements.loading.hidden = true;
+  storefrontElements.app.hidden = false;
+
+  if (!nextProducts.length) {
+    if (initial || hadProducts) setStorefrontMessage('لا توجد أصناف متوفرة للطلب حالياً.');
+    storefrontElements.addItem.disabled = true;
+    storefrontElements.submit.disabled = true;
+    return;
+  }
+
+  storefrontElements.addItem.disabled = false;
+  if (!storefrontElements.items.children.length) addStorefrontItem();
+  else if (initial || JSON.stringify(previousProducts) !== JSON.stringify(nextProducts)) refreshStorefrontProductSelectors();
+
+  const currentMessage = storefrontElements.message.querySelector('.storefront-message')?.textContent || '';
+  if (currentMessage === 'لا توجد أصناف متوفرة للطلب حالياً.') setStorefrontMessage('');
+  if (!storefrontState.submitting) storefrontElements.submit.disabled = false;
+}
+
+async function fetchStorefrontCatalog() {
+  const response = await fetch(`/api/instagram/storefront/${encodeURIComponent(storefrontState.slug)}`, {
+    cache: 'no-store'
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.message || 'رابط الطلب غير موجود أو متوقف');
+  return data;
+}
+
+async function refreshStorefrontCatalog(initial = false) {
+  if (storefrontState.catalogRefreshing || storefrontElements.success.hidden === false) return;
+  storefrontState.catalogRefreshing = true;
+  try {
+    const data = await fetchStorefrontCatalog();
+    applyStorefrontCatalog(data, initial);
+  } catch (error) {
+    if (initial) throw error;
+    console.warn('Storefront catalog refresh failed:', error.message);
+  } finally {
+    storefrontState.catalogRefreshing = false;
+  }
+}
+
+let storefrontSocket;
+function connectStorefrontSocket() {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  storefrontSocket = new WebSocket(`${protocol}//${window.location.host}`);
+  storefrontSocket.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      if (data.source === 'instagram' && ['INSTAGRAM_ORDER_CREATED', 'INSTAGRAM_ORDER_UPDATED', 'INSTAGRAM_ORDER_DELETED', 'INSTAGRAM_INVENTORY_UPDATED'].includes(data.type)) {
+        refreshStorefrontCatalog();
+      }
+    } catch (error) {
+      console.warn('Storefront WebSocket message error:', error);
+    }
+  };
+  storefrontSocket.onclose = () => window.setTimeout(connectStorefrontSocket, 5000);
+  storefrontSocket.onerror = () => storefrontSocket.close();
+}
+
 async function initializeStorefront() {
   try {
-    const response = await fetch(`/api/instagram/storefront/${encodeURIComponent(storefrontState.slug)}`, {
-      cache: 'no-store'
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.message || 'رابط الطلب غير موجود أو متوقف');
-
-    storefrontState.companyName = data.company_name;
-    storefrontState.products = Array.isArray(data.products) ? data.products : [];
-    storefrontElements.companyName.textContent = data.company_name;
-    document.title = `اطلب من ${data.company_name}`;
-    storefrontElements.loading.hidden = true;
-    storefrontElements.app.hidden = false;
-
-    if (!storefrontState.products.length) {
-      setStorefrontMessage('لا توجد أصناف متوفرة للطلب حالياً.');
-      storefrontElements.addItem.disabled = true;
-      storefrontElements.submit.disabled = true;
-      return;
-    }
-    addStorefrontItem();
+    await refreshStorefrontCatalog(true);
+    connectStorefrontSocket();
+    window.setInterval(() => refreshStorefrontCatalog(), 30000);
   } catch (error) {
     storefrontElements.loading.textContent = error.message || 'تعذر تحميل رابط الطلب حالياً';
   }

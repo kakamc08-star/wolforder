@@ -52,6 +52,7 @@ test('مسارات قراءة Instagram تعرض التوصيل والشحن ا�
   const route = read('routes/instagram.js');
   const sql = read('database/2026-09-04-instagram-shipping-workflow.sql');
   assert.match(route, /function isInstagramOrderVisibleToUser/);
+  assert.match(route, /if \(user\?\.role === 'instagram_viewer'\) return true/);
   assert.match(route, /order_type\.eq\.توصيل,order_type\.is\.null/);
   assert.doesNotMatch(route, /router\.get\('\/orders', requireRole\([^)]*'company'/);
   assert.match(sql, /Legacy NULL\/English order types are treated as[\s\S]*delivery/i);
@@ -75,5 +76,5 @@ test('Service Worker لا يخزن API ويبطل نسخة الكاش القدي
   const serviceWorker = read('public/sw.js');
   assert.match(serviceWorker, /pathname\.startsWith\('\/api\/'\)/);
   assert.match(serviceWorker, /if \(requestUrl\.pathname\.startsWith\('\/api\/'\).*return;/s);
-  assert.match(serviceWorker, /wolforder-pwa-v12-instagram-shipping-fixes/);
+  assert.match(serviceWorker, /wolforder-pwa-v13-instagram-inventory-fix/);
 });

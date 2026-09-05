@@ -99,7 +99,7 @@ function isInstagramShippingOrder(order) {
 
 function isInstagramOrderVisibleToUser(order, user) {
   if (!isInstagramShippingOrder(order)) return true;
-  if (['admin', 'instagram_viewer'].includes(user?.role)) return true;
+  if (user?.role === 'instagram_viewer') return true;
   return instagramApprovalStatus(order) === 'accepted';
 }
 
@@ -761,6 +761,7 @@ router.post('/orders/:id/shipping/reject', requireRole('instagram_viewer'), asyn
     });
     if (error) throw error;
     broadcastInstagramUpdate(req, 'INSTAGRAM_ORDER_DELETED');
+    broadcastInstagramUpdate(req, 'INSTAGRAM_INVENTORY_UPDATED');
     res.json(data);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -785,6 +786,7 @@ router.delete('/orders/:id', requireRole('admin'), async (req, res) => {
     }
 
     broadcastInstagramUpdate(req, 'INSTAGRAM_ORDER_DELETED');
+    broadcastInstagramUpdate(req, 'INSTAGRAM_INVENTORY_UPDATED');
     res.json({ success: true, message: 'تم حذف الطلب نهائياً وإعادة المخزون' });
   } catch (error) {
     console.error('Delete Instagram order exception:', error);
@@ -808,6 +810,7 @@ router.patch('/orders/bulk-status', requireRole('admin'), async (req, res) => {
     });
     if (error) throw error;
     broadcastInstagramUpdate(req);
+    broadcastInstagramUpdate(req, 'INSTAGRAM_INVENTORY_UPDATED');
     res.json(data);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -856,16 +859,14 @@ router.post('/orders/bulk-delete', requireRole('admin'), async (req, res) => {
   try {
     const ids = Array.isArray(req.body.ids) ? req.body.ids : [];
     if (!validIdList(ids)) return res.status(400).json({ message: 'لم يتم تحديد طلبات صالحة' });
-    let successCount = 0;
-    for (const id of ids) {
-      const { error } = await supabase.rpc('delete_instagram_order_atomic', {
-        p_order_id: id,
-        p_actor_user_id: req.user.id
-      });
-      if (!error) successCount++;
-    }
+    const { data, error } = await supabase.rpc('delete_instagram_orders_atomic', {
+      p_order_ids: ids,
+      p_actor_user_id: req.user.id
+    });
+    if (error) throw error;
     broadcastInstagramUpdate(req, 'INSTAGRAM_ORDER_DELETED');
-    res.json({ success: true, deleted_count: successCount });
+    broadcastInstagramUpdate(req, 'INSTAGRAM_INVENTORY_UPDATED');
+    res.json(data || { success: true, deleted_count: ids.length });
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -968,6 +969,7 @@ router.patch('/orders/:id/status', requireRole('admin', 'driver'), async (req, r
     });
     if (error) throw error;
     broadcastInstagramUpdate(req);
+    broadcastInstagramUpdate(req, 'INSTAGRAM_INVENTORY_UPDATED');
     res.json(data);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -1117,7 +1119,7 @@ router.patch('/orders/:id', requireRole('admin'), async (req, res) => {
     if (error) throw error;
 
     broadcastInstagramUpdate(req);
-    if (hasItems) broadcastInstagramUpdate(req, 'INSTAGRAM_INVENTORY_UPDATED');
+    if (hasItems || hasOwn('status')) broadcastInstagramUpdate(req, 'INSTAGRAM_INVENTORY_UPDATED');
     res.json(data);
   } catch (error) {
     console.error('Update Instagram order details error:', error);
@@ -1348,6 +1350,7 @@ router.get('/inventory', requireRole('admin', 'instagram_viewer'), async (req, r
       companyId: req.query.companyId,
       productId: req.query.productId
     });
+    res.set('Cache-Control', 'no-store');
     res.json(rows);
   } catch (error) {
     res.status(error.status || 500).json({ message: error.message });

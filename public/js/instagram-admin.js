@@ -20,6 +20,15 @@ const igState = {
 
 // ====== الاتصال الفوري (WebSocket) ======
 let igSocket;
+let igInventoryRefreshTimer;
+
+function scheduleInstagramInventoryRefresh() {
+  if (!igState.loadedSections.has('inventory')) return;
+  window.clearTimeout(igInventoryRefreshTimer);
+  igInventoryRefreshTimer = window.setTimeout(() => {
+    loadInstagramInventory();
+  }, 150);
+}
 
 function connectInstagramSocket() {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -32,10 +41,13 @@ function connectInstagramSocket() {
   igSocket.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data);
-      if (data.type === 'INSTAGRAM_ORDER_CREATED' || data.type === 'INSTAGRAM_ORDER_UPDATED' || data.type === 'INSTAGRAM_ORDER_DELETED') {
+      const isOrderEvent = ['INSTAGRAM_ORDER_CREATED', 'INSTAGRAM_ORDER_UPDATED', 'INSTAGRAM_ORDER_DELETED'].includes(data.type);
+      const isInventoryEvent = data.type === 'INSTAGRAM_INVENTORY_UPDATED';
+      if (isOrderEvent) {
         console.log('🔄 تحديث فوري لطلبات Instagram...');
         if (typeof loadInstagramOrders === 'function') loadInstagramOrders(true); // تمييز الجديد فقط
       }
+      if (isOrderEvent || isInventoryEvent) scheduleInstagramInventoryRefresh();
     } catch (error) {
       console.error('❌ WebSocket message error:', error);
     }
@@ -67,11 +79,25 @@ function igFormatNumber(value) {
 
 function igFormatDate(value, withTime = false) {
   if (!value) return '-';
+
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '-';
-  return date.toLocaleString('en-GB', withTime
-    ? { dateStyle: 'short', timeStyle: 'short' }
-    : { dateStyle: 'short' });
+
+  const dateText = date.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+
+  if (!withTime) return dateText;
+
+  const timeText = date.toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+
+  return `${dateText}<br>${timeText}`;
 }
 
 function igNotify(message, type = 'success') {
@@ -268,7 +294,7 @@ function shippingApprovalHtml(order) {
   if (approval === 'pending') return '<span class="availability-badge shipping-state-pending">بانتظار موافقة الشركة</span>';
   if (order.shipping_delivery_status === 'delivered') {
     const deliveredName = order.shipping_delivered_to_name || order.company_name || '-';
-    return `<div class="ig-shipping-delivery-details"><span class="availability-badge shipping-state-accepted">تم التسليم</span><small>إلى: ${igEscape(deliveredName)}<br>التاريخ: ${igFormatDate(order.shipping_delivered_at)}<br>الوقت: ${igFormatDate(order.shipping_delivered_at, true).split(', ').slice(-1)[0] || '-'}</small></div>`;
+    return `<div class="ig-shipping-delivery-details"><span class="availability-badge shipping-state-accepted">تم التسليم</span><small>إلى: ${igEscape(deliveredName)}<br>التاريخ: ${igFormatDate(order.shipping_delivered_at)}<br>الوقت: ${igFormatDate(order.shipping_delivered_at, true).split('<br>').slice(-1)[0] || '-'}</small></div>`;
   }
   return '<span class="availability-badge shipping-state-accepted">مقبول</span>';
 }

@@ -93,6 +93,47 @@ test('الحذف وتعديل الأصناف يستخدمان دوال Supabase 
   assert.match(editSql, /stock_available = stock_available - v_desired_item\.quantity/i);
 });
 
+test('إصلاح مخزون Instagram يعيد الطلبات القديمة ويحدّث الرابط تلقائياً', () => {
+  const route = read('routes/instagram.js');
+  const migration = read('database/2026-09-05-instagram-inventory-release-fix.sql');
+  const adminScript = read('public/js/instagram-admin.js');
+  const viewerScript = read('public/js/instagram-viewer.js');
+  const storefrontScript = read('public/js/instagram-order.js');
+
+  assert.match(migration, /actual order items/i);
+  assert.match(migration, /create or replace function public\.delete_instagram_order_atomic/i);
+  assert.match(migration, /item_totals\.item_quantity/);
+  assert.match(migration, /variant\.stock_available > 0/);
+  assert.match(route, /delete_instagram_orders_atomic/);
+  assert.match(route, /broadcastInstagramUpdate\(req, 'INSTAGRAM_INVENTORY_UPDATED'\)/);
+  assert.match(adminScript, /scheduleInstagramInventoryRefresh/);
+  assert.match(viewerScript, /connectViewerSocket/);
+  assert.match(storefrontScript, /setInterval\(\(\) => refreshStorefrontCatalog\(\), 30000\)/);
+});
+
+test('طلبات الشحن المعلقة مخفية عن المدير حتى موافقة الشركة', () => {
+  const route = read('routes/instagram.js');
+
+  assert.match(route, /function isInstagramOrderVisibleToUser/);
+  assert.match(route, /if \(user\?\.role === 'instagram_viewer'\) return true/);
+  assert.match(route, /return instagramApprovalStatus\(order\) === 'accepted'/);
+  assert.match(route, /orders = \(orders \|\| \[\]\)\.filter\(\(order\) => isInstagramOrderVisibleToUser\(order, req\.user\)\)/);
+});
+
+test('حجز الشحن يبدأ عند إنشاء الطلب والقبول لا يخصم مرتين', () => {
+  const sql = read('database/2026-09-05-instagram-shipping-pending-reservation.sql');
+  const approvalStart = sql.indexOf('create or replace function public.approve_instagram_shipping_order_atomic');
+  const approvalEnd = sql.indexOf('-- =========================================================\n-- Rejection:', approvalStart);
+  const approvalBlock = sql.slice(approvalStart, approvalEnd);
+
+  assert.match(sql, /if v_stock_available < v_item\.quantity/);
+  assert.match(sql, /stock_available = stock_available - v_item\.quantity/);
+  assert.match(sql, /shipping-pending-reservation/);
+  assert.match(sql, /perform public\.reserve_instagram_shipping_order_stock/);
+  assert.doesNotMatch(approvalBlock, /stock_available = stock_available - v_item\.quantity/);
+  assert.match(sql, /stock_available = stock_available \+ v_release/);
+});
+
 test('لوحة السائق الأساسية تبقي المصدرين في جدول واحد', () => {
   const html = read('public/driver.html');
   const script = read('public/js/driver.js');

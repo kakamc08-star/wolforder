@@ -16,10 +16,45 @@ if (!viewerHasSession) {
 document.getElementById('userNameDisplay').textContent = viewerUser?.name || viewerUser?.username || '';
 document.getElementById('viewerSidebarName').textContent = viewerUser?.name || 'Instagram';
 
-const viewerState = { orders: [], allOrders: [], inventory: [], status: '', orderType: '' };
+const viewerState = { orders: [], allOrders: [], inventory: [], status: '', orderType: '', activePanel: 'home', inventoryLoaded: false };
 const viewerEscape = (value) => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 const viewerDate = (value, time = false) => value ? new Date(value).toLocaleString('en-GB', time ? { dateStyle: 'short', timeStyle: 'short' } : { dateStyle: 'short' }) : '-';
 const viewerNumber = (value) => (Number(value) || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
+let viewerSocket;
+let viewerInventoryRefreshTimer;
+
+function scheduleViewerInventoryRefresh() {
+  if (viewerState.activePanel !== 'inventory' && !viewerState.inventoryLoaded) return;
+  window.clearTimeout(viewerInventoryRefreshTimer);
+  viewerInventoryRefreshTimer = window.setTimeout(() => {
+    loadViewerInventory();
+  }, 150);
+}
+
+function connectViewerSocket() {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  viewerSocket = new WebSocket(`${protocol}//${window.location.host}`);
+
+  viewerSocket.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      const isOrderEvent = ['INSTAGRAM_ORDER_CREATED', 'INSTAGRAM_ORDER_UPDATED', 'INSTAGRAM_ORDER_DELETED'].includes(data.type);
+      const isInventoryEvent = data.type === 'INSTAGRAM_INVENTORY_UPDATED';
+      if (isOrderEvent && viewerState.activePanel === 'orders') loadViewerOrders();
+      if (isOrderEvent || isInventoryEvent) scheduleViewerInventoryRefresh();
+    } catch (error) {
+      console.error('Viewer WebSocket message error:', error);
+    }
+  };
+
+  viewerSocket.onclose = () => {
+    window.setTimeout(connectViewerSocket, 5000);
+  };
+
+  viewerSocket.onerror = () => {
+    viewerSocket.close();
+  };
+}
 
 function normalizeViewerSearch(value) {
   return String(value ?? '')
@@ -107,6 +142,7 @@ async function submitViewerShippingDecision(orderId, action) {
 }
 
 function showViewerPanel(panel) {
+  viewerState.activePanel = panel;
   document.querySelectorAll('[data-viewer-panel]').forEach((item) => { item.hidden = item.dataset.viewerPanel !== panel; });
   document.querySelectorAll('[data-viewer-section]').forEach((item) => item.classList.toggle('active', item.dataset.viewerSection === panel));
   document.getElementById('viewerPageTitle').textContent = panel === 'orders' ? 'طلبات الإنستغرام' : panel === 'inventory' ? 'الجرد والمبيعات' : `مرحباً ${viewerUser.name || ''}`;
@@ -204,7 +240,7 @@ document.getElementById('viewerOrdersBody').addEventListener('click', async (eve
   row.querySelectorAll('[data-viewer-instagram-action]').forEach((item) => { item.disabled = true; });
   try {
     await submitViewerShippingDecision(orderId, action);
-    viewerNotify(action === 'approve' ? 'تم قبول طلب الشحن وخصم المحجوز من المخزون' : 'تم رفض طلب الشحن وحذفه نهائياً', 'success');
+    viewerNotify(action === 'approve' ? 'تم قبول طلب الشحن وتثبيت حجز المخزون' : 'تم رفض طلب الشحن وإعادة القطع للمخزون وحذف الطلب', 'success');
     await loadViewerOrders();
     if (action === 'approve') await loadViewerInventory();
   } catch (error) {
@@ -232,9 +268,11 @@ viewerSearchInput.addEventListener('keydown', (event) => {
 async function loadViewerInventory() {
   try {
     viewerState.inventory = await viewerApi('/api/instagram/inventory');
+    viewerState.inventoryLoaded = true;
     document.getElementById('viewerInventoryBody').innerHTML = viewerState.inventory.length ? viewerState.inventory.map((row) => `<tr><td data-label="الصنف">${viewerEscape(row.product_name)}</td><td data-label="اللون">${viewerEscape(row.color)}</td><td data-label="المقاس">${viewerEscape(row.size)}</td><td data-label="الكلية">${row.quantity_total}</td><td data-label="محجوز التوصيل">${row.reserved_delivery}</td><td data-label="محجوز الشحن">${row.reserved_shipping}</td><td data-label="المباعة">${row.sold}</td><td data-label="المؤجلة">${row.postponed}</td><td data-label="المرتجع">${row.returned}</td><td data-label="الإلغاء">${row.cancelled}</td><td data-label="المتبقية"><strong>${row.remaining}</strong></td></tr>`).join('') : '<tr><td colspan="11">لا توجد بيانات جرد.</td></tr>';
   } catch (error) { viewerNotify(error.message); }
 }
 
+connectViewerSocket();
 showViewerPanel('home');
 }

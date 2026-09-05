@@ -68,30 +68,35 @@ test('عنوان Instagram يقبل النص القصير ولا يفرض خمس
   assert.doesNotMatch(route, /if \(!customerName \|\| !address/);
 });
 
-test('قبول الشحن ذري ويخصم المخزون مرة واحدة مع التحقق من حساب المشاهدة', () => {
+test('قبول الشحن يثبت الحجز ولا يخصم المخزون مرتين', () => {
   const route = read('routes/instagram.js');
-  const sql = read('database/2026-09-04-instagram-shipping-workflow.sql');
+  const sql = read('database/2026-09-05-instagram-shipping-pending-reservation.sql');
+  const approvalStart = sql.indexOf('create or replace function public.approve_instagram_shipping_order_atomic');
+  const approvalEnd = sql.indexOf('-- =========================================================\n-- Rejection:', approvalStart);
+  const approvalBlock = sql.slice(approvalStart, approvalEnd);
 
   assert.match(route, /router\.post\('\/orders\/:id\/shipping\/approve', requireRole\('instagram_viewer'\)/);
   assert.match(route, /approve_instagram_shipping_order_atomic/);
   assert.match(sql, /create or replace function public\.approve_instagram_shipping_order_atomic/);
-  assert.match(sql, /where id = p_order_id\s+for update/s);
+  assert.match(sql, /create or replace function public\.reserve_instagram_shipping_order_stock/);
+  assert.match(sql, /perform public\.reserve_instagram_shipping_order_stock/);
   assert.match(sql, /from public\.instagram_viewer_companies mapping/);
   assert.match(sql, /if coalesce\(v_order\.company_id::text, ''\) <> coalesce\(v_company_id::text, ''\)/);
   assert.match(sql, /shipping_approval_status = 'accepted'/);
-  assert.match(sql, /update public\.instagram_variants[\s\S]*stock_available = stock_available - v_item\.quantity/);
-  assert.match(sql, /format\('instagram:shipping-approval:/);
+  assert.doesNotMatch(approvalBlock, /stock_available = stock_available - v_item\.quantity/);
   assert.match(sql, /if coalesce\(v_order\.shipping_approval_status, 'pending'\) = 'accepted'/);
 });
 
-test('رفض الشحن من حساب المشاهدة يحذف الطلب نهائياً ولا يخصم أو يعيد المخزون', () => {
+test('رفض الشحن من حساب المشاهدة يعيد الحجز ثم يحذف الطلب', () => {
   const route = read('routes/instagram.js');
-  const sql = read('database/2026-09-04-instagram-shipping-workflow.sql');
+  const sql = read('database/2026-09-05-instagram-shipping-pending-reservation.sql');
   const viewer = read('public/js/instagram-viewer.js');
 
   assert.match(route, /router\.post\('\/orders\/:id\/shipping\/reject', requireRole\('instagram_viewer'\)/);
   assert.match(sql, /create or replace function public\.reject_instagram_shipping_order_atomic/);
   assert.match(sql, /shipping_approval_status, 'pending'/);
+  assert.match(sql, /v_release := least\(v_item\.quantity, greatest\(-v_net_delta, 0\)\)/);
+  assert.match(sql, /stock_available = stock_available \+ v_release/);
   assert.match(sql, /delete from public\.instagram_order_items where order_id = p_order_id/);
   assert.match(sql, /delete from public\.instagram_orders where id = p_order_id/);
   assert.match(viewer, /هل أنت متأكد من رفض وحذف طلب الشحن نهائياً؟/);
@@ -188,7 +193,7 @@ test('حساب المشاهدة وحده يعرض أزرار اعتماد طلب
   const viewerHtml = read('public/instagram-viewer.html');
   const viewer = read('public/js/instagram-viewer.js');
 
-  assert.match(route, /\['admin', 'instagram_viewer'\]\.includes\(user\?\.role\)/);
+  assert.match(route, /if \(user\?\.role === 'instagram_viewer'\) return true/);
   assert.match(route, /return order\?\.shipping_approval_status \|\| 'pending'/);
   assert.doesNotMatch(companyHtml, /طلبات Instagram|instagramOrdersSection|data-company-view="instagram"/);
   assert.match(viewerHtml, /<th>الإجراء<\/th>/);
@@ -197,13 +202,13 @@ test('حساب المشاهدة وحده يعرض أزرار اعتماد طلب
   assert.match(route, /requireRole\('instagram_viewer'\)/);
 });
 
-test('الجرد يعرض محجوز الشحن ويصدره مع بقاء الخصم من المخزون عند الاعتماد', () => {
+test('الجرد يعرض محجوز الشحن مع حجزه قبل الاعتماد', () => {
   const adminHtml = read('public/instagram-admin.html');
   const admin = read('public/js/instagram-admin.js');
   const viewerHtml = read('public/instagram-viewer.html');
   const viewer = read('public/js/instagram-viewer.js');
   const route = read('routes/instagram.js');
-  const sql = read('database/2026-09-04-instagram-shipping-workflow.sql');
+  const sql = read('database/2026-09-05-instagram-shipping-pending-reservation.sql');
 
   assert.match(adminHtml, /<th>محجوز الشحن<\/th>/);
   assert.match(viewerHtml, /<th>محجوز الشحن<\/th>/);
@@ -211,7 +216,8 @@ test('الجرد يعرض محجوز الشحن ويصدره مع بقاء ال�
   assert.match(viewer, /data-label="محجوز الشحن">\$\{row\.reserved_shipping\}/);
   assert.match(route, /\['reserved_shipping', 'المحجوزة من الشحن'\]/);
   assert.match(route, /reserved_shipping: Number\(row\.reserved_shipping\) \|\| 0/);
-  assert.match(sql, /shipping-approval:[\s\S]*stock_available = stock_available - v_item\.quantity/);
+  assert.match(sql, /shipping-pending-reservation/);
+  assert.match(sql, /Both order types reserve immediately/);
 });
 
 test('قاعدة البيانات تحافظ على الطلبات القديمة وتبقي النظام الأساسي منفصلاً', () => {
