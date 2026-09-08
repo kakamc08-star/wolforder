@@ -16,7 +16,7 @@ if (!viewerHasSession) {
 document.getElementById('userNameDisplay').textContent = viewerUser?.name || viewerUser?.username || '';
 document.getElementById('viewerSidebarName').textContent = viewerUser?.name || 'Instagram';
 
-const viewerState = { orders: [], allOrders: [], inventory: [], status: '', orderType: '', activePanel: 'home', inventoryLoaded: false };
+const viewerState = { orders: [], allOrders: [], inventory: [], status: '', orderType: '', shippingDeliveryStatus: '', activePanel: 'home', inventoryLoaded: false };
 const viewerEscape = (value) => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 const viewerDate = (value, time = false) => value ? new Date(value).toLocaleString('en-GB', time ? { dateStyle: 'short', timeStyle: 'short' } : { dateStyle: 'short' }) : '-';
 const viewerNumber = (value) => (Number(value) || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
@@ -85,8 +85,29 @@ function viewerOrderSearchValues(order) {
     order.company_name,
     order.order_type,
     order.status,
+    order.display_status,
+    order.shipping_delivered_to_name,
     ...itemValues
   ];
+}
+
+function viewerShippingCompanyName(order) {
+  return order.shipping_delivered_to_name || order.company_name || 'غير معروف';
+}
+
+function viewerStatusHtml(order, isShipping) {
+  if (!isShipping) {
+    const status = order.status_label || order.status || '';
+    const label = status === 'ملغي' ? 'إلغاء' : status;
+    return `<span class="status-badge status-${viewerEscape(label)}">${viewerEscape(label)}</span>`;
+  }
+  const delivered = order.shipping_delivery_status === 'delivered';
+  const label = order.display_status
+    || `${delivered ? 'تم تسليم' : 'لم يتم تسليم'} ${viewerShippingCompanyName(order)}`;
+  const deliveryDetails = delivered
+    ? `<small class="ig-shipping-status-details">تاريخ التسليم: ${viewerDate(order.shipping_delivered_at)}<br>وقت التسليم: ${viewerDate(order.shipping_delivered_at, true).split(', ').slice(-1)[0] || '-'}</small>`
+    : '';
+  return `<div class="ig-order-status-stack"><span class="status-badge ${delivered ? 'shipping-status-delivered' : 'shipping-status-pending'}">${viewerEscape(label)}</span>${deliveryDetails}</div>`;
 }
 
 function matchesViewerSearch(order, value) {
@@ -173,6 +194,11 @@ document.querySelectorAll('[data-viewer-order-type]').forEach((button) => {
   });
 });
 
+document.getElementById('viewerShippingDeliveryStatus')?.addEventListener('change', (event) => {
+  viewerState.shippingDeliveryStatus = event.target.value || '';
+  loadViewerOrders();
+});
+
 // ✅ دالة تحديث الإجماليات (السعر فقط بدون نسبة)
 function updateViewerTotals() {
   let totalSYR = 0;
@@ -208,7 +234,7 @@ function renderViewerOrders() {
     const actionHtml = isShipping && approval === 'pending'
       ? '<div class="instagram-viewer-decision-actions"><button type="button" class="btn btn-success btn-sm" data-viewer-instagram-action="approve">قبول</button><button type="button" class="btn btn-danger btn-sm" data-viewer-instagram-action="reject">رفض</button></div>'
       : isShipping ? '<span class="viewer-order-decision-status">تمت معالجة الطلب</span>' : '-';
-    return `<tr data-viewer-instagram-order-id="${viewerEscape(order.id)}"><td data-label="العداد">${index + 1}</td><td data-label="رقم الطلب"><span class="ig-order-number">#${viewerEscape(order.order_number)}</span></td><td data-label="نوع الطلب"><span class="order-type-badge ${isShipping ? 'order-type-shipping' : 'order-type-delivery'}">${viewerEscape(orderType)}</span></td><td class="text-wrap-column" data-label="محتويات الطلب"><ul class="ig-order-items">${(Array.isArray(order.items) ? order.items : []).map((item) => `<li>${viewerEscape(item.product_name)} — ${viewerEscape(item.color)} / ${viewerEscape(item.size)} × ${item.quantity}</li>`).join('')}</ul></td><td data-label="اسم العميل">${viewerEscape(order.customer_name)}</td><td data-label="رقم العميل">${viewerEscape(order.customer_number)}</td><td data-label="العنوان">${viewerEscape(order.address)}</td><td data-label="السعر">${priceHtml}</td><td data-label="الحالة"><span class="status-badge status-${viewerEscape(order.status)}">${viewerEscape(order.status)}</span></td><td data-label="التاريخ">${viewerDate(order.created_at, true)}</td><td class="viewer-order-actions-cell" data-label="الإجراء">${actionHtml}</td></tr>`;
+    return `<tr data-viewer-instagram-order-id="${viewerEscape(order.id)}"><td data-label="العداد">${index + 1}</td><td data-label="رقم الطلب"><span class="ig-order-number">#${viewerEscape(order.order_number)}</span></td><td data-label="نوع الطلب"><span class="order-type-badge ${isShipping ? 'order-type-shipping' : 'order-type-delivery'}">${viewerEscape(orderType)}</span></td><td class="text-wrap-column" data-label="محتويات الطلب"><ul class="ig-order-items">${(Array.isArray(order.items) ? order.items : []).map((item) => `<li>${viewerEscape(item.product_name)} — ${viewerEscape(item.color)} / ${viewerEscape(item.size)} × ${item.quantity}</li>`).join('')}</ul></td><td data-label="اسم العميل">${viewerEscape(order.customer_name)}</td><td data-label="رقم العميل">${viewerEscape(order.customer_number)}</td><td data-label="العنوان">${viewerEscape(order.address)}</td><td data-label="السعر">${priceHtml}</td><td data-label="الحالة">${viewerStatusHtml(order, isShipping)}</td><td data-label="التاريخ">${viewerDate(order.created_at, true)}</td><td class="viewer-order-actions-cell" data-label="الإجراء">${actionHtml}</td></tr>`;
   }).join('') : '<tr><td colspan="11">لا توجد طلبات.</td></tr>';
 
   updateViewerTotals();
@@ -220,6 +246,7 @@ async function loadViewerOrders() {
     const status = viewerState.status || '';
     if (status) params.set('status', status);
     if (viewerState.orderType) params.set('orderType', viewerState.orderType);
+    if (viewerState.shippingDeliveryStatus) params.set('shippingDeliveryStatus', viewerState.shippingDeliveryStatus);
     viewerState.allOrders = await viewerApi(`/api/instagram/orders?${params}`);
     const search = document.getElementById('viewerOrderSearch')?.value || '';
     viewerState.orders = viewerState.allOrders.filter((order) => matchesViewerSearch(order, search));

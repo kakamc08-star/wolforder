@@ -31,7 +31,20 @@ function cleanText(value, maxLength) {
 }
 
 function normalizePhone(value) {
-  return normalizeDigits(value).replace(/[^0-9]/g, '');
+  const digits = normalizeDigits(value).replace(/[^0-9]/g, '');
+
+  // Accept the common Syrian international forms when a customer pastes a
+  // number from a contact card, then keep one canonical local representation.
+  for (const prefix of ['00963', '963']) {
+    if (!digits.startsWith(prefix)) continue;
+    const localPart = digits.slice(prefix.length);
+    if (localPart.length === 9) return `0${localPart}`;
+    if (localPart.length === 10 && localPart.startsWith('0')) return localPart;
+  }
+
+  // A nine-digit Syrian mobile number is often copied without its local 0.
+  if (digits.length === 9 && digits.startsWith('9')) return `0${digits}`;
+  return digits;
 }
 
 function normalizeOrderType(value, fallback = '') {
@@ -44,7 +57,7 @@ function validatePublicOrder(body) {
   const customerName = cleanText(source.customerName, 100);
   const customerPhone = normalizePhone(source.customerPhone);
   const address = cleanText(source.address, 300);
-  const note = cleanText(source.note, 500);
+  const note = cleanText(source.note, 85);
   const orderType = normalizeOrderType(source.orderType);
   const website = cleanText(source.website, 100);
   const rawItems = Array.isArray(source.items) ? source.items : [];
@@ -56,8 +69,10 @@ function validatePublicOrder(body) {
   if (orderType === 'شحن' && nameParts.length < 3) {
     errors.push('لطلبات الشحن يجب إدخال الاسم الثلاثي (3 أجزاء على الأقل)');
   }
-  if (!/^\d{10}$/.test(customerPhone)) errors.push('رقم العميل يجب أن يتكون من 10 أرقام');
-  if (address.length < 5) errors.push('العنوان مطلوب ويجب أن يكون واضحاً');
+  if (!/^0\d{9}$/.test(customerPhone)) {
+    errors.push('رقم العميل يجب أن يتكون من 10 أرقام ويبدأ بالرقم 0');
+  }
+  if (address.length < 3) errors.push('العنوان مطلوب ويجب أن يتكون من 3 محارف على الأقل');
   if (!ORDER_TYPES.has(orderType)) errors.push('نوع الطلب غير صالح');
   if (rawItems.length < 1 || rawItems.length > 20) errors.push('يجب اختيار صنف واحد على الأقل وبحد أقصى 20 صنفاً');
 

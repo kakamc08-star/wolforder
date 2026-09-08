@@ -187,6 +187,37 @@ test('حساب المشاهدة يفلتر الطلبات حسب الكل وال
   assert.match(viewer, /params\.set\('orderType', viewerState\.orderType\)/);
 });
 
+test('حالة الإلغاء تظهر باسم إلغاء وفلتر تسليم الشحن يميز المرحّل عن غير المرحّل', () => {
+  const adminHtml = read('public/instagram-admin.html');
+  const admin = read('public/js/instagram-admin.js');
+  const viewerHtml = read('public/instagram-viewer.html');
+  const viewer = read('public/js/instagram-viewer.js');
+  const route = read('routes/instagram.js');
+
+  assert.match(adminHtml, /value="إلغاء">إلغاء/);
+  assert.match(viewerHtml, /data-status="إلغاء">إلغاء/);
+  assert.match(adminHtml, /id="igShippingDeliveryStatus"[\s\S]*value="pending">لم يتم التسليم[\s\S]*value="delivered">تم التسليم/);
+  assert.match(viewerHtml, /id="viewerShippingDeliveryStatus"[\s\S]*value="pending">لم يتم التسليم[\s\S]*value="delivered">تم التسليم/);
+  assert.match(admin, /\['shippingDeliveryStatus', 'igShippingDeliveryStatus'\]/);
+  assert.match(viewer, /params\.set\('shippingDeliveryStatus', viewerState\.shippingDeliveryStatus\)/);
+  assert.match(route, /normalizeInstagramShippingDeliveryStatus/);
+  assert.match(route, /matchesInstagramShippingDeliveryStatus/);
+  assert.match(route, /return status;/);
+});
+
+test('صفحات Instagram مجهزة للإضافة إلى الشاشة الرئيسية على iPhone', () => {
+  const pages = [
+    read('public/instagram-admin.html'),
+    read('public/instagram-viewer.html'),
+    read('public/instagram-login.html')
+  ].join('\n');
+
+  assert.equal((pages.match(/rel="manifest"/g) || []).length, 3);
+  assert.match(pages, /apple-mobile-web-app-capable/);
+  assert.match(pages, /apple-touch-icon-180x180\.png/);
+  assert.match(pages, /\/js\/pwa\.js\?v=20260908\.2/);
+});
+
 test('حساب المشاهدة وحده يعرض أزرار اعتماد طلبات الشحن', () => {
   const route = read('routes/instagram.js');
   const companyHtml = read('public/company.html');

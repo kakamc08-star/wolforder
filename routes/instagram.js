@@ -15,6 +15,25 @@ const INSTAGRAM_ORDER_TYPE_ALIASES = Object.freeze({
 const INSTAGRAM_ORDER_TYPES = new Set(['توصيل', 'شحن']);
 const INSTAGRAM_SHIPPING_FEE = 10000;
 const INSTAGRAM_STATUSES = new Set(['قيد المتابعة', 'تم', 'مؤجل', 'مرتجع', 'إلغاء']);
+const INSTAGRAM_STATUS_ALIASES = Object.freeze({
+  'قيد المتابعة': 'قيد المتابعة',
+  'تم': 'تم',
+  'مؤجل': 'مؤجل',
+  'مرتجع': 'مرتجع',
+  'إلغاء': 'إلغاء',
+  'ملغي': 'إلغاء'
+});
+const INSTAGRAM_SHIPPING_DELIVERY_STATUS_ALIASES = Object.freeze({
+  pending: 'pending',
+  'not-delivered': 'pending',
+  not_delivered: 'pending',
+  'لم يتم التسليم': 'pending',
+  'لم يتم تسليم': 'pending',
+  delivered: 'delivered',
+  'تم التسليم': 'delivered',
+  'تم تسليم': 'delivered'
+});
+const INSTAGRAM_NOTE_MAX_LENGTH = 85;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const publicOrderAttempts = new Map();
 
@@ -34,6 +53,10 @@ function broadcastInstagramUpdate(req, type = 'INSTAGRAM_ORDER_UPDATED') {
 
 function cleanText(value, maxLength = 500) {
   return String(value ?? '').trim().slice(0, maxLength);
+}
+
+function limitInstagramCharacters(value, maxLength) {
+  return Array.from(String(value ?? '')).slice(0, maxLength).join('');
 }
 
 function normalizeInstagramSearch(value) {
@@ -65,6 +88,8 @@ function instagramOrderSearchValues(order) {
     order.driver_name,
     order.order_type,
     order.status,
+    instagramDisplayStatus(order),
+    order.shipping_delivered_to_name,
     ...itemValues
   ];
 }
@@ -76,6 +101,16 @@ function parseNumber(value, fallback = 0) {
 
 function normalizeInstagramPhone(value) {
   return normalizePhone(value);
+}
+
+function normalizeInstagramStatus(value, fallback = '') {
+  const key = cleanText(value, 30);
+  return INSTAGRAM_STATUS_ALIASES[key] || fallback;
+}
+
+function normalizeInstagramShippingDeliveryStatus(value, fallback = '') {
+  const key = cleanText(value, 50).toLocaleLowerCase('en-US');
+  return INSTAGRAM_SHIPPING_DELIVERY_STATUS_ALIASES[key] || fallback;
 }
 
 function normalizeInstagramOrderType(value, fallback = '') {
@@ -95,6 +130,27 @@ function instagramApprovalStatus(order) {
 
 function isInstagramShippingOrder(order) {
   return instagramOrderType(order) === 'شحن';
+}
+
+function instagramShippingCompanyName(order) {
+  return cleanText(
+    order?.shipping_delivered_to_name || order?.company_name || order?.company_username || 'غير معروف',
+    120
+  ) || 'غير معروف';
+}
+
+function instagramDisplayStatus(order) {
+  if (!isInstagramShippingOrder(order)) {
+    const status = normalizeInstagramStatus(order?.status, order?.status || '');
+    return status;
+  }
+  return `${order?.shipping_delivery_status === 'delivered' ? 'تم تسليم' : 'لم يتم تسليم'} ${instagramShippingCompanyName(order)}`;
+}
+
+function matchesInstagramShippingDeliveryStatus(order, filter) {
+  if (!filter || !isInstagramShippingOrder(order)) return !filter;
+  const delivered = order?.shipping_delivery_status === 'delivered';
+  return filter === 'delivered' ? delivered : !delivered;
 }
 
 function isInstagramOrderVisibleToUser(order, user) {
@@ -213,6 +269,7 @@ function normalizeInstagramOrder(order) {
   const itemsTotal = hasItemsTotal
     ? Number(order.items_total) || 0
     : Math.max(0, totalPrice - shippingFee);
+  const displayStatus = instagramDisplayStatus(order);
   return {
     ...safeOrder,
     items,
@@ -221,6 +278,9 @@ function normalizeInstagramOrder(order) {
     shipping_fee: shippingFee,
     items_total: itemsTotal,
     final_total: totalPrice,
+    status_label: displayStatus,
+    display_status: displayStatus,
+    shipping_status_label: orderType === 'شحن' ? displayStatus : null,
     order_source: 'instagram',
     price: totalPrice,
     order_contents: summarizeItems(items)
@@ -340,14 +400,22 @@ router.post('/storefront/:slug/orders', publicRateLimit, async (req, res) => {
     const customerName = cleanText(req.body.customerName, 100);
     const customerNumber = normalizeInstagramPhone(req.body.customerNumber);
     const address = cleanText(req.body.address, 300);
-    const note = cleanText(req.body.note, 1000);
+    const rawNote = cleanText(req.body.note, 2000);
+    const note = limitInstagramCharacters(rawNote, INSTAGRAM_NOTE_MAX_LENGTH);
     const requestedOrderType = cleanText(req.body.orderType, 20);
     const orderType = normalizeInstagramOrderType(requestedOrderType || 'توصيل');
     const idempotencyKey = cleanText(req.body.idempotencyKey, 50);
     const items = Array.isArray(req.body.items) ? req.body.items : [];
 
-    if (!/^[0-9]{10}$/.test(customerNumber)) {
-      return res.status(400).json({ message: 'رقم العميل يجب أن يتكون من 10 أرقام' });
+    // customerNumber uses the legacy ten-digit shape [0-9]{10}, with its first digit fixed to 0.
+    if (!/^0[0-9]{9}$/.test(customerNumber)) {
+      return res.status(400).json({ message: 'رقم العميل يجب أن يتكون من 10 أرقام ويبدأ بالرقم 0' });
+    }
+    if (address.length < 3) {
+      return res.status(400).json({ message: 'العنوان مطلوب ويجب أن يتكون من 3 محارف على الأقل' });
+    }
+    if (Array.from(rawNote).length > INSTAGRAM_NOTE_MAX_LENGTH) {
+      return res.status(400).json({ message: `الملاحظة يجب ألا تتجاوز ${INSTAGRAM_NOTE_MAX_LENGTH} محرفاً` });
     }
 
     const nameParts = customerName.split(/\s+/).filter(Boolean);
@@ -458,10 +526,27 @@ router.get('/admin/bootstrap', requireRole('admin'), async (req, res) => {
 
 router.get('/orders', requireRole('admin', 'instagram_viewer', 'driver'), async (req, res) => {
   try {
-    const { status, orderType, companyId, driverId, startDate, endDate, search } = req.query;
+    const {
+      status, orderType, companyId, driverId, unassignedDriver, shippingDeliveryStatus,
+      startDate, endDate, search
+    } = req.query;
     const normalizedOrderType = orderType ? normalizeInstagramOrderType(orderType) : '';
+    const normalizedShippingDeliveryStatus = shippingDeliveryStatus
+      ? normalizeInstagramShippingDeliveryStatus(shippingDeliveryStatus)
+      : '';
+    const noDriverFilter = ['unassigned', 'none'].includes(String(driverId || '').toLowerCase())
+      || String(unassignedDriver || '').toLowerCase() === 'true';
     if (orderType && !normalizedOrderType) {
       return res.status(400).json({ message: 'نوع الطلب غير صالح' });
+    }
+    if (driverId && !noDriverFilter && !isUuid(driverId)) {
+      return res.status(400).json({ message: 'السائق المحدد غير صالح' });
+    }
+    if (shippingDeliveryStatus && !normalizedShippingDeliveryStatus) {
+      return res.status(400).json({ message: 'حالة تسليم الشحن غير صالحة' });
+    }
+    if (noDriverFilter && req.user.role !== 'admin') {
+      return res.status(400).json({ message: 'فلتر بدون سائق متاح للمدير فقط' });
     }
 
     let query = supabase
@@ -478,12 +563,14 @@ router.get('/orders', requireRole('admin', 'instagram_viewer', 'driver'), async 
       query = query.eq('driver_id', req.user.id).eq('order_type', 'توصيل');
     } else {
       if (companyId) query = query.eq('company_id', companyId);
-      if (driverId) query = query.eq('driver_id', driverId);
+      if (noDriverFilter) query = query.is('driver_id', null);
+      else if (driverId) query = query.eq('driver_id', driverId);
     }
 
     if (status) {
-      if (!INSTAGRAM_STATUSES.has(status)) return res.status(400).json({ message: 'حالة الطلب غير صالحة' });
-      query = query.eq('status', status);
+      const normalizedStatus = normalizeInstagramStatus(status);
+      if (!INSTAGRAM_STATUSES.has(normalizedStatus)) return res.status(400).json({ message: 'حالة الطلب غير صالحة' });
+      query = query.eq('status', normalizedStatus);
     }
     if (normalizedOrderType === 'شحن') {
       query = query.eq('order_type', 'شحن');
@@ -502,11 +589,17 @@ router.get('/orders', requireRole('admin', 'instagram_viewer', 'driver'), async 
     const typeFiltered = normalizedOrderType
       ? visible.filter((order) => instagramOrderType(order) === normalizedOrderType)
       : visible;
+    const driverFiltered = noDriverFilter
+      ? typeFiltered.filter((order) => !order.driver_id)
+      : typeFiltered;
+    const shippingStatusFiltered = normalizedShippingDeliveryStatus
+      ? driverFiltered.filter((order) => matchesInstagramShippingDeliveryStatus(order, normalizedShippingDeliveryStatus))
+      : driverFiltered;
     const filtered = term
-      ? typeFiltered.filter((order) => [
+      ? shippingStatusFiltered.filter((order) => [
           ...instagramOrderSearchValues(order)
         ].some((value) => normalizeInstagramSearch(value).includes(term)))
-      : typeFiltered;
+      : shippingStatusFiltered;
 
     res.json(filtered.map(normalizeInstagramOrder));
   } catch (error) {
@@ -600,6 +693,11 @@ router.get('/orders/report', requireRole('admin'), async (req, res) => {
         currency: order.currency || 'ل.س',
         ratio: order.ratio || 0,
         status: order.status,
+        status_label: instagramDisplayStatus(order),
+        display_status: instagramDisplayStatus(order),
+        shipping_delivery_status: order.shipping_delivery_status,
+        shipping_delivered_at: order.shipping_delivered_at,
+        shipping_delivered_to_name: order.shipping_delivered_to_name,
         note: order.note
       };
     });
@@ -683,7 +781,7 @@ router.get('/orders/export', requireRole('admin'), async (req, res) => {
         order.total_price || 0,
         order.currency || 'ل.س',
         order.ratio || 0,
-        order.status || '',
+        instagramDisplayStatus(order),
         order.note || ''
       ];
     });
@@ -797,7 +895,7 @@ router.delete('/orders/:id', requireRole('admin'), async (req, res) => {
 router.patch('/orders/bulk-status', requireRole('admin'), async (req, res) => {
   try {
     const ids = Array.isArray(req.body.ids) ? req.body.ids : [];
-    const status = cleanText(req.body.status, 30);
+    const status = normalizeInstagramStatus(req.body.status);
     if (!validIdList(ids) || !INSTAGRAM_STATUSES.has(status)) {
       return res.status(400).json({ message: 'الطلبات أو الحالة غير صالحة' });
     }
@@ -806,7 +904,7 @@ router.patch('/orders/bulk-status', requireRole('admin'), async (req, res) => {
       p_order_ids: ids,
       p_new_status: status,
       p_actor_user_id: req.user.id,
-      p_note: cleanText(req.body.note, 1000) || null
+        p_note: limitInstagramCharacters(cleanText(req.body.note, 2000), INSTAGRAM_NOTE_MAX_LENGTH) || null
     });
     if (error) throw error;
     broadcastInstagramUpdate(req);
@@ -937,7 +1035,7 @@ router.patch('/orders/archive', requireRole('admin'), async (req, res) => {
 router.patch('/orders/:id/status', requireRole('admin', 'driver'), async (req, res) => {
   try {
     if (!isUuid(req.params.id)) return res.status(400).json({ message: 'معرف الطلب غير صالح' });
-    const status = cleanText(req.body.status, 30);
+    const status = normalizeInstagramStatus(req.body.status);
     if (!INSTAGRAM_STATUSES.has(status)) {
       return res.status(400).json({ message: 'حالة الطلب غير صالحة' });
     }
@@ -965,7 +1063,9 @@ router.patch('/orders/:id/status', requireRole('admin', 'driver'), async (req, r
       p_order_id: req.params.id,
       p_new_status: status,
       p_actor_user_id: req.user.id,
-      p_note: req.body.note === undefined ? null : cleanText(req.body.note, 1000)
+      p_note: req.body.note === undefined
+        ? null
+        : limitInstagramCharacters(cleanText(req.body.note, 2000), INSTAGRAM_NOTE_MAX_LENGTH)
     });
     if (error) throw error;
     broadcastInstagramUpdate(req);
@@ -1028,7 +1128,7 @@ router.patch('/orders/:id', requireRole('admin'), async (req, res) => {
     const hasItems = hasOwn('items');
     const editableFields = [
       'order_number', 'customer_name', 'customer_number', 'address',
-      'driver_id', 'company_id', 'total_price', 'ratio', 'note', 'status'
+      'driver_id', 'company_id', 'order_type', 'total_price', 'ratio', 'note', 'status'
     ];
     if (!hasItems && !editableFields.some(hasOwn)) {
       return res.status(400).json({ message: 'لم يتم إرسال أي تعديل' });
@@ -1036,20 +1136,29 @@ router.patch('/orders/:id', requireRole('admin'), async (req, res) => {
 
     const { data: currentOrder, error: currentOrderError } = await supabase
       .from('instagram_orders')
-      .select('company_id, driver_id')
+      .select('company_id, driver_id, order_type, customer_number, address, note')
       .eq('id', orderId)
-      .eq('order_type', 'توصيل')
       .eq('is_archived', false)
       .maybeSingle();
     if (currentOrderError) throw currentOrderError;
     if (!currentOrder) return res.status(404).json({ message: 'طلب Instagram غير موجود' });
 
-    const companyId = hasOwn('company_id') && isUuid(req.body.company_id)
-      ? req.body.company_id
+    const currentOrderType = instagramOrderType(currentOrder);
+    const requestedOrderType = hasOwn('order_type')
+      ? normalizeInstagramOrderType(req.body.order_type)
+      : currentOrderType;
+    if (!requestedOrderType) {
+      return res.status(400).json({ message: 'نوع الطلب غير صالح' });
+    }
+
+    const companyId = hasOwn('company_id') && req.body.company_id
+      ? (isUuid(req.body.company_id) ? req.body.company_id : null)
       : currentOrder.company_id;
-    const driverId = hasOwn('driver_id')
-      ? (req.body.driver_id && isUuid(req.body.driver_id) ? req.body.driver_id : null)
-      : (currentOrder.driver_id || null);
+    const driverId = requestedOrderType === 'شحن'
+      ? null
+      : hasOwn('driver_id')
+        ? (req.body.driver_id && isUuid(req.body.driver_id) ? req.body.driver_id : null)
+        : (currentOrder.driver_id || null);
 
     if (!isUuid(companyId) || (driverId && !isUuid(driverId))) {
       return res.status(400).json({ message: 'الشركة أو السائق المحدد غير صالح' });
@@ -1075,6 +1184,34 @@ router.patch('/orders/:id', requireRole('admin'), async (req, res) => {
       : (hasOwn('ratio') ? 0 : null);
     if ((totalPrice !== null && totalPrice < 0) || (ratio !== null && ratio < 0)) {
       return res.status(400).json({ message: 'السعر أو النسبة غير صالح' });
+    }
+
+    const submittedCustomerNumber = hasOwn('customer_number')
+      ? normalizeInstagramPhone(req.body.customer_number)
+      : null;
+    const customerNumberChanged = hasOwn('customer_number')
+      && submittedCustomerNumber !== String(currentOrder.customer_number ?? '');
+    if (customerNumberChanged && !/^0[0-9]{9}$/.test(submittedCustomerNumber)) {
+      return res.status(400).json({ message: 'رقم العميل يجب أن يتكون من 10 أرقام ويبدأ بالرقم 0' });
+    }
+    const submittedAddress = hasOwn('address') ? cleanText(req.body.address, 300) : null;
+    const addressChanged = hasOwn('address')
+      && submittedAddress !== String(currentOrder.address ?? '');
+    if (addressChanged && submittedAddress.length < 3) {
+      return res.status(400).json({ message: 'العنوان مطلوب ويجب أن يتكون من 3 محارف على الأقل' });
+    }
+    const submittedNote = hasOwn('note') ? cleanText(req.body.note, 2000) : null;
+    const noteChanged = hasOwn('note')
+      && submittedNote !== String(currentOrder.note ?? '');
+    if (noteChanged && Array.from(submittedNote).length > INSTAGRAM_NOTE_MAX_LENGTH) {
+      return res.status(400).json({ message: `الملاحظة يجب ألا تتجاوز ${INSTAGRAM_NOTE_MAX_LENGTH} محرفاً` });
+    }
+    const customerNumber = customerNumberChanged ? submittedCustomerNumber : null;
+    const address = addressChanged ? submittedAddress : null;
+    const note = noteChanged ? limitInstagramCharacters(submittedNote, INSTAGRAM_NOTE_MAX_LENGTH) : null;
+    const requestedStatus = hasOwn('status') ? normalizeInstagramStatus(req.body.status) : null;
+    if (hasOwn('status') && !INSTAGRAM_STATUSES.has(requestedStatus)) {
+      return res.status(400).json({ message: 'حالة الطلب غير صالحة' });
     }
 
     let items = null;
@@ -1104,14 +1241,15 @@ router.patch('/orders/:id', requireRole('admin'), async (req, res) => {
       p_actor_user_id: req.user.id,
       p_order_number: orderNumber,
       p_customer_name: hasOwn('customer_name') ? cleanText(req.body.customer_name, 100) : null,
-      p_customer_number: hasOwn('customer_number') ? cleanText(req.body.customer_number, 50) : null,
-      p_address: hasOwn('address') ? cleanText(req.body.address, 300) : null,
+      p_customer_number: customerNumber,
+      p_address: address,
       p_total_price: totalPrice,
       p_ratio: ratio,
-      p_note: hasOwn('note') ? cleanText(req.body.note, 1000) : null,
-      p_status: hasOwn('status') ? cleanText(req.body.status, 30) : null,
+      p_note: note,
+      p_status: requestedStatus,
       p_driver_id: driverId,
       p_company_id: companyId,
+      p_order_type: hasOwn('order_type') ? requestedOrderType : null,
       p_items: items,
       p_recalculate_total_price: hasItems && Boolean(req.body.recalculate_total_price)
     });

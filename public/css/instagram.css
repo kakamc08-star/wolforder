@@ -827,6 +827,20 @@ body.dashboard-page.instagram-theme {
   font-size: 10px;
 }
 
+.instagram-theme .ig-order-status-stack {
+  display: grid;
+  justify-items: start;
+  gap: 5px;
+  min-width: 145px;
+}
+
+.instagram-theme .ig-shipping-status-details {
+  color: var(--ig-muted);
+  font-size: 10px;
+  line-height: 1.55;
+  white-space: nowrap;
+}
+
 .instagram-theme .viewer-price-breakdown {
   display: grid;
   gap: 3px;
@@ -863,8 +877,7 @@ body.dashboard-page.instagram-theme {
 
 .instagram-theme .source-badge,
 .instagram-theme .order-type-badge,
-.instagram-theme .availability-badge,
-.instagram-theme .status-badge {
+.instagram-theme .availability-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -875,6 +888,21 @@ body.dashboard-page.instagram-theme {
   font-size: 11px;
   font-weight: 850;
   line-height: 1.2;
+  white-space: nowrap;
+}
+
+/* نفس شكل شارات الحالات في لوحة الطلبات الأساسية. */
+.instagram-theme .status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 5px 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.4;
   white-space: nowrap;
 }
 
@@ -936,23 +964,40 @@ body.dashboard-page.instagram-theme {
 }
 
 .instagram-theme .status-تم {
-  color: #0f704f;
-  border-color: #bce5d0;
-  background: #eaf9f0;
+  color: #166534;
+  border-color: transparent;
+  background: #bbf7d0;
 }
 
 .instagram-theme .status-مؤجل {
-  color: #806210;
-  border-color: #ead58c;
-  background: #fff9df;
+  color: #713f12;
+  border-color: transparent;
+  background: #fde047;
 }
 
-.instagram-theme .status-مرتجع,
+.instagram-theme .status-مرتجع {
+  color: #7c2d12;
+  border-color: transparent;
+  background: #fdba74;
+}
+
 .instagram-theme .status-إلغاء,
 .instagram-theme .status-ملغي {
-  color: #a22937;
-  border-color: #f0bdc4;
-  background: #fff0f2;
+  color: #991b1b;
+  border-color: transparent;
+  background: #fecaca;
+}
+
+.instagram-theme .shipping-status-pending {
+  color: #713f12;
+  border-color: transparent;
+  background: #fde047;
+}
+
+.instagram-theme .shipping-status-delivered {
+  color: #166534;
+  border-color: transparent;
+  background: #bbf7d0;
 }
 
 .instagram-theme .highlight-new {
@@ -1686,6 +1731,20 @@ body.storefront-page {
 .storefront-field textarea {
   min-height: 84px;
   resize: vertical;
+}
+
+.storefront-field > small,
+.instagram-theme .ig-note-counter {
+  color: var(--ig-muted, #6b7280);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.storefront-note-counter,
+.instagram-theme .ig-note-counter {
+  direction: ltr;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
 }
 
 .storefront-order-type-options {

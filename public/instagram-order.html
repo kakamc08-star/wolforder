@@ -6,7 +6,7 @@
   <meta name="description" content="إنشاء طلب Instagram سريع وآمن">
   <title>طلب Instagram | WolfOrder</title>
   <link rel="stylesheet" href="/css/style.css?v=20260901.1">
-  <link rel="stylesheet" href="/css/instagram.css?v=20260904.4">
+  <link rel="stylesheet" href="/css/instagram.css?v=20260908.1">
   <meta name="theme-color" content="#4c1d95">
 </head>
 <body class="storefront-page">
@@ -36,8 +36,8 @@
           <h2><span class="storefront-step">02</span> بيانات الزبون</h2>
           <div class="storefront-grid">
             <div class="storefront-field"><label for="customerName" id="customerNameLabel">الاسم *</label><input id="customerName" autocomplete="name" required aria-describedby="customerNameHint"><small id="customerNameHint" hidden>لطلب الشحن أدخل الاسم الثلاثي (3 أجزاء على الأقل).</small></div>
-            <div class="storefront-field"><label for="customerNumber">رقم العميل *</label><input id="customerNumber" type="tel" inputmode="numeric" autocomplete="tel" dir="ltr" maxlength="10" pattern="[0-9]{10}" required aria-describedby="customerNumberHint"><small id="customerNumberHint">أدخل 10 أرقام فقط</small></div>
-            <div class="storefront-field full"><label for="customerAddress">العنوان</label><textarea id="customerAddress" rows="2" maxlength="300" autocomplete="street-address"></textarea></div>
+            <div class="storefront-field"><label for="customerNumber">رقم العميل *</label><input id="customerNumber" type="tel" inputmode="numeric" autocomplete="tel" dir="ltr" maxlength="10" minlength="10" pattern="0[0-9]{9}" data-legacy-pattern="[0-9]{10}" required aria-describedby="customerNumberHint"><small id="customerNumberHint">يجب أن يبدأ بـ 0 ويتكون من 10 أرقام. الأرقام العربية والفارسية تُحوّل تلقائياً.</small></div>
+            <div class="storefront-field full"><label for="customerAddress">العنوان</label><textarea id="customerAddress" rows="2" minlength="3" maxlength="300" autocomplete="street-address" required></textarea><small id="customerAddressHint">أدخل عنواناً صحيحاً لا يقل عن 3 محارف.</small></div>
           </div>
         </section>
 
@@ -50,7 +50,7 @@
 
         <section class="storefront-card">
           <h2><span class="storefront-step">04</span> المراجعة والتأكيد</h2>
-          <div class="storefront-field"><label for="customerNote">ملاحظة (اختياري)</label><textarea id="customerNote" rows="2" placeholder="أضف أي تفاصيل تساعدنا على تجهيز طلبك"></textarea></div>
+          <div class="storefront-field"><label for="customerNote">ملاحظة (اختياري)</label><textarea id="customerNote" rows="2" maxlength="85" placeholder="أضف أي تفاصيل تساعدنا على تجهيز طلبك"></textarea><small id="customerNoteCounter" class="storefront-note-counter">0 / 85</small></div>
           <div class="storefront-total" id="storefrontDeliveryTotal"><span>إجمالي سعر الطلب بالكامل</span><strong id="storefrontTotal">0</strong></div>
           <div class="storefront-pricing-summary" id="storefrontShippingSummary" hidden>
             <div><span>قيمة الأصناف</span><strong id="storefrontItemsTotal">0</strong></div>
@@ -70,6 +70,6 @@
     </section>
     <footer class="storefront-footer">تجربة طلب بسيطة وآمنة عبر <strong>WOLFORDER</strong></footer>
   </main>
-  <script src="/js/instagram-order.js?v=20260905.1"></script>
+  <script src="/js/instagram-order.js?v=20260908.1"></script>
 </body>
 </html>

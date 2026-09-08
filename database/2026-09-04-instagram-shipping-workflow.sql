@@ -268,8 +268,8 @@ end
 $$;
 
 -- =========================================================
--- Public creation: delivery keeps the current reservation behavior; shipping
--- stays pending and does not touch stock until the linked viewer approves it.
+-- Public creation baseline: the later pending-reservation migration replaces
+-- this function so both delivery and shipping reserve stock at creation.
 -- =========================================================
 create or replace function public.create_instagram_order_atomic(
   p_slug text,

@@ -262,11 +262,14 @@ begin
       raise exception 'لطلبات الشحن يجب إدخال الاسم الثلاثي (3 أجزاء على الأقل)' using errcode = 'P0001';
     end if;
   end if;
-  if coalesce(p_customer_number, '') !~ '^[0-9]{10}$' then
-    raise exception 'رقم العميل يجب أن يتكون من 10 أرقام' using errcode = 'P0001';
+  if coalesce(p_customer_number, '') !~ '^0[0-9]{9}$' then
+    raise exception 'رقم العميل يجب أن يتكون من 10 أرقام ويبدأ بالرقم 0' using errcode = 'P0001';
   end if;
-  if char_length(coalesce(p_address, '')) > 300 then
-    raise exception 'العنوان طويل جداً' using errcode = 'P0001';
+  if char_length(btrim(coalesce(p_address, ''))) not between 3 and 300 then
+    raise exception 'العنوان مطلوب ويجب أن يتكون من 3 محارف على الأقل' using errcode = 'P0001';
+  end if;
+  if char_length(coalesce(p_note, '')) > 85 then
+    raise exception 'الملاحظة يجب ألا تتجاوز 85 محرفاً' using errcode = 'P0001';
   end if;
 
   if p_items is null or jsonb_typeof(p_items) <> 'array' then
@@ -386,7 +389,7 @@ begin
     v_order_number, v_company_id, coalesce(v_company_name, ''),
     btrim(p_customer_name), p_customer_number, btrim(p_address), v_order_type,
     'instagram', v_items_total + v_shipping_fee, coalesce(v_selected_currency, 'ل.س'),
-    0, 'قيد المتابعة', btrim(coalesce(p_note, '')), null, '',
+    0, 'قيد المتابعة', left(btrim(coalesce(p_note, '')), 85), null, '',
     case when v_order_type = 'شحن' then 'pending' else 'not_required' end,
     v_shipping_fee, v_items_total, 'pending', p_idempotency_key, false
   ) returning * into v_order;

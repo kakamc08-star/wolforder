@@ -1,5 +1,6 @@
--- WolfOrder Instagram order editing
--- نفّذ هذا الملف مرة واحدة في Supabase SQL Editor.
+-- WolfOrder Instagram order editing (historical compatibility migration)
+-- نفّذ هذا الملف مرة واحدة فقط إذا لم يكن مطبقاً، ثم شغّل
+-- 2026-09-08-instagram-order-edit-type-and-validation.sql للنسخة النهائية.
 -- لا ينشئ جداول جديدة ولا يحذف الطلبات الحالية.
 
 begin;
@@ -74,8 +75,8 @@ begin
   if not found then
     raise exception 'طلب Instagram غير موجود';
   end if;
-  if v_order.order_type is distinct from 'توصيل' then
-    raise exception 'لا يمكن تعديل طلب Instagram قديم من نوع غير التوصيل';
+  if coalesce(v_order.order_type, 'توصيل') not in ('توصيل', 'شحن') then
+    raise exception 'نوع طلب Instagram غير صالح';
   end if;
 
   v_company_id := coalesce(p_company_id, v_order.company_id);
@@ -454,23 +455,28 @@ grant execute on function public.update_instagram_order_atomic(
   uuid, uuid, bigint, text, text, text, numeric, numeric, text, text, uuid, uuid, jsonb, boolean
 ) to service_role;
 
--- منع إنشاء طلب Instagram جديد بنوع غير التوصيل، مع إبقاء سجلات الشحن القديمة محفوظة.
-create or replace function public.instagram_orders_delivery_only_guard()
+-- The final workflow supports both types. Keep only the driver invariant here
+-- when this historical file is run before the current migration.
+drop trigger if exists instagram_orders_delivery_only_guard on public.instagram_orders;
+drop function if exists public.instagram_orders_delivery_only_guard();
+
+create or replace function public.instagram_orders_shipping_driver_guard()
 returns trigger
 language plpgsql
+security invoker
+set search_path = public, pg_temp
 as $$
 begin
-  if new.order_type is distinct from 'توصيل'
-     and (tg_op = 'INSERT' or old.order_type = 'توصيل') then
-    raise exception 'نظام Instagram يدعم التوصيل فقط';
+  if coalesce(new.order_type, 'توصيل') = 'شحن' and new.driver_id is not null then
+    raise exception 'لا يمكن تعيين سائق لطلب شحن';
   end if;
   return new;
 end;
 $$;
 
-drop trigger if exists instagram_orders_delivery_only_guard on public.instagram_orders;
-create trigger instagram_orders_delivery_only_guard
-before insert or update of order_type on public.instagram_orders
-for each row execute function public.instagram_orders_delivery_only_guard();
+drop trigger if exists instagram_orders_shipping_driver_guard on public.instagram_orders;
+create trigger instagram_orders_shipping_driver_guard
+before insert or update of order_type, driver_id on public.instagram_orders
+for each row execute function public.instagram_orders_shipping_driver_guard();
 
 commit;

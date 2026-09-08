@@ -32,6 +32,7 @@ const storefrontElements = {
 };
 
 const INSTAGRAM_SHIPPING_FEE = 10000;
+const INSTAGRAM_NOTE_MAX_LENGTH = 85;
 
 function createUuid() {
   if (window.crypto && typeof window.crypto.randomUUID === 'function') {
@@ -64,10 +65,17 @@ function setStorefrontMessage(message = '', type = 'error') {
 }
 
 function normalizeCustomerNumber(value) {
-  return String(value ?? '')
+  const digits = String(value ?? '')
     .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
     .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
     .replace(/[^0-9]/g, '');
+  for (const prefix of ['00963', '963']) {
+    if (!digits.startsWith(prefix)) continue;
+    const localPart = digits.slice(prefix.length);
+    if (localPart.length === 9) return `0${localPart}`;
+    if (localPart.length === 10 && localPart.startsWith('0')) return localPart;
+  }
+  return digits.length === 9 && digits.startsWith('9') ? `0${digits}` : digits;
 }
 
 function normalizeCustomerNumberField() {
@@ -77,6 +85,16 @@ function normalizeCustomerNumberField() {
   input.dataset.phoneTooLong = normalized.length > 10 ? 'true' : 'false';
   const limited = normalized.slice(0, 10);
   if (input.value !== limited) input.value = limited;
+  return limited;
+}
+
+function normalizeCustomerNoteField() {
+  const input = document.getElementById('customerNote');
+  if (!input) return '';
+  const limited = Array.from(input.value || '').slice(0, INSTAGRAM_NOTE_MAX_LENGTH).join('');
+  if (input.value !== limited) input.value = limited;
+  const counter = document.getElementById('customerNoteCounter');
+  if (counter) counter.textContent = `${Array.from(limited).length} / ${INSTAGRAM_NOTE_MAX_LENGTH}`;
   return limited;
 }
 
@@ -267,12 +285,16 @@ async function submitStorefrontOrder(event) {
   const customerName = document.getElementById('customerName').value.trim();
   const customerNumber = normalizeCustomerNumberField();
   const address = document.getElementById('customerAddress').value.trim();
-  const note = document.getElementById('customerNote').value.trim();
+  const note = normalizeCustomerNoteField().trim();
   const orderType = getSelectedOrderType();
   const selectedItems = collectItems();
 
-  if (customerNumberInput.dataset.phoneTooLong === 'true' || !/^\d{10}$/.test(customerNumber)) {
-    setStorefrontMessage('رقم العميل يجب أن يتكون من 10 أرقام');
+  if (customerNumberInput.dataset.phoneTooLong === 'true' || !/^0\d{9}$/.test(customerNumber)) {
+    setStorefrontMessage('رقم العميل يجب أن يتكون من 10 أرقام ويبدأ بالرقم 0');
+    return;
+  }
+  if (address.length < 3) {
+    setStorefrontMessage('العنوان مطلوب ويجب أن يتكون من 3 محارف على الأقل');
     return;
   }
 
@@ -446,8 +468,10 @@ customerNumberInput.addEventListener('paste', (event) => {
   customerNumberInput.value = normalizeCustomerNumber(pastedText);
   customerNumberInput.dispatchEvent(new Event('input', { bubbles: true }));
   if (customerNumberInput.dataset.phoneTooLong === 'true') {
-    setStorefrontMessage('رقم العميل يجب أن يتكون من 10 أرقام');
+    setStorefrontMessage('رقم العميل يجب أن يتكون من 10 أرقام ويبدأ بالرقم 0');
   }
 });
+document.getElementById('customerNote').addEventListener('input', normalizeCustomerNoteField);
+normalizeCustomerNoteField();
 updateShippingUi();
 initializeStorefront();
