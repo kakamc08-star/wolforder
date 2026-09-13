@@ -922,7 +922,7 @@ function instagramPrintDeliveryRow(order) {
   if (orderType === 'شحن') {
     return `<div class="detail-row"><span class="detail-label">نوع الطلب:</span><span class="detail-value">${igEscape(orderType)}</span></div>`;
   }
-  return '<div class="detail-row"><span class="detail-label">أجور التوصيل:</span><span class="detail-value">ضمن دمشق 20,000 <br> خارج دمشق 40,000</span></div>';
+  return '<div class="detail-row"><span class="detail-label">أجور التوصيل:</span><span class="detail-value">ضمن دمشق 25,000 <br> خارج دمشق 40,000</span></div>';
 }
 
 function printInstagramOrders(orders) {
