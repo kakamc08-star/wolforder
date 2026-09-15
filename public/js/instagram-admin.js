@@ -922,7 +922,7 @@ function instagramPrintDeliveryRow(order) {
   if (orderType === 'شحن') {
     return `<div class="detail-row"><span class="detail-label">نوع الطلب:</span><span class="detail-value">${igEscape(orderType)}</span></div>`;
   }
-  return '<div class="detail-row"><span class="detail-label">أجور التوصيل:</span><span class="detail-value">ضمن دمشق 25,000 <br> خارج دمشق 40,000</span></div>';
+  return '<div class="detail-row"><span class="detail-label">أجور التوصيل:</span><span class="detail-value">ضمن دمشق 25,000 <br> خارج دمشق 45,000</span></div>';
 }
 
 function printInstagramOrders(orders) {
@@ -951,7 +951,7 @@ function printInstagramOrders(orders) {
         ${instagramPrintDeliveryRow(order)}
         <div class="detail-row"><span class="detail-label">الشركة:</span><span class="detail-value">${igEscape(order.company_name || order.companyName || '-')}</span></div>
         <div class="detail-row"><span class="detail-label">ملاحظة:</span><span class="detail-value">${igEscape(order.note || '-')}</span></div>
-        <div class="footer" style="text-align: right;">للشكاوي أو الاستعلام بالنسبة لخدمة التوصيل<br> يرجى التواصل على الرقم: 0997665442</div>
+        <div class="footer" style="text-align: right;">للشكاوي أو الاستعلام بالنسبة لخدمة التوصيل<br> يرجى التواصل على الرقم: 0984155215</div>
         <div class="footer">شكراً لتعاملكم مع WolfOrder</div>
       </div>`;
   }).join('');
