@@ -907,15 +907,22 @@ async function exportReport() {
   const driverId = document.getElementById('reportDriver').value;
   const companyId = document.getElementById('reportCompany').value;
 
-  // بناء URL لجلب البيانات كـ JSON (بدون export=excel)
-  let url = '/api/orders/report?';
-  if (status) url += `status=${status}&`;
-  if (driverId) url += `driverId=${driverId}&`;
-  if (companyId) url += `companyId=${companyId}&`;
+  const params = new URLSearchParams();
+  if (status) params.set('status', status);
+  if (driverId) params.set('driverId', driverId);
+  if (companyId) params.set('companyId', companyId);
 
   try {
-    const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
-    if (!res.ok) throw new Error('فشل جلب البيانات للتصدير');
+    const res = await fetch(`/api/orders/report?${params.toString()}`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+
+    if (!res.ok) {
+      throw new Error('فشل جلب البيانات للتصدير');
+    }
+
     const data = await res.json();
     const orders = data.orders || [];
 
@@ -925,12 +932,27 @@ async function exportReport() {
     }
 
     // أسماء الأعمدة (بنفس ترتيب العينة)
-    const headers = ['الرقم التسلسلي', 'رقم الطلب', 'محتويات الطلب', 'اسم العميل', 'رقم العميل', 'العنوان', 'السعر', 'النسبة', 'الحالة', 'ملاحظة', 'السائق', 'الشركة', 'التاريخ'];
+    const headers = [
+      'الرقم التسلسلي',
+      'رقم الطلب',
+      'نوع الطلب',
+      'محتويات الطلب',
+      'اسم العميل',
+      'رقم العميل',
+      'العنوان',
+      'السعر',
+      'النسبة',
+      'الحالة',
+      'ملاحظة',
+      'السائق',
+      'الشركة',
+      'التاريخ'
+    ];
 
-    // بناء صفوف البيانات
-    const rows = orders.map((o, index) => {
+    const rows = orders.map((o) => {
       const serial = o.serial_number || o.serialNumber || '';
       const orderNumber = o.order_number || o.orderNumber || '';
+      const orderType = getOrderType(o);
       const contents = o.order_contents || o.orderContents || '';
       const customerName = o.customer_name || o.customerName || '';
       const customerNumber = o.customer_number || o.customerNumber || '';
@@ -942,35 +964,59 @@ async function exportReport() {
       const driver = o.driver_name || o.driverName || '';
       const company = o.company_name || o.companyName || '';
       const date = formatDate(o.created_at || o.createdAt) || '';
-      return [serial, orderNumber, contents, customerName, customerNumber, address, price, ratio, statusVal, note, driver, company, date];
+      return [
+        serial,
+        orderNumber,
+        orderType,
+        contents,
+        customerName,
+        customerNumber,
+        address,
+        price,
+        ratio,
+        statusVal,
+        note,
+        driver,
+        company,
+        date
+      ];
+
     });
 
-    // دالة لتنسيق الحقل لـ CSV (بين علامات اقتباس، وتضاعف علامات الاقتباس الداخلية)
     function escapeCsvField(field) {
-      if (field === null || field === undefined) return '""';
-      const str = String(field);
-      // نضع كل الحقول بين علامات اقتباس لتجنب مشاكل الفواصل والفواصل المنقوطة
+      const str = String(field ?? '');
       return '"' + str.replace(/"/g, '""') + '"';
     }
 
-    // إنشاء المحتوى النهائي
-    const headerRow = headers.map(h => escapeCsvField(h)).join(';');
-    const dataRows = rows.map(row => row.map(field => escapeCsvField(field)).join(';'));
+    const headerRow = headers.map(escapeCsvField).join(';');
+    const dataRows = rows.map((row) =>
+      row.map(escapeCsvField).join(';')
+    );
+
     const csvContent = [headerRow, ...dataRows].join('\n');
 
-    // إضافة BOM (علامة ترتيب البايت) لدعم الترميز العربي
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['\uFEFF' + csvContent], {
+      type: 'text/csv;charset=utf-8;'
+    });
 
+    const downloadUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `تقرير_الطلبات_${formatDate(new Date()).replace(/\//g, '-')}.csv`;
+
+    a.href = downloadUrl;
+    a.download =
+      `تقرير_الطلبات_${formatDate(new Date()).replace(/\//g, '-')}.csv`;
+
+    document.body.appendChild(a);
     a.click();
+    a.remove();
+
+    setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+
     showNotification('✅ تم تصدير التقرير بنجاح');
   } catch (err) {
     alert('❌ خطأ في تصدير التقرير: ' + err.message);
   }
 }
-
 // ==================== طلبات التعديل ====================
 async function fetchEditRequests() {
   try {
