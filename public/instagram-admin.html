@@ -6,7 +6,7 @@
   <meta name="description" content="إدارة طلبات Instagram في WolfOrder">
   <title>طلبات الإنستغرام | WolfOrder</title>
   <link rel="stylesheet" href="css/style.css?v=20260901.1">
-  <link rel="stylesheet" href="css/instagram.css?v=20260904.4">
+  <link rel="stylesheet" href="css/instagram.css?v=20260930.3">
   <link rel="icon" href="/favicon.ico">
   <meta name="theme-color" content="#4c1d95">
 </head>
@@ -22,6 +22,7 @@
         <button data-section="inventory"><svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"></path></svg><span>الجرد والمبيعات</span></button>
         <button data-section="reports"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM8 8h8M8 12h8M8 16h5"></path></svg><span>التقارير</span></button>
         <button data-section="links"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"></path></svg><span>روابط طلبات الشركات</span></button>
+        <button data-section="editRequests"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 8h8M8 12h5"></path></svg><span>طلبات التعديل <span id="igPendingEditCount" class="ig-request-count">0</span></span></button>
         <button data-section="viewers"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg><span>حسابات المشاهدة</span></button>
         <a href="admin.html"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"></path></svg><span>العودة للطلبات الأساسية</span></a>
       </nav>
@@ -50,8 +51,9 @@
             </div>
             <div class="filters-panel"><div class="filters-section">
               <div class="form-group search-field"><label for="igOrderSearch">بحث في الطلبات</label><input id="igOrderSearch" type="search" autocomplete="off" enterkeyhint="search" placeholder="رقم الطلب، الزبون، الموبايل أو الشركة"></div>
-              <div class="form-group"><label>الحالة</label><select id="igOrderStatus"><option value="">الكل</option><option>قيد المتابعة</option><option>تم</option><option>مؤجل</option><option>مرتجع</option><option>إلغاء</option></select></div>
-              <div class="form-group"><label>السائق</label><select id="igOrderDriver"><option value="">الكل</option></select></div>
+              <div class="form-group" id="igOrderDeliveryStatusGroup"><label for="igOrderStatus">حالة التوصيل</label><select id="igOrderStatus"><option value="">الكل</option><option>قيد المتابعة</option><option>تم</option><option>مؤجل</option><option>مرتجع</option><option>إلغاء</option></select></div>
+              <div class="form-group" id="igOrderShippingStatusGroup"><label for="igOrderShippingStatus">حالة الشحن</label><select id="igOrderShippingStatus"><option value="">الكل</option><option value="delivered">تم التسليم</option><option value="pending">لم يتم التسليم</option></select></div>
+              <div class="form-group"><label for="igOrderDriver">السائق</label><select id="igOrderDriver"><option value="">كل السائقين</option><option value="unassigned">بدون سائق</option></select></div>
               <div class="form-group"><label>من تاريخ</label><input type="date" id="igOrderStart"></div>
               <div class="form-group"><label>إلى تاريخ</label><input type="date" id="igOrderEnd"></div>
               <div class="filter-actions"><button class="btn btn-primary ig-search-button" id="applyInstagramOrderFilters" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 5 5"></path></svg><span>بحث وتطبيق</span></button><button class="btn btn-ghost" id="clearInstagramOrderFilters" type="button">مسح</button></div>
@@ -81,6 +83,8 @@
       <option>مؤجل</option>
       <option>مرتجع</option>
       <option>إلغاء</option>
+          <option>لم يتم التسليم</option>
+      <option>تم التسليم</option>
     </select>
   </div>
   <div class="form-group" id="igBulkDriverGroup" style="display:none;">
@@ -142,12 +146,20 @@
           <div class="ig-card-grid" id="instagramProductsGrid"></div>
         </section>
 
+        <section class="instagram-section" data-section-panel="editRequests" hidden>
+          <div class="card dashboard-card">
+            <div class="section-heading section-heading-split"><div class="section-heading-main"><span class="section-icon">✎</span><div><h2>طلبات تعديل الإنستغرام</h2><p>تُطبَّق التعديلات بعد موافقتك فقط</p></div></div><button class="btn btn-secondary btn-sm" id="refreshInstagramEditRequests">تحديث</button></div>
+            <div class="filters-panel"><div class="filters-section"><div class="form-group"><label for="igEditRequestStatus">حالة طلب التعديل</label><select id="igEditRequestStatus"><option value="معلق">معلق</option><option value="مقبول">مقبول</option><option value="مرفوض">مرفوض</option><option value="">الكل</option></select></div></div></div>
+            <div id="instagramEditRequestsGrid" class="ig-edit-requests-grid" aria-live="polite"></div>
+          </div>
+        </section>
+
         <!-- قسم الجرد -->
         <section class="instagram-section" id="igSectionInventory" data-section-panel="inventory" hidden>
           <div class="card dashboard-card">
             <div class="section-heading section-heading-split"><div class="section-heading-main"><span class="section-icon">▥</span><div><h2>الجرد والمبيعات</h2><p>الأرقام محسوبة تلقائياً من الطلبات والمخزون</p></div></div><button class="btn btn-primary" id="exportInstagramInventory">تصدير Excel</button></div>
             <div class="filters-panel"><div class="filters-section"><div class="form-group"><label>الشركة</label><select id="inventoryCompany"><option value="">كل الشركات</option></select></div><div class="form-group"><label>الصنف</label><select id="inventoryProduct"><option value="">كل الأصناف</option></select></div><button class="btn btn-primary" id="loadInstagramInventory">تطبيق</button></div></div>
-            <div class="table-responsive"><table><thead><tr><th>الشركة</th><th>الصنف</th><th>اللون</th><th>المقاس</th><th>الكلية</th><th>محجوز التوصيل</th><th>محجوز الشحن</th><th>المباعة</th><th>المؤجلة</th><th>المرتجع</th><th>الإلغاء</th><th>المتبقية</th></tr></thead><tbody id="instagramInventoryBody"></tbody></table></div>
+            <div class="table-responsive ig-inventory-wrap" tabindex="0" aria-label="جدول الجرد والمبيعات"><table class="ig-inventory-table"><thead><tr><th>الشركة</th><th>الصنف</th><th>اللون</th><th>المقاس</th><th>الكلية</th><th>محجوز التوصيل</th><th>محجوز الشحن</th><th>المباعة</th><th>الشحن المُسلَّم</th><th>المؤجلة</th><th>المرتجع</th><th>الإلغاء</th><th>المتبقية</th></tr></thead><tbody id="instagramInventoryBody"></tbody></table></div>
           </div>
         </section>
 
@@ -227,6 +239,7 @@
       </div>
       <div class="modal-body">
         <input type="hidden" id="igEditOrderId">
+        <div class="form-group"><label for="igEditOrderType">نوع الطلب</label><select id="igEditOrderType"><option value="توصيل">توصيل</option><option value="شحن">شحن</option></select></div>
         <div class="form-row">
           <div class="form-group">
             <label>رقم الطلب</label>
@@ -273,6 +286,7 @@
           <div class="form-group">
             <label>السعر</label>
             <input type="number" id="igEditTotalPrice" min="0" step="0.01">
+            <small id="igEditPriceHint"></small>
           </div>
           <div class="form-group">
             <label>النسبة</label>
@@ -281,7 +295,7 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label>الحالة</label>
+            <label>حالة التوصيل</label>
             <select id="igEditStatus">
               <option>قيد المتابعة</option>
               <option>تم</option>
@@ -290,6 +304,7 @@
               <option>إلغاء</option>
             </select>
           </div>
+          <div class="form-group" id="igEditShippingStatusGroup" hidden><label for="igEditShippingStatus">حالة الشحن</label><select id="igEditShippingStatus"><option value="pending">لم يتم التسليم</option><option value="delivered">تم التسليم</option></select></div>
           <div class="form-group">
             <label>ملاحظة</label>
             <input type="text" id="igEditNote" maxlength="200">
@@ -333,6 +348,7 @@
   <div id="notificationArea"></div>
   <script src="js/dashboard-ui.js?v=20260901.1"></script>
   <script src="js/auth.js?v=20260901.1"></script>
-  <script src="js/instagram-admin.js?v=20260905.1"></script>
+  <script src="js/instagram-edit-requests-ui.js?v=20260930.3"></script>
+  <script src="js/instagram-admin.js?v=20260930.4"></script>
 </body>
 </html>

@@ -326,7 +326,7 @@ async function submitStorefrontOrder(event) {
     storefrontElements.successTitle.textContent = `شكراً لطلبك من ${storefrontState.companyName} ❤️`;
     if (storefrontElements.successDescription) {
       storefrontElements.successDescription.textContent = orderType === 'شحن'
-        ? 'تم استلام طلب الشحن، وهو بانتظار موافقة الشركة قبل اعتماده.'
+        ? 'تم تسجيل طلب الشحن بنجاح ويظهر مباشرة لدى الشركة.'
         : 'تم استلام طلب التوصيل بنجاح، وسيتم التواصل معك لمتابعة الطلب.';
     }
     storefrontElements.success.hidden = false;

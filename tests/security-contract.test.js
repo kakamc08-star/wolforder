@@ -17,16 +17,14 @@ test('طلبات Instagram في جدول ومسار منفصلين عن الطل
   assert.match(instagramRoute, /router\.use\(authenticateToken\)/);
 });
 
-test('حساب المشاهدة يقرأ شركة واحدة ويملك مسار اعتماد الشحن', () => {
-  const instagramRoute = read('routes/instagram.js');
-  assert.match(instagramRoute, /function requireRole\(\.\.\.roles\)/);
-  assert.match(instagramRoute, /router\.get\('\/orders', requireRole\('admin', 'instagram_viewer', 'driver'\)/);
-  assert.match(instagramRoute, /getViewerCompanyId\(req\.user\.id\)/);
-  assert.match(instagramRoute, /router\.post\('\/orders\/:id\/shipping\/approve', requireRole\('instagram_viewer'\)/);
-  assert.match(instagramRoute, /router\.post\('\/orders\/:id\/shipping\/reject', requireRole\('instagram_viewer'\)/);
-  assert.doesNotMatch(instagramRoute, /router\.get\('\/orders', requireRole\([^)]*'company'/);
-  assert.match(instagramRoute, /router\.patch\('\/orders\/:id', requireRole\('admin'\)/);
-  assert.match(instagramRoute, /router\.post\('\/products', requireRole\('admin'\)/);
+test('حساب المشاهدة يقرأ شركة واحدة ويرسل مقترحاً وموافقة الأدمن مطلوبة', () => {
+  const route = read('routes/instagram.js');
+  assert.match(route, /getViewerCompanyId\(req\.user\.id\)/);
+  assert.match(route, /router\.post\('\/orders\/:id\/edit-requests', requireRole\('instagram_viewer'\)/);
+  assert.match(route, /router\.patch\('\/edit-requests\/:id\/:decision', requireRole\('admin'\)/);
+  assert.match(route, /router\.patch\('\/orders\/:id', requireRole\('admin'\)/);
+  assert.doesNotMatch(route, /router\.get\('\/orders', requireRole\([^)]*'company'/);
+  assert.match(route, /router\.post\('\/products', requireRole\('admin'\)/);
 });
 
 test('ترحيل الشحن يضيف حفظاً ذرياً وقفل مخزون وصلاحيات مقيدة', () => {
@@ -48,16 +46,12 @@ test('ترحيل الشحن يضيف حفظاً ذرياً وقفل مخزون �
   assert.match(sql, /p_items jsonb/i);
 });
 
-test('مسارات قراءة Instagram تعرض التوصيل والشحن المقبول وتحافظ على الطلبات القديمة', () => {
+test('قراءة Instagram تبقي التوصيل القديم وتعرض الشحن دون نظام موافقة', () => {
   const route = read('routes/instagram.js');
-  const sql = read('database/2026-09-04-instagram-shipping-workflow.sql');
-  assert.match(route, /function isInstagramOrderVisibleToUser/);
-  assert.match(route, /if \(user\?\.role === 'instagram_viewer'\) return true/);
+  assert.doesNotMatch(route, /isInstagramOrderVisibleToUser|instagramApprovalStatus/);
   assert.match(route, /order_type\.eq\.توصيل,order_type\.is\.null/);
   assert.doesNotMatch(route, /router\.get\('\/orders', requireRole\([^)]*'company'/);
-  assert.match(sql, /Legacy NULL\/English order types are treated as[\s\S]*delivery/i);
-  assert.match(sql, /legacy Arabic shipping rows are treated as already accepted/i);
-  assert.match(sql, /before insert or update of order_type, driver_id/i);
+  assert.match(route, /shipping_delivery_status === 'delivered' \? 'تم التسليم' : 'لم يتم التسليم'/);
 });
 
 test('صفحة Instagram العامة تعرض خيار الشحن بينما النظام الأساسي يحتفظ بخياراته', () => {
@@ -76,5 +70,5 @@ test('Service Worker لا يخزن API ويبطل نسخة الكاش القدي
   const serviceWorker = read('public/sw.js');
   assert.match(serviceWorker, /pathname\.startsWith\('\/api\/'\)/);
   assert.match(serviceWorker, /if \(requestUrl\.pathname\.startsWith\('\/api\/'\).*return;/s);
-  assert.match(serviceWorker, /wolforder-pwa-v13-instagram-inventory-fix/);
+  assert.match(serviceWorker, /wolforder-pwa-v17-instagram-admin-filters/);
 });

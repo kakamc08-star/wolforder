@@ -3040,3 +3040,132 @@ body.login-page.instagram-login-page {
     transition-duration: .01ms !important;
   }
 }
+
+/* Instagram inventory tables keep their headers during vertical scrolling. */
+.instagram-theme .ig-inventory-wrap {
+  max-height: 65vh;
+  overflow: auto !important;
+  position: relative;
+  overscroll-behavior: contain;
+}
+.instagram-theme .ig-inventory-table {
+  display: table !important;
+  width: 100%;
+  min-width: 1080px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.instagram-theme .ig-inventory-table thead { display: table-header-group !important; }
+.instagram-theme .ig-inventory-table tbody { display: table-row-group !important; }
+.instagram-theme .ig-inventory-table tr {
+  display: table-row !important;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+}
+.instagram-theme .ig-inventory-table th,
+.instagram-theme .ig-inventory-table td {
+  display: table-cell !important;
+  width: auto !important;
+  min-width: 90px;
+  padding: 13px 12px;
+  border-bottom: 1px solid var(--ig-line);
+  vertical-align: top;
+}
+.instagram-theme .ig-inventory-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  color: var(--ig-ink);
+  background: var(--ig-surface-soft, #fff4fa);
+  box-shadow: 0 1px 0 var(--ig-line);
+  white-space: nowrap;
+}
+.instagram-theme .ig-inventory-table td::before,
+.instagram-theme .ig-inventory-table td::after { display: none !important; }
+
+/* Company viewers use the same inventory rows as cards on phones. */
+@media (max-width: 767px) {
+  .instagram-theme .ig-viewer-inventory-wrap {
+    max-height: none;
+    overflow: visible !important;
+    border: 0;
+    background: transparent;
+  }
+  .instagram-theme .ig-viewer-inventory-table {
+    display: block !important;
+    min-width: 0;
+    width: 100%;
+  }
+  .instagram-theme .ig-viewer-inventory-table thead { display: none !important; }
+  .instagram-theme .ig-viewer-inventory-table tbody { display: grid !important; gap: 16px; }
+  .instagram-theme .ig-viewer-inventory-table tr {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    padding: 16px;
+    border: 1px solid var(--ig-line);
+    border-radius: 16px;
+    background: var(--ig-surface);
+    box-shadow: 0 5px 16px rgba(30, 24, 59, .04);
+  }
+  .instagram-theme .ig-viewer-inventory-table td {
+    display: flex !important;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    padding: 10px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--ig-surface-soft);
+    text-align: right;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+  .instagram-theme .ig-viewer-inventory-table td::before {
+    display: block !important;
+    position: static;
+    width: auto;
+    margin: 0;
+    padding: 0;
+    content: attr(data-label);
+    color: var(--ig-muted);
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .instagram-theme .ig-viewer-inventory-table td[data-label="الصنف"] {
+    grid-column: 1 / -1;
+    padding: 0 0 10px;
+    border-bottom: 1px solid var(--ig-line);
+    border-radius: 0;
+    background: transparent;
+    font-size: 17px;
+  }
+  .instagram-theme .ig-viewer-inventory-table td[data-label="الصنف"]::before { display: none !important; }
+  .instagram-theme .ig-viewer-inventory-table td[data-label="المتبقية"] { grid-column: 1 / -1; }
+  .instagram-theme .ig-viewer-inventory-table td[colspan] { grid-column: 1 / -1; background: transparent; font-weight: 400; }
+  .instagram-theme .ig-viewer-inventory-table td[colspan]::before { display: none !important; }
+}
+.instagram-theme .ig-edit-requests-grid { display: grid; gap: 16px; }
+.instagram-theme .ig-edit-request-card {
+  padding: 18px;
+  border: 1px solid var(--ig-line);
+  border-radius: 16px;
+  background: var(--ig-surface);
+}
+.instagram-theme .ig-edit-request-card header { display: flex; gap: 12px; flex-wrap: wrap; justify-content: space-between; }
+.instagram-theme .ig-edit-request-card h3 { margin: 0; }
+.instagram-theme .ig-request-changes { display: grid; gap: 10px; margin: 16px 0; }
+.instagram-theme .ig-request-changes > div { padding-bottom: 8px; border-bottom: 1px solid var(--ig-line); }
+.instagram-theme .ig-request-changes dt { font-weight: 700; }
+.instagram-theme .ig-request-changes dd { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.instagram-theme .ig-request-before { color: var(--ig-muted); }
+.instagram-theme .ig-request-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+.instagram-theme .ig-request-count { padding: 2px 8px; border-radius: 20px; background: #9f1d68; color: #fff; }
+.instagram-theme .ig-edit-request-card .form-group { margin-top: 12px; }
+.instagram-theme #viewerEditRequestModal .modal-content { width: min(880px, 94vw); }
+.instagram-theme #viewerEditRequestModal .form-group[hidden] { display: none !important; }
+.instagram-theme .viewer-edit-item-row { display: flex; align-items: end; gap: 10px; flex-wrap: wrap; }
+.instagram-theme .viewer-edit-item-row .form-group:first-child { flex: 1 1 240px; }
+.instagram-theme .viewer-edit-item-row .form-group:nth-child(2) { flex: 0 1 100px; }

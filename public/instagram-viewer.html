@@ -6,7 +6,7 @@
   <meta name="description" content="حساب مشاهدة Instagram للشركة">
   <title>لوحة الشركة | WolfOrder</title>
   <link rel="stylesheet" href="css/style.css?v=20260901.1">
-  <link rel="stylesheet" href="css/instagram.css?v=20260904.4">
+  <link rel="stylesheet" href="css/instagram.css?v=20260930.3">
   <link rel="icon" href="/favicon.ico">
   <meta name="theme-color" content="#4c1d95">
 </head>
@@ -18,9 +18,10 @@
       <nav class="sidebar-nav">
         <button class="active" data-viewer-section="home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 10 8-6 8 6v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z"></path><path d="M9 20v-6h6v6"></path></svg><span>الرئيسية</span></button>
         <button data-viewer-section="orders"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"></path></svg><span>الطلبات</span></button>
+        <button data-viewer-section="editRequests"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 8h8M8 12h5"></path></svg><span>طلبات التعديل</span></button>
         <button data-viewer-section="inventory"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"></path></svg><span>الجرد والمبيعات</span></button>
       </nav>
-      <div class="sidebar-footer"><span class="status-dot"></span><div><strong>وضع المشاهدة</strong><small>للاطلاع فقط</small></div></div>
+      <div class="sidebar-footer"><span class="status-dot"></span><div><strong>وضع المشاهدة</strong><small>التعديل بموافقة الأدمن</small></div></div>
     </aside>
     <button class="sidebar-overlay" data-sidebar-close></button>
     <main class="app-main">
@@ -59,7 +60,7 @@
           <div class="card dashboard-card">
             <div class="section-heading section-heading-split">
               <div class="section-heading-main"><span class="section-icon">◎</span>
-                <div><h2>طلبات Instagram</h2><p>متابعة الطلبات واعتماد طلبات الشحن</p></div>
+                <div><h2>طلبات Instagram</h2><p>متابعة الطلبات وإرسال طلب تعديل للأدمن</p></div>
               </div>
               <button class="btn btn-secondary btn-sm" id="viewerRefreshOrders">تحديث</button>
             </div>
@@ -80,6 +81,8 @@
               <button class="status-quick-box" data-status="مؤجل">مؤجل</button>
               <button class="status-quick-box" data-status="مرتجع">مرتجع</button>
               <button class="status-quick-box" data-status="إلغاء">إلغاء</button>
+              <button class="status-quick-box" data-status="لم يتم التسليم">لم يتم التسليم</button>
+              <button class="status-quick-box" data-status="تم التسليم">تم التسليم</button>
             </div>
 
             <!-- بحث -->
@@ -105,6 +108,13 @@
           </div>
         </section>
 
+        <section data-viewer-panel="editRequests" hidden>
+          <div class="card dashboard-card">
+            <div class="section-heading section-heading-split"><div class="section-heading-main"><span class="section-icon">✎</span><div><h2>طلبات التعديل</h2><p>متابعة موافقة الأدمن أو رفضه</p></div></div><button class="btn btn-secondary btn-sm" id="viewerRefreshEditRequests">تحديث</button></div>
+            <div id="viewerEditRequestsGrid" class="ig-edit-requests-grid" aria-live="polite"></div>
+          </div>
+        </section>
+
         <!-- الجرد -->
         <section data-viewer-panel="inventory" hidden>
           <div class="card dashboard-card">
@@ -113,9 +123,9 @@
                 <div><h2>الجرد والمبيعات</h2><p>بيانات شركتك حصراً</p></div>
               </div>
             </div>
-            <div class="table-responsive">
-              <table>
-                <thead><tr><th>الصنف</th><th>اللون</th><th>المقاس</th><th>الكلية</th><th>محجوز التوصيل</th><th>محجوز الشحن</th><th>المباعة</th><th>المؤجلة</th><th>المرتجع</th><th>الإلغاء</th><th>المتبقية</th></tr></thead>
+            <div class="table-responsive ig-inventory-wrap ig-viewer-inventory-wrap" tabindex="0" aria-label="الجرد والمبيعات">
+              <table class="ig-inventory-table ig-viewer-inventory-table">
+                <thead><tr><th>الصنف</th><th>اللون</th><th>المقاس</th><th>الكلية</th><th>محجوز التوصيل</th><th>محجوز الشحن</th><th>المباعة</th><th>الشحن المُسلَّم</th><th>المؤجلة</th><th>المرتجع</th><th>الإلغاء</th><th>المتبقية</th></tr></thead>
                 <tbody id="viewerInventoryBody"></tbody>
               </table>
             </div>
@@ -124,9 +134,27 @@
       </div>
     </main>
   </div>
+  <div class="modal-overlay" id="viewerEditRequestModal" role="dialog" aria-modal="true" aria-labelledby="viewerEditRequestTitle" hidden>
+    <form class="modal-content" id="viewerEditRequestForm">
+      <div class="modal-header"><h3 id="viewerEditRequestTitle">طلب تعديل إلى الأدمن</h3><button type="button" class="modal-close" data-viewer-close-edit aria-label="إغلاق">×</button></div>
+      <div class="modal-body">
+        <p>ستبقى بيانات الطلب الحالية كما هي حتى يوافق الأدمن على التعديل.</p>
+        <input type="hidden" id="viewerEditOrderId">
+        <div class="form-group"><label for="viewerEditOrderType">نوع الطلب المقترح</label><select id="viewerEditOrderType"><option value="توصيل">توصيل</option><option value="شحن">شحن</option></select></div>
+        <div class="form-row"><div class="form-group"><label for="viewerEditOrderNumber">رقم الطلب</label><input id="viewerEditOrderNumber" type="number" min="1" step="1" required></div><div class="form-group"><label for="viewerEditCustomerName">اسم العميل</label><input id="viewerEditCustomerName" maxlength="100" required></div></div>
+        <div class="form-row"><div class="form-group"><label for="viewerEditCustomerNumber">رقم العميل</label><input id="viewerEditCustomerNumber" type="tel" required></div><div class="form-group"><label for="viewerEditAddress">العنوان</label><input id="viewerEditAddress" maxlength="300"></div></div>
+        <div class="form-group"><label>الأصناف والكميات المقترحة</label><div id="viewerEditItems" class="ig-edit-items"></div><button type="button" class="btn btn-secondary btn-sm" id="viewerAddEditItem">إضافة صنف</button></div>
+        <div class="form-row"><div class="form-group"><label for="viewerEditTotalPrice">السعر النهائي</label><input id="viewerEditTotalPrice" type="number" min="0" step="0.01" required><small id="viewerEditPriceHint"></small></div><div class="form-group" id="viewerEditShippingStatusGroup"><label for="viewerEditShippingStatus">حالة الشحن</label><select id="viewerEditShippingStatus"><option value="pending">لم يتم التسليم</option><option value="delivered">تم التسليم</option></select></div><div class="form-group" id="viewerEditDeliveryStatusGroup"><label for="viewerEditDeliveryStatus">حالة التوصيل</label><select id="viewerEditDeliveryStatus"><option>قيد المتابعة</option><option>تم</option><option>مؤجل</option><option>مرتجع</option><option>إلغاء</option></select></div></div>
+        <div class="form-group"><label for="viewerEditNote">ملاحظة الطلب</label><textarea id="viewerEditNote" maxlength="1000"></textarea></div>
+        <div class="form-group"><label for="viewerEditReason">سبب طلب التعديل</label><textarea id="viewerEditReason" maxlength="1000"></textarea></div>
+      </div>
+      <div class="modal-footer"><button type="submit" class="btn btn-primary" id="viewerSubmitEditRequest">إرسال طلب التعديل</button><button type="button" class="btn btn-secondary" data-viewer-close-edit>إلغاء</button></div>
+    </form>
+  </div>
   <div id="notificationArea"></div>
   <script src="js/dashboard-ui.js?v=20260901.1"></script>
   <script src="js/auth.js?v=20260901.1"></script>
-  <script src="js/instagram-viewer.js?v=20260905.1"></script>
+  <script src="js/instagram-edit-requests-ui.js?v=20260930.3"></script>
+  <script src="js/instagram-viewer.js?v=20260930.3"></script>
 </body>
 </html>

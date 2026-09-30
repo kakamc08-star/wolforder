@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wolforder-pwa-v13-instagram-inventory-fix';
+const CACHE_NAME = 'wolforder-pwa-v17-instagram-admin-filters';
 const APP_SHELL = [
   '/login.html',
   '/admin.html',
@@ -19,6 +19,7 @@ const APP_SHELL = [
   '/js/company.js',
   '/js/instagram-admin.js',
   '/js/instagram-viewer.js',
+  '/js/instagram-edit-requests-ui.js',
   '/js/instagram-order.js',
   '/images/wolf-login-bg-delivery.png',
   '/icons/apple-touch-icon-180x180.png',

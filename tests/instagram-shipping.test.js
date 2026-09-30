@@ -68,38 +68,25 @@ test('عنوان Instagram يقبل النص القصير ولا يفرض خمس
   assert.doesNotMatch(route, /if \(!customerName \|\| !address/);
 });
 
-test('قبول الشحن يثبت الحجز ولا يخصم المخزون مرتين', () => {
+test('الشحن يحجز مباشرة باستخدام الدالة الذرية الحالية بدون مسار قبول', () => {
   const route = read('routes/instagram.js');
-  const sql = read('database/2026-09-05-instagram-shipping-pending-reservation.sql');
-  const approvalStart = sql.indexOf('create or replace function public.approve_instagram_shipping_order_atomic');
-  const approvalEnd = sql.indexOf('-- =========================================================\n-- Rejection:', approvalStart);
-  const approvalBlock = sql.slice(approvalStart, approvalEnd);
-
-  assert.match(route, /router\.post\('\/orders\/:id\/shipping\/approve', requireRole\('instagram_viewer'\)/);
-  assert.match(route, /approve_instagram_shipping_order_atomic/);
-  assert.match(sql, /create or replace function public\.approve_instagram_shipping_order_atomic/);
-  assert.match(sql, /create or replace function public\.reserve_instagram_shipping_order_stock/);
+  const sql = read('database/2026-09-30-instagram-direct-shipping-and-edit-requests.sql');
+  assert.doesNotMatch(route, /router\.post\('\/orders\/:id\/shipping\/approve'/);
+  assert.match(sql, /create or replace function public\.create_instagram_order_atomic/);
+  assert.match(sql, /case when v_order_type = 'شحن' then 'accepted' else 'not_required' end/);
+  assert.match(sql, /stock_available = stock_available - v_item\.quantity/);
   assert.match(sql, /perform public\.reserve_instagram_shipping_order_stock/);
-  assert.match(sql, /from public\.instagram_viewer_companies mapping/);
-  assert.match(sql, /if coalesce\(v_order\.company_id::text, ''\) <> coalesce\(v_company_id::text, ''\)/);
-  assert.match(sql, /shipping_approval_status = 'accepted'/);
-  assert.doesNotMatch(approvalBlock, /stock_available = stock_available - v_item\.quantity/);
-  assert.match(sql, /if coalesce\(v_order\.shipping_approval_status, 'pending'\) = 'accepted'/);
+  assert.match(sql, /p_idempotency_key/);
 });
 
-test('رفض الشحن من حساب المشاهدة يعيد الحجز ثم يحذف الطلب', () => {
+test('تم إلغاء رفض وحذف الشحن من حساب المشاهدة مع بقاء حذف الأدمن', () => {
   const route = read('routes/instagram.js');
-  const sql = read('database/2026-09-05-instagram-shipping-pending-reservation.sql');
   const viewer = read('public/js/instagram-viewer.js');
-
-  assert.match(route, /router\.post\('\/orders\/:id\/shipping\/reject', requireRole\('instagram_viewer'\)/);
-  assert.match(sql, /create or replace function public\.reject_instagram_shipping_order_atomic/);
-  assert.match(sql, /shipping_approval_status, 'pending'/);
-  assert.match(sql, /v_release := least\(v_item\.quantity, greatest\(-v_net_delta, 0\)\)/);
-  assert.match(sql, /stock_available = stock_available \+ v_release/);
-  assert.match(sql, /delete from public\.instagram_order_items where order_id = p_order_id/);
-  assert.match(sql, /delete from public\.instagram_orders where id = p_order_id/);
-  assert.match(viewer, /هل أنت متأكد من رفض وحذف طلب الشحن نهائياً؟/);
+  const sql = read('database/2026-09-30-instagram-direct-shipping-and-edit-requests.sql');
+  assert.doesNotMatch(route, /router\.post\('\/orders\/:id\/shipping\/reject'/);
+  assert.doesNotMatch(viewer, /submitViewerShippingDecision|data-viewer-instagram-action="reject"/);
+  assert.match(sql, /revoke all on function public\.reject_instagram_shipping_order_atomic\(uuid, uuid\) from public, anon, authenticated, service_role/);
+  assert.match(route, /router\.delete\('\/orders\/:id', requireRole\('admin'\)/);
 });
 
 test('طلبات الشحن لا تقبل تعيين سائق من الواجهة أو الـ Backend', () => {
@@ -187,22 +174,19 @@ test('حساب المشاهدة يفلتر الطلبات حسب الكل وال
   assert.match(viewer, /params\.set\('orderType', viewerState\.orderType\)/);
 });
 
-test('حساب المشاهدة وحده يعرض أزرار اعتماد طلبات الشحن', () => {
+test('حساب المشاهدة يرسل طلب تعديل ولا يعتمد الشحن أو يعدل مباشرة', () => {
   const route = read('routes/instagram.js');
   const companyHtml = read('public/company.html');
   const viewerHtml = read('public/instagram-viewer.html');
   const viewer = read('public/js/instagram-viewer.js');
-
-  assert.match(route, /if \(user\?\.role === 'instagram_viewer'\) return true/);
-  assert.match(route, /return order\?\.shipping_approval_status \|\| 'pending'/);
   assert.doesNotMatch(companyHtml, /طلبات Instagram|instagramOrdersSection|data-company-view="instagram"/);
-  assert.match(viewerHtml, /<th>الإجراء<\/th>/);
-  assert.match(viewer, /data-viewer-instagram-action="approve"/);
-  assert.match(viewer, /data-viewer-instagram-action="reject"/);
-  assert.match(route, /requireRole\('instagram_viewer'\)/);
+  assert.match(viewerHtml, /id="viewerEditRequestForm"/);
+  assert.match(viewer, /data-viewer-instagram-action="request-edit"/);
+  assert.doesNotMatch(viewer, /data-viewer-instagram-action="(?:approve|reject)"/);
+  assert.match(route, /router\.post\('\/orders\/:id\/edit-requests', requireRole\('instagram_viewer'\)/);
 });
 
-test('الجرد يعرض محجوز الشحن مع حجزه قبل الاعتماد', () => {
+test('الجرد يعرض محجوز الشحن والمسلّم بعد المباعة', () => {
   const adminHtml = read('public/instagram-admin.html');
   const admin = read('public/js/instagram-admin.js');
   const viewerHtml = read('public/instagram-viewer.html');
@@ -215,9 +199,11 @@ test('الجرد يعرض محجوز الشحن مع حجزه قبل الاعت�
   assert.match(admin, /data-label="محجوز الشحن">\$\{row\.reserved_shipping\}/);
   assert.match(viewer, /data-label="محجوز الشحن">\$\{row\.reserved_shipping\}/);
   assert.match(route, /\['reserved_shipping', 'المحجوزة من الشحن'\]/);
-  assert.match(route, /reserved_shipping: Number\(row\.reserved_shipping\) \|\| 0/);
+  assert.match(route, /reserved_shipping: Number\(total\.reserved_shipping\) \|\| 0/);
   assert.match(sql, /shipping-pending-reservation/);
   assert.match(sql, /Both order types reserve immediately/);
+  assert.match(adminHtml, /<th>المباعة<\/th><th>الشحن المُسلَّم<\/th>/);
+  assert.match(viewerHtml, /<th>المباعة<\/th><th>الشحن المُسلَّم<\/th>/);
 });
 
 test('قاعدة البيانات تحافظ على الطلبات القديمة وتبقي النظام الأساسي منفصلاً', () => {

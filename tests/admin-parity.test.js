@@ -23,7 +23,7 @@ test('لوحة مدير Instagram تدعم تعديل البيانات والأ�
   assert.match(script, /addEditItemRow/);
   assert.match(script, /collectEditItems/);
   assert.match(route, /router\.patch\('\/orders\/:id', requireRole\('admin'\)/);
-  assert.match(route, /update_instagram_order_atomic/);
+  assert.match(route, /edit_instagram_order_atomic/);
 });
 
 test('واجهات Instagram ومساراته تميز التوصيل عن الشحن', () => {
@@ -42,8 +42,8 @@ test('واجهات Instagram ومساراته تميز التوصيل عن ال�
   assert.match(route, /const INSTAGRAM_ORDER_TYPES = new Set\(\['توصيل', 'شحن'\]\)/);
   assert.match(route, /const INSTAGRAM_SHIPPING_FEE = 10000/);
   assert.match(route, /router\.patch\('\/orders\/shipping-delivered'/);
-  assert.match(route, /router\.post\('\/orders\/:id\/shipping\/approve'/);
-  assert.match(route, /router\.post\('\/orders\/:id\/shipping\/reject'/);
+  assert.doesNotMatch(route, /router\.post\('\/orders\/:id\/shipping\/approve'/);
+  assert.doesNotMatch(route, /router\.post\('\/orders\/:id\/shipping\/reject'/);
   assert.match(route, /\.eq\('order_type', 'توصيل'\)/);
 });
 
@@ -111,13 +111,11 @@ test('إصلاح مخزون Instagram يعيد الطلبات القديمة و�
   assert.match(storefrontScript, /setInterval\(\(\) => refreshStorefrontCatalog\(\), 30000\)/);
 });
 
-test('طلبات الشحن المعلقة مخفية عن المدير حتى موافقة الشركة', () => {
+test('طلبات الشحن تظهر مباشرة ولا تُحجب خلف موافقة الشركة', () => {
   const route = read('routes/instagram.js');
-
-  assert.match(route, /function isInstagramOrderVisibleToUser/);
-  assert.match(route, /if \(user\?\.role === 'instagram_viewer'\) return true/);
-  assert.match(route, /return instagramApprovalStatus\(order\) === 'accepted'/);
-  assert.match(route, /orders = \(orders \|\| \[\]\)\.filter\(\(order\) => isInstagramOrderVisibleToUser\(order, req\.user\)\)/);
+  assert.doesNotMatch(route, /isInstagramOrderVisibleToUser|instagramApprovalStatus/);
+  assert.match(route, /تم تسجيل طلب الشحن بنجاح ويظهر مباشرة لدى الشركة/);
+  assert.match(route, /query\.eq\('order_type', 'شحن'\)\.eq\('shipping_delivery_status', shippingStatus\)/);
 });
 
 test('حجز الشحن يبدأ عند إنشاء الطلب والقبول لا يخصم مرتين', () => {
