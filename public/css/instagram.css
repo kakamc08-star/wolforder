@@ -2838,6 +2838,199 @@ body.login-page.instagram-login-page {
 
 
 
+/* ==================== نافذة تعديل طلب الإنستغرام ==================== */
+/* يتم تمرير الحقول وحدها، ويبقى العنوان وأزرار الحفظ والإلغاء خارج التمرير. */
+.instagram-theme #igEditModal .modal-content {
+  display: flex;
+  flex-direction: column;
+  width: min(1100px, 100%);
+  max-width: 1100px;
+  max-height: calc(100vh - 36px);
+  max-height: calc(100dvh - 36px);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.instagram-theme #igEditModal .modal-header,
+.instagram-theme #igEditModal .modal-footer {
+  flex-shrink: 0;
+  padding: 16px 24px;
+  background: var(--ig-surface);
+}
+
+.instagram-theme #igEditModal .modal-header h3 {
+  margin: 0;
+  font-size: 19px;
+  line-height: 1.4;
+}
+
+.instagram-theme #igEditModal .modal-close {
+  flex-shrink: 0;
+}
+
+.instagram-theme #igEditModal .modal-body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: 20px;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  padding: 22px 24px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scroll-padding-block: 16px;
+}
+
+.instagram-theme #igEditModal .form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 14px;
+  min-width: 0;
+  margin: 0;
+}
+
+.instagram-theme #igEditModal .form-group {
+  min-width: 0;
+  margin: 0;
+}
+
+.instagram-theme #igEditModal .form-group label {
+  overflow-wrap: anywhere;
+}
+
+.instagram-theme #igEditModal .form-group input,
+.instagram-theme #igEditModal .form-group select,
+.instagram-theme #igEditModal .form-group textarea {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.instagram-theme #igEditModal .modal-body > .form-row:last-child {
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, .6fr) minmax(0, 1.4fr);
+}
+
+.instagram-theme #igEditModal .ig-edit-items-section {
+  grid-column: 1 / -1;
+  padding: 16px;
+  border: 1px solid var(--ig-line);
+  border-radius: 14px;
+  background: var(--ig-surface);
+}
+
+.instagram-theme #igEditModal .ig-edit-items-heading {
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.instagram-theme #igEditModal .ig-edit-items-heading label {
+  margin: 0;
+}
+
+.instagram-theme #igEditModal .ig-edit-item-summary {
+  align-self: center;
+  overflow-wrap: anywhere;
+}
+
+.instagram-theme #igEditModal .ig-edit-item-summary strong {
+  white-space: normal;
+}
+
+.instagram-theme #igEditModal .modal-footer {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 10px;
+  border-top: 1px solid var(--ig-line);
+  box-shadow: 0 -8px 24px rgba(25, 42, 68, .05);
+}
+
+.instagram-theme #igEditModal .modal-footer .btn {
+  min-width: 110px;
+  min-height: 44px;
+}
+
+.instagram-theme #igEditModal .modal-footer .btn-primary {
+  min-width: 160px;
+}
+
+@media (max-width: 980px) {
+  .instagram-theme #igEditModal .modal-body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  .instagram-theme #igEditModal .modal-body > .form-row:last-child {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .instagram-theme #igEditModal .ig-edit-item-row {
+    grid-template-columns: minmax(0, 1fr) minmax(150px, .65fr);
+    gap: 12px;
+  }
+
+  .instagram-theme #igEditModal .ig-edit-item-remove {
+    justify-self: end;
+  }
+}
+
+@media (max-width: 600px) {
+  .instagram-theme #igEditModal {
+    padding: 8px;
+  }
+
+  .instagram-theme #igEditModal .modal-content {
+    max-height: calc(100vh - 16px);
+    max-height: calc(100dvh - 16px);
+    border-radius: 15px;
+  }
+
+  .instagram-theme #igEditModal .modal-header,
+  .instagram-theme #igEditModal .modal-footer {
+    padding: 12px 14px;
+  }
+
+  .instagram-theme #igEditModal .modal-body {
+    gap: 16px;
+    padding: 16px 14px;
+  }
+
+  .instagram-theme #igEditModal .form-row,
+  .instagram-theme #igEditModal .modal-body > .form-row:last-child {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .instagram-theme #igEditModal .ig-edit-items-section {
+    padding: 12px;
+  }
+
+  .instagram-theme #igEditModal .ig-edit-item-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .instagram-theme #igEditModal .ig-edit-item-variant-group,
+  .instagram-theme #igEditModal .ig-edit-item-remove {
+    grid-column: 1 / -1;
+  }
+
+  .instagram-theme #igEditModal .modal-footer .btn {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 380px) {
+  .instagram-theme #igEditModal .ig-edit-item-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .instagram-theme *,
   .storefront-page *,

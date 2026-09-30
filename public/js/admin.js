@@ -925,12 +925,13 @@ async function exportReport() {
     }
 
     // أسماء الأعمدة (بنفس ترتيب العينة)
-    const headers = ['الرقم التسلسلي', 'رقم الطلب', 'محتويات الطلب', 'اسم العميل', 'رقم العميل', 'العنوان', 'السعر', 'النسبة', 'الحالة', 'ملاحظة', 'السائق', 'الشركة', 'التاريخ'];
+    const headers = ['الرقم التسلسلي', 'رقم الطلب', 'نوع الطلب', 'محتويات الطلب', 'اسم العميل', 'رقم العميل', 'العنوان', 'السعر', 'النسبة', 'الحالة', 'ملاحظة', 'السائق', 'الشركة', 'التاريخ'];
 
     // بناء صفوف البيانات
     const rows = orders.map((o, index) => {
       const serial = o.serial_number || o.serialNumber || '';
       const orderNumber = o.order_number || o.orderNumber || '';
+      const orderType = getOrderType(o);
       const contents = o.order_contents || o.orderContents || '';
       const customerName = o.customer_name || o.customerName || '';
       const customerNumber = o.customer_number || o.customerNumber || '';
@@ -942,7 +943,7 @@ async function exportReport() {
       const driver = o.driver_name || o.driverName || '';
       const company = o.company_name || o.companyName || '';
       const date = formatDate(o.created_at || o.createdAt) || '';
-      return [serial, orderNumber, contents, customerName, customerNumber, address, price, ratio, statusVal, note, driver, company, date];
+      return [serial, orderNumber, orderType, contents, customerName, customerNumber, address, price, ratio, statusVal, note, driver, company, date];
     });
 
     // دالة لتنسيق الحقل لـ CSV (بين علامات اقتباس، وتضاعف علامات الاقتباس الداخلية)
