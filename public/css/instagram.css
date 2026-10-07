@@ -917,6 +917,37 @@ body.dashboard-page.instagram-theme {
   background: #fff5e8;
 }
 
+.instagram-theme .status-قيد {
+  color: #ffffff;
+  border-color: #1d4ed8;
+  background: #2563eb;
+}
+
+.instagram-theme .status-تم {
+  color: #22543d;
+  border-color: #9ae6b4;
+  background: #c6f6d5;
+}
+
+.instagram-theme .status-مؤجل {
+  color: #4d4106;
+  border-color: #d6b900;
+  background: #fedb17;
+}
+
+.instagram-theme .status-مرتجع {
+  color: #523408;
+  border-color: #d97706;
+  background: #fe9b1a;
+}
+
+.instagram-theme .status-إلغاء,
+.instagram-theme .status-ملغي {
+  color: #fed7d7;
+  border-color: #6b1f1f;
+  background: #822727;
+}
+
 .instagram-theme .shipping-state-pending {
   color: #8d5d0b;
   border-color: #f2d49d;
@@ -928,33 +959,6 @@ body.dashboard-page.instagram-theme {
   border-color: #bfe7d4;
   background: #eafaf1;
 }
-
-.instagram-theme .status-قيد {
-  color: #995016;
-  border-color: #f2d49d;
-  background: #fff7e8;
-}
-
-.instagram-theme .status-تم {
-  color: #0f704f;
-  border-color: #bce5d0;
-  background: #eaf9f0;
-}
-
-.instagram-theme .status-مؤجل {
-  color: #806210;
-  border-color: #ead58c;
-  background: #fff9df;
-}
-
-.instagram-theme .status-مرتجع,
-.instagram-theme .status-إلغاء,
-.instagram-theme .status-ملغي {
-  color: #a22937;
-  border-color: #f0bdc4;
-  background: #fff0f2;
-}
-
 .instagram-theme .highlight-new {
   animation: igRowFlash 1.2s ease-in-out 3;
 }
