@@ -520,7 +520,7 @@ router.get('/orders', requireRole('admin', 'instagram_viewer', 'driver'), async 
     if (startDate) query = query.gte('created_at', startDate);
     if (endDate) query = query.lte('created_at', `${endDate}T23:59:59.999Z`);
 
-    const { data, error } = await query.limit(2000);
+    const { data, error } = await query.limit(5000);
     if (error) throw error;
 
     const term = normalizeInstagramSearch(search);
