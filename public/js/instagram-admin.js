@@ -927,9 +927,9 @@ function printInstagramOrders(orders) {
   const multipleOrders = orders.length > 1;
 
   const cardsHtml = orders.map((order) => {
-    const contents = order.order_contents || order.orderContents || (order.items || []).map(item =>
-      `${item.product_name} - ${item.color}/${item.size} × ${item.quantity}`
-    ).join('، ') || '-';
+    const contents = Array.isArray(order.items) && order.items.length
+  ? orderItemsHtml(order.items)
+  : igEscape(order.order_contents || order.orderContents || '-');
     const orderNumber = order.order_number ?? order.orderNumber ?? '-';
     const price = order.price ?? order.total_price ?? 0;
     const currency = order.currency || 'ل.س';
@@ -938,7 +938,10 @@ function printInstagramOrders(orders) {
       <div class="card">
         <div class="header">WolfOrder</div>
         <div class="detail-row"><span class="detail-label">رقم الطلب:</span><span class="detail-value">${igEscape(orderNumber)}</span></div>
-        <div class="detail-row"><span class="detail-label">المحتويات:</span><span class="detail-value">${igEscape(contents)}</span></div>
+        <div class="detail-row">
+  <span class="detail-label">المحتويات:</span>
+  <div class="detail-value">${contents}</div>
+</div>
         <div class="detail-row"><span class="detail-label">العميل:</span><span class="detail-value">${igEscape(order.customer_name || order.customerName || '')}</span></div>
         <div class="detail-row"><span class="detail-label">رقم العميل:</span><span class="detail-value">${igEscape(order.customer_number || order.customerNumber || '-')}</span></div>
         <div class="detail-row"><span class="detail-label">العنوان:</span><span class="detail-value">${igEscape(order.address || '')}</span></div>
@@ -967,8 +970,26 @@ function printInstagramOrders(orders) {
         .detail-label { font-weight: bold; width: 20%; text-align: right; color: #000; white-space: nowrap; }
         .detail-value { width: 60%; text-align: right; color: #000; word-break: break-word; }
         .footer { text-align: center; margin-left: 75px; font-size: 11px; margin-top: 8px; border-top: 2px solid #000; padding-top: 4px; font-weight: bold; color: #000; }
-        @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-      </style>
+     @media print {
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+.ig-order-items {
+  margin: 0;
+  padding: 0 16px 0 0;
+  list-style-type: disc;
+}
+
+.ig-order-items li {
+  margin-bottom: 5px;
+  line-height: 1.6;
+  break-inside: avoid;
+}
+
+</style>
     </head>
     <body>
       ${cardsHtml}
