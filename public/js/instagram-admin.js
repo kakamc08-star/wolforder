@@ -113,7 +113,7 @@ function igNotify(message, type = 'success') {
 
 async function igApi(url, options = {}) {
   const headers = { Authorization: `Bearer ${igToken}`, ...(options.headers || {}) };
-  if (options.body && typeof options.body !== 'string') {
+  if (options.body && typeof options.body !== 'string' && !(options.body instanceof Blob)) {
     headers['Content-Type'] = 'application/json';
     options.body = JSON.stringify(options.body);
   }
@@ -168,7 +168,8 @@ async function showInstagramSection(section) {
       igState.loadedSections.add(section);
     }
   }
-  if (section === 'links' || section === 'viewers') loadInstagramBootstrap().catch((error) => igNotify(error.message, 'error'));
+  if (section === 'links') loadInstagramLinkCards();
+  if (section === 'viewers') loadInstagramBootstrap().catch((error) => igNotify(error.message, 'error'));
 
   document.body.classList.remove('sidebar-open');
 }
@@ -1108,9 +1109,54 @@ document.getElementById('exportInstagramInventory').addEventListener('click', as
 });
 
 // ========== Links ==========
+const instagramLinksGrid = document.getElementById('instagramLinksGrid');
+const linkImageUrls = new Map();
+const pendingLinkImages = new Set();
+let loadingLinkImages = false;
+
+function showLinkImage(image, visible) {
+  image.hidden = !visible;
+  image.parentElement.classList.toggle('has-store-image', visible);
+}
+
+function updateLinkImageCard(card) {
+  const companyId = card.dataset.companyId;
+  const image = card.querySelector('.store-image-file');
+  const url = linkImageUrls.get(companyId) || null;
+  if (image.getAttribute('src') !== url) {
+    showLinkImage(image, false);
+    if (url) image.src = url;
+    else image.removeAttribute('src');
+  }
+  const busy = loadingLinkImages || pendingLinkImages.has(companyId);
+  card.querySelector('[data-link-image-action="upload"]').disabled = busy;
+  card.querySelector('[data-link-image-action="delete"]').disabled = busy || !linkImageUrls.has(companyId);
+}
+
+async function loadInstagramLinkCards() {
+  if (loadingLinkImages) {
+    return loadInstagramBootstrap().catch((error) => igNotify(error.message, 'error'));
+  }
+  loadingLinkImages = true;
+  instagramLinksGrid.querySelectorAll('.link-card').forEach(updateLinkImageCard);
+  const [bootstrap, previews] = await Promise.allSettled([
+    loadInstagramBootstrap(),
+    pendingLinkImages.size ? null : igApi('/api/instagram/links/images')
+  ]);
+  if (previews.status === 'fulfilled' && Array.isArray(previews.value?.images)) {
+    linkImageUrls.clear();
+    previews.value.images.forEach(({ companyId, imageUrl }) => linkImageUrls.set(companyId, imageUrl));
+  }
+  loadingLinkImages = false;
+  instagramLinksGrid.querySelectorAll('.link-card').forEach(updateLinkImageCard);
+  [bootstrap, previews].forEach((result) => {
+    if (result.status === 'rejected') igNotify(result.reason.message, 'error');
+  });
+}
+
 function renderInstagramLinks() {
   const links = new Map(igState.bootstrap.links.map((link) => [link.company_id, link]));
-  document.getElementById('instagramLinksGrid').innerHTML = igState.bootstrap.companies.map((company) => {
+  instagramLinksGrid.innerHTML = igState.bootstrap.companies.map((company) => {
     const link = links.get(company.id);
     const usernameSlug = String(company.username || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     const slug = link?.slug || usernameSlug || `company-${String(company.id).slice(0, 8)}`;
@@ -1119,6 +1165,21 @@ function renderInstagramLinks() {
 
     return `<article class="ig-mini-card link-card" data-company-id="${company.id}">
       <h3>${igEscape(company.name)}</h3>
+      <div class="link-image-editor">
+        <div class="link-image-preview store-image-frame" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"></rect><circle cx="12" cy="12" r="4"></circle><circle cx="17.5" cy="6.5" r="1"></circle></svg>
+          <img class="store-image-file" alt="" hidden>
+        </div>
+        <div class="link-image-settings">
+          <strong>صورة المتجر</strong>
+          <div class="link-image-controls">
+            <button class="btn btn-secondary btn-sm" type="button" data-link-image-action="upload">رفع صورة</button>
+            <button class="btn btn-danger btn-sm" type="button" data-link-image-action="delete" disabled>حذف الصورة</button>
+          </div>
+          <input class="link-image-input" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+          <small>JPG أو PNG أو WebP، حتى 3 MB</small>
+        </div>
+      </div>
       <div class="form-group">
         <label>الرابط</label>
         <input class="link-slug" dir="ltr" value="${igEscape(slug)}">
@@ -1140,9 +1201,69 @@ function renderInstagramLinks() {
       </div>
     </article>`;
   }).join('');
+  instagramLinksGrid.querySelectorAll('.link-card').forEach(updateLinkImageCard);
 }
 
-document.getElementById('instagramLinksGrid').addEventListener('click', async (event) => {
+async function changeInstagramLinkImage(card, file) {
+  const companyId = card.dataset.companyId;
+  if (loadingLinkImages || pendingLinkImages.has(companyId)) return;
+  if (file && file.size > 3 * 1024 * 1024) {
+    igNotify('حجم الصورة يجب ألا يتجاوز 3 MB', 'error');
+    return;
+  }
+
+  pendingLinkImages.add(companyId);
+  updateLinkImageCard(card);
+  try {
+    const endpoint = `/api/instagram/links/${encodeURIComponent(companyId)}/image`;
+    const result = await igApi(endpoint, file
+      ? { method: 'PUT', headers: { 'Content-Type': 'application/octet-stream' }, body: file }
+      : { method: 'DELETE' });
+    if (file) linkImageUrls.set(companyId, result.imageUrl || null);
+    else linkImageUrls.delete(companyId);
+
+    if (result.cleanupFailed) {
+      igNotify('تم تحديث صورة المتجر. تعذر حذف الملف السابق من التخزين.', 'error');
+    } else if (file && !result.imageUrl) {
+      igNotify('تم حفظ صورة المتجر. تعذرت المعاينة مؤقتاً.', 'error');
+    } else {
+      igNotify(file ? 'تم رفع صورة المتجر' : 'تم حذف الصورة وعاد شعار Instagram');
+    }
+  } catch (error) {
+    igNotify(error.message, 'error');
+  } finally {
+    pendingLinkImages.delete(companyId);
+    const currentCard = instagramLinksGrid.querySelector(`.link-card[data-company-id="${companyId}"]`);
+    if (currentCard) updateLinkImageCard(currentCard);
+  }
+}
+
+instagramLinksGrid.addEventListener('change', (event) => {
+  const input = event.target;
+  if (!input.matches('.link-image-input') || !input.files.length) return;
+  changeInstagramLinkImage(input.closest('.link-card'), input.files[0]);
+});
+
+for (const type of ['load', 'error']) {
+  instagramLinksGrid.addEventListener(type, (event) => {
+    if (event.target.matches('img.store-image-file')) showLinkImage(event.target, type === 'load');
+  }, true);
+}
+
+instagramLinksGrid.addEventListener('click', async (event) => {
+  const imageButton = event.target.closest('[data-link-image-action]');
+  if (imageButton) {
+    const card = imageButton.closest('.link-card');
+    if (imageButton.dataset.linkImageAction === 'upload') {
+      const input = card.querySelector('.link-image-input');
+      input.value = '';
+      input.click();
+    } else if (confirm('حذف صورة المتجر وإظهار شعار Instagram؟')) {
+      await changeInstagramLinkImage(card);
+    }
+    return;
+  }
+
   const button = event.target.closest('[data-link-action]');
   if (!button) return;
   const card = button.closest('[data-company-id]');
@@ -1154,16 +1275,16 @@ document.getElementById('instagramLinksGrid').addEventListener('click', async (e
       // حفظ الرابط كما في السابق
       await igApi('/api/instagram/links', { method: 'POST', body: { companyId: card.dataset.companyId, slug, isActive: currentActive } });
       igNotify('تم حفظ رابط الشركة');
-      await loadInstagramBootstrap();
+      await loadInstagramLinkCards();
     } else if (button.dataset.linkAction === 'toggle') {
       await igApi('/api/instagram/links', { method: 'POST', body: { companyId: card.dataset.companyId, slug, isActive: !currentActive } });
       igNotify(currentActive ? 'تم إيقاف الرابط' : 'تم تفعيل الرابط');
-      await loadInstagramBootstrap();
+      await loadInstagramLinkCards();
     } else if (button.dataset.linkAction === 'save-order-start') {
       const nextOrderNumber = card.querySelector('.link-order-start').value;
       await igApi('/api/instagram/links/order-start', { method: 'POST', body: { companyId: card.dataset.companyId, nextOrderNumber: Number(nextOrderNumber) } });
       igNotify('تم حفظ بداية الترقيم');
-      await loadInstagramBootstrap();
+      await loadInstagramLinkCards();
     } else if (button.dataset.linkAction === 'copy') {
       await navigator.clipboard.writeText(`${location.origin}/o/${slug}`);
       igNotify('تم نسخ الرابط');

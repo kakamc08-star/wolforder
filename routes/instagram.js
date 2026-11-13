@@ -18,6 +18,90 @@ const INSTAGRAM_SHIPPING_FEE = 10000;
 const INSTAGRAM_STATUSES = new Set(['قيد المتابعة', 'تم', 'مؤجل', 'مرتجع', 'إلغاء']);
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const publicOrderAttempts = new Map();
+const STOREFRONT_IMAGE_BUCKET = 'instagram-storefront-images';
+const STOREFRONT_IMAGE_URL_SECONDS = 300;
+const parseStorefrontImage = express.raw({
+  type: ['application/octet-stream', 'image/*'],
+  limit: 3 * 1024 * 1024,
+  inflate: false
+});
+
+function storefrontImageFormat(bytes) {
+  if (!Buffer.isBuffer(bytes) || bytes.length < 12) return null;
+
+  const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+
+  if (
+    bytes.length >= 45 &&
+    bytes.subarray(0, 8).equals(pngSignature) &&
+    bytes.toString('latin1', 12, 16) === 'IHDR' &&
+    bytes.toString('latin1', bytes.length - 8, bytes.length - 4) === 'IEND'
+  ) {
+    return { extension: 'png', contentType: 'image/png' };
+  }
+
+  if (
+    bytes[0] === 0xff &&
+    bytes[1] === 0xd8 &&
+    bytes[2] === 0xff &&
+    bytes.lastIndexOf(Buffer.from([0xff, 0xd9])) >= 3
+  ) {
+    return { extension: 'jpg', contentType: 'image/jpeg' };
+  }
+
+  if (
+    bytes.length >= 20 &&
+    bytes.toString('latin1', 0, 4) === 'RIFF' &&
+    bytes.readUInt32LE(4) === bytes.length - 8 &&
+    bytes.toString('latin1', 8, 12) === 'WEBP' &&
+    ['VP8 ', 'VP8L', 'VP8X'].includes(bytes.toString('latin1', 12, 16))
+  ) {
+    return { extension: 'webp', contentType: 'image/webp' };
+  }
+
+  return null;
+}
+
+async function signStorefrontImage(bucket, path) {
+  try {
+    const { data, error } = await bucket.createSignedUrl(path, STOREFRONT_IMAGE_URL_SECONDS);
+    if (error) throw error;
+    return data.signedUrl;
+  } catch (error) {
+    console.error('Instagram store image signing error:', error.message);
+    return null;
+  }
+}
+
+async function removeStorefrontImageObject(bucket, path) {
+  if (!path) return true;
+  try {
+    const { error } = await bucket.remove([path]);
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Instagram store image cleanup error:', path, error.message);
+    return false;
+  }
+}
+
+function setStorefrontImagePath(req, path) {
+  return supabase.rpc('set_instagram_storefront_image_path', {
+    p_company_id: req.params.companyId.toLowerCase(),
+    p_actor_user_id: req.user.id,
+    p_object_path: path
+  });
+}
+
+function storeImageMutationError(res, error) {
+  console.error('Instagram store image update error:', error.message);
+  if (error.code === 'P0002') return res.status(404).json({ message: 'المتجر غير موجود' });
+  if (error.code === '42501') return res.status(403).json({ message: 'تعديل الصورة متاح للمدير فقط' });
+  if (error.code === 'PGRST202' || error.code === '42P01') {
+    return res.status(503).json({ message: 'لم يتم تجهيز قاعدة بيانات صور المتاجر بعد' });
+  }
+  return res.status(500).json({ message: 'تعذر حفظ تغيير صورة المتجر' });
+}
 
 function requireRole(...roles) {
   return (req, res, next) => {
@@ -360,6 +444,24 @@ router.get('/storefront/:slug', async (req, res) => {
   } catch (error) {
     console.error('Instagram storefront exception:', error);
     res.status(500).json({ message: 'تعذر تحميل رابط الطلب حالياً' });
+  }
+});
+
+router.get('/storefront/:slug/image', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const { data: path, error } = await supabase.rpc('get_instagram_storefront_image_path', {
+      p_slug: req.params.slug
+    });
+    if (error && error.code !== 'PGRST202') throw error;
+    if (error || !path) return res.sendStatus(404);
+
+    const url = await signStorefrontImage(supabase.storage.from(STOREFRONT_IMAGE_BUCKET), path);
+    if (!url) return res.sendStatus(404);
+    return res.redirect(302, url);
+  } catch (error) {
+    console.error('Instagram store image read error:', error.message);
+    return res.sendStatus(503);
   }
 });
 
@@ -1510,6 +1612,96 @@ router.get('/inventory/shipping-delivered', requireRole('admin', 'instagram_view
 // =========================================================
 // Links and viewer accounts
 // =========================================================
+
+router.get('/links/images', requireRole('admin'), async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const { data: rows, error } = await supabase
+      .from('instagram_storefront_images')
+      .select('company_id, object_path');
+    if (error?.code === 'PGRST205' || error?.code === '42P01') return res.json({ images: [] });
+    if (error) throw error;
+    if (!rows?.length) return res.json({ images: [] });
+
+    const paths = rows.map((row) => row.object_path);
+    const { data: previews, error: previewError } = await supabase.storage
+      .from(STOREFRONT_IMAGE_BUCKET).createSignedUrls(paths, STOREFRONT_IMAGE_URL_SECONDS);
+    if (previewError) console.error('Instagram store image previews error:', previewError.message);
+    const urls = new Map((previews || []).map(({ path, signedUrl }) => [path, signedUrl]));
+    return res.json({
+      images: rows.map((row) => ({ companyId: row.company_id, imageUrl: urls.get(row.object_path) || null }))
+    });
+  } catch (error) {
+    console.error('Instagram store images list error:', error.message);
+    return res.status(500).json({ message: 'تعذر تحميل صور المتاجر' });
+  }
+});
+
+router.put('/links/:companyId/image', requireRole('admin'), parseStorefrontImage, async (req, res) => {
+  const { companyId } = req.params;
+  if (!isUuid(companyId)) return res.status(400).json({ message: 'معرف المتجر غير صالح' });
+  const format = storefrontImageFormat(req.body);
+  if (!format) return res.status(415).json({ message: 'اختر صورة بصيغة JPG أو PNG أو WebP' });
+
+  const objectPath = `${companyId.toLowerCase()}/${randomUUID()}.${format.extension}`;
+  try {
+    const { data: company, error: companyError } = await supabase
+      .from('users').select('id').eq('id', companyId).eq('role', 'company').maybeSingle();
+    if (companyError) throw companyError;
+    if (!company) return res.status(404).json({ message: 'المتجر غير موجود' });
+
+    const bucket = supabase.storage.from(STOREFRONT_IMAGE_BUCKET);
+    const { error: uploadError } = await bucket.upload(objectPath, req.body, {
+      contentType: format.contentType,
+      cacheControl: '60',
+      upsert: false
+    });
+    if (uploadError) {
+      console.error('Instagram store image upload error:', uploadError.message);
+      return res.status(502).json({ message: 'تعذر رفع الصورة إلى تخزين المتاجر' });
+    }
+
+    const { data: previousPath, error: saveError } = await setStorefrontImagePath(req, objectPath);
+    if (saveError) {
+      // Delete the uploaded object only if the database definitely rejected the update.
+      if (['PGRST202', '42P01', '42501', 'P0002', '23503', '23514'].includes(saveError.code)) {
+        await removeStorefrontImageObject(bucket, objectPath);
+      }
+      return storeImageMutationError(res, saveError);
+    }
+
+    broadcastInstagramUpdate(req, 'INSTAGRAM_STOREFRONT_IMAGE_UPDATED');
+    const [imageUrl, removed] = await Promise.all([
+      signStorefrontImage(bucket, objectPath),
+      removeStorefrontImageObject(bucket, previousPath)
+    ]);
+    res.set('Cache-Control', 'no-store');
+    return res.json({ imageUrl, cleanupFailed: !removed });
+  } catch (error) {
+    return storeImageMutationError(res, error);
+  }
+}, (error, _req, res, _next) => {
+  if (error.type === 'entity.too.large') {
+    return res.status(413).json({ message: 'حجم الصورة يجب ألا يتجاوز 2 MB' });
+  }
+  return res.status(400).json({ message: 'تعذر قراءة ملف الصورة' });
+});
+
+router.delete('/links/:companyId/image', requireRole('admin'), async (req, res) => {
+  if (!isUuid(req.params.companyId)) return res.status(400).json({ message: 'معرف المتجر غير صالح' });
+  try {
+    const { data: previousPath, error } = await setStorefrontImagePath(req, null);
+    if (error) return storeImageMutationError(res, error);
+
+    if (previousPath) broadcastInstagramUpdate(req, 'INSTAGRAM_STOREFRONT_IMAGE_UPDATED');
+    const removed = !previousPath || await removeStorefrontImageObject(
+      supabase.storage.from(STOREFRONT_IMAGE_BUCKET), previousPath
+    );
+    return res.json({ imageUrl: null, cleanupFailed: !removed });
+  } catch (error) {
+    return storeImageMutationError(res, error);
+  }
+});
 
 router.post('/links', requireRole('admin'), async (req, res) => {
   try {

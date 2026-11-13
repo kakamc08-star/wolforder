@@ -12,6 +12,7 @@ const storefrontElements = {
   loading: document.getElementById('storefrontLoading'),
   app: document.getElementById('storefrontApp'),
   companyName: document.getElementById('storefrontCompanyName'),
+  companyImage: document.getElementById('storefrontCustomImage'),
   form: document.getElementById('instagramCustomerOrderForm'),
   items: document.getElementById('storefrontItems'),
   addItem: document.getElementById('addStorefrontItem'),
@@ -404,6 +405,21 @@ async function refreshStorefrontCatalog(initial = false) {
   }
 }
 
+let storefrontImageRevision = 0;
+function refreshStorefrontImage() {
+  if (!storefrontElements.companyImage) return;
+  storefrontImageRevision += 1;
+  storefrontElements.companyImage.src = `/api/instagram/storefront/${encodeURIComponent(storefrontState.slug)}/image?v=${storefrontImageRevision}`;
+}
+
+for (const type of ['load', 'error']) {
+  storefrontElements.companyImage?.addEventListener(type, () => {
+    const visible = type === 'load';
+    storefrontElements.companyImage.hidden = !visible;
+    storefrontElements.companyImage.parentElement.classList.toggle('has-store-image', visible);
+  });
+}
+
 let storefrontSocket;
 function connectStorefrontSocket() {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -411,6 +427,9 @@ function connectStorefrontSocket() {
   storefrontSocket.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data);
+      if (data.source === 'instagram' && data.type === 'INSTAGRAM_STOREFRONT_IMAGE_UPDATED') {
+        refreshStorefrontImage();
+      }
       if (data.source === 'instagram' && ['INSTAGRAM_ORDER_CREATED', 'INSTAGRAM_ORDER_UPDATED', 'INSTAGRAM_ORDER_DELETED', 'INSTAGRAM_INVENTORY_UPDATED'].includes(data.type)) {
         refreshStorefrontCatalog();
       }
@@ -425,6 +444,7 @@ function connectStorefrontSocket() {
 async function initializeStorefront() {
   try {
     await refreshStorefrontCatalog(true);
+    refreshStorefrontImage();
     connectStorefrontSocket();
     window.setInterval(() => refreshStorefrontCatalog(), 30000);
   } catch (error) {
