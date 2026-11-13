@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const supabase = require('../config/db');
 const authenticateToken = require('../middleware/auth');
+const { normalizeDigits } = require('../utils/instagram-validation');
 
 const ORDER_TYPES = ['توصيل', 'شحن', 'شحن لباب المنزل'];
 
@@ -83,7 +84,7 @@ router.get('/report', authenticateToken, async (req, res) => {
   ]);
 
   const escapeCSV = (val) => {
-    const str = String(val);
+    const str = normalizeDigits(val);
     if (str.includes(',') || str.includes('"') || str.includes('\n')) {
       return '"' + str.replace(/"/g, '""') + '"';
     }
@@ -208,8 +209,9 @@ router.get('/', authenticateToken, async (req, res) => {
         *,
         driver:driver_id(id, name, username),
         company:company_id(id, name, username)
-      `)
-      .order('created_at', { ascending: false });
+      `, { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false });
 
     // 2. فلترة حسب الدور
     if (role === 'driver') {
@@ -218,15 +220,15 @@ router.get('/', authenticateToken, async (req, res) => {
       query = query.eq('company_id', id);
     }
     
-  // 3. فلترة حسب التاريخ (إذا وُجد)
-if (startDate || endDate) {
-  if (startDate) {
-    query = query.gte('created_at', startDate);
-  }
-  if (endDate) {
-    query = query.lte('created_at', endDate);
-  }
-}
+    // فلترة العرض الافتراضي قبل جلب الصفوف لتجنب تحميل السجل كاملاً.
+    if (!startDate && !endDate && role !== 'company') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const since = today.toISOString();
+      query = query.or(`status.eq.قيد المتابعة,created_at.gte.${since},updated_at.gte.${since}`);
+    }
+    if (startDate) query = query.gte('created_at', startDate);
+    if (endDate) query = query.lte('created_at', endDate);
 
     // 4. فلترة حسب الحالة (إذا وُجد)
     if (status) {
@@ -247,43 +249,21 @@ if (startDate || endDate) {
       if (companyId) query = query.eq('company_id', companyId);
     }
 
-    // 6. تنفيذ الاستعلام
-    const { data: orders, error } = await query;
-    if (error) throw error;
+    // API Max Rows قد يكون أقل من حجم الدفعة. نتابع حسب عدد الصفوف المعاد فعلياً.
+    const orders = new Map();
+    let offset = 0;
+    let total = Infinity;
+    while (offset < total) {
+      const { data, error, count } = await query.range(offset, offset + 4999);
+      if (error) throw error;
+      if (!data?.length) break;
+      data.forEach((order) => orders.set(order.id, order));
+      offset += data.length;
+      total = count ?? Infinity;
+    }
 
-    // 7. الفلترة الافتراضية (إذا لم يتم تحديد نطاق تاريخ)
-let filteredOrders = orders;
-if (!startDate && !endDate) {
-  if (role === 'company') {
-    // الشركة ترى جميع طلباتها دائمًا (بدون فلترة تاريخ)
-    filteredOrders = orders;
-  } else {
-    // للسائق والمدير: طلبات اليوم + قيد المتابعة
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    filteredOrders = orders.filter(o => {
-      try {
-        if (o.status === 'قيد المتابعة') return true;
-        
-        if (o.created_at) {
-          const createdAt = new Date(o.created_at);
-          if (!isNaN(createdAt.getTime()) && createdAt >= today) return true;
-        }
-        
-        if (o.updated_at) {
-          const updatedAt = new Date(o.updated_at);
-          if (!isNaN(updatedAt.getTime()) && updatedAt >= today) return true;
-        }
-      } catch (e) {
-        console.warn('خطأ في فلترة طلب:', e);
-      }
-      return false;
-    });
-  }
-}
-
-    res.json(filteredOrders);
+    res.set('Cache-Control', 'no-store');
+    res.json([...orders.values()]);
   } catch (err) {
     console.error('GET / error:', err);
     res.status(500).json({ message: err.message });

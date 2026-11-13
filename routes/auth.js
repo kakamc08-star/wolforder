@@ -10,19 +10,34 @@ console.log('✅ auth.js loaded');
 const ALLOWED_ROLES = new Set(['admin', 'company', 'driver', 'instagram_viewer']);
 const REGISTER_ROLES = new Set(['admin', 'company', 'driver']);
 
+function sendLoginLock(res, lockedUntil) {
+  lockedUntil = new Date(lockedUntil).toISOString();
+  const seconds = Math.max(1, Math.ceil((Date.parse(lockedUntil) - Date.now()) / 1000));
+  return res.status(429).set('Retry-After', String(seconds)).json({
+    code: 'LOGIN_LOCKED',
+    message: 'تم تجاوز عدد محاولات تسجيل الدخول المسموحة. يرجى المحاولة بعد 5 دقائق.',
+    lockedUntil,
+    retryAfterSeconds: seconds
+  });
+}
+
 // ==================== تسجيل الدخول (بدون توثيق) ====================
 router.post('/login', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
   try {
     const { username, password } = req.body;
-    console.log('🔐 Login attempt for:', username);
+    if (typeof username !== 'string' || typeof password !== 'string' || !username || !password) {
+      return res.status(400).json({ message: 'أدخل اسم المستخدم وكلمة المرور' });
+    }
 
     const { data: user, error } = await supabase
       .from('users')
-      .select('*')
+      .select('id, username, password, role, name, login_state:wolforder_login_attempts(failed_attempts, locked_until)')
       .eq('username', username)
-      .single();
+      .maybeSingle();
 
-    if (error || !user) {
+    if (error) throw error;
+    if (!user) {
       return res.status(400).json({ message: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
     }
 
@@ -30,26 +45,96 @@ router.post('/login', async (req, res) => {
       return res.status(403).json({ message: 'نوع الحساب غير مصرح له بالدخول' });
     }
 
-    const validPass = await bcrypt.compare(password, user.password);
-    console.log('✅ Password match:', validPass);
+    const state = Array.isArray(user.login_state) ? user.login_state[0] : user.login_state;
+    if (Date.parse(state?.locked_until) > Date.now()) return sendLoginLock(res, state.locked_until);
 
-    if (!validPass) {
+    const validPass = await bcrypt.compare(password, user.password);
+    const { data: attempt, error: attemptError } = await supabase.rpc('record_wolforder_login_attempt', {
+      p_user_id: user.id,
+      p_expected_password_hash: user.password,
+      p_success: validPass
+    });
+    if (attemptError) throw attemptError;
+    if (attempt?.credentials_changed) {
+      return res.status(409).json({ message: 'تغيّرت بيانات الحساب. يرجى إعادة المحاولة.' });
+    }
+    if (attempt?.locked_until) return sendLoginLock(res, attempt.locked_until);
+    if (!validPass || !attempt?.allowed) {
       return res.status(400).json({ message: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
     }
 
+    const loginRole = attempt.role || user.role;
     const token = jwt.sign(
-      { id: user.id, role: user.role, name: user.name },
+      { id: user.id, role: loginRole, name: user.name },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
     res.json({
       token,
-      user: { id: user.id, username: user.username, role: user.role, name: user.name }
+      user: { id: user.id, username: user.username, role: loginRole, name: user.name }
     });
   } catch (err) {
     console.error('💥 Login exception:', err);
-    res.status(500).json({ message: err.message });
+    res.status(503).json({ message: 'تعذر تسجيل الدخول حالياً. يرجى المحاولة لاحقاً.' });
+  }
+});
+
+async function requireCurrentAdmin(req, res, next) {
+  if (req.user.role !== 'admin') return res.sendStatus(403);
+  try {
+    const { data, error } = await supabase.from('users').select('id, role').eq('id', req.user.id).maybeSingle();
+    if (error) throw error;
+    if (data?.role !== 'admin') return res.sendStatus(403);
+    next();
+  } catch (error) {
+    console.error('Password administration permission check failed:', error.message);
+    res.status(500).json({ message: 'تعذر التحقق من صلاحية المدير' });
+  }
+}
+
+router.get('/password-accounts', authenticateToken, requireCurrentAdmin, async (_req, res) => {
+  try {
+    const { data, error } = await supabase.from('users')
+      .select('id, name, username, role')
+      .in('role', [...REGISTER_ROLES])
+      .order('name');
+    if (error) throw error;
+    res.set('Cache-Control', 'no-store');
+    res.json(data || []);
+  } catch (error) {
+    console.error('Password accounts list failed:', error.message);
+    res.status(500).json({ message: 'تعذر تحميل الحسابات' });
+  }
+});
+
+router.patch('/users/:id/password', authenticateToken, requireCurrentAdmin, async (req, res) => {
+  const { newPassword, confirmPassword } = req.body;
+  if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(req.params.id)) {
+    return res.status(400).json({ message: 'معرف الحساب غير صالح' });
+  }
+  if (typeof newPassword !== 'string' || newPassword.length < 6
+      || Buffer.byteLength(newPassword, 'utf8') > 72) {
+    return res.status(400).json({ message: 'استخدم كلمة مرور من 6 أحرف على الأقل وبطول مناسب' });
+  }
+  if (newPassword !== confirmPassword) {
+    return res.status(400).json({ message: 'كلمتا المرور غير متطابقتين' });
+  }
+  try {
+    const password = await bcrypt.hash(newPassword, 10);
+    const { data, error } = await supabase.from('users')
+      .update({ password })
+      .eq('id', req.params.id)
+      .in('role', [...REGISTER_ROLES])
+      .select('id')
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ message: 'الحساب غير موجود' });
+    res.set('Cache-Control', 'no-store');
+    res.json({ message: 'تم تغيير كلمة المرور بنجاح' });
+  } catch (error) {
+    console.error('Password change failed:', error.message);
+    res.status(500).json({ message: 'تعذر تغيير كلمة المرور' });
   }
 });
 

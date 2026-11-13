@@ -31,6 +31,7 @@ if (window.location.pathname.includes('login.html')) {
   const messageText = messageDiv.querySelector('.message-text');
   const loginButton = document.getElementById('loginButton');
   const passwordInput = document.getElementById('password');
+  const usernameInput = document.getElementById('username');
   const togglePasswordButton = document.getElementById('togglePassword');
 
   function setMessage(text, type = 'info') {
@@ -42,10 +43,14 @@ if (window.location.pathname.includes('login.html')) {
   }
 
   function setLoading(isLoading) {
-    loginButton.disabled = isLoading;
+    loginButton.disabled = isLoading || loginLock.isBlocked();
+    usernameInput.disabled = isLoading;
+    passwordInput.disabled = isLoading;
     loginButton.classList.toggle('is-loading', isLoading);
     loginButton.setAttribute('aria-busy', String(isLoading));
   }
+
+  const loginLock = window.createLoginLockout(loginButton, usernameInput, setMessage);
 
   togglePasswordButton.addEventListener('click', () => {
     const shouldShowPassword = passwordInput.type === 'password';
@@ -61,6 +66,8 @@ if (window.location.pathname.includes('login.html')) {
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
+    if (loginLock.isBlocked()) return;
+    loginLock.clear();
 
     const username = document.getElementById('username').value.trim();
     const password = passwordInput.value;
@@ -77,6 +84,7 @@ if (window.location.pathname.includes('login.html')) {
       });
 
       const data = await response.json().catch(() => ({}));
+      if (data.code === 'LOGIN_LOCKED') loginLock.start(data.retryAfterSeconds, username);
       if (!response.ok) {
         throw new Error(data.message || 'تعذر تسجيل الدخول، تحقق من البيانات وحاول مجددًا');
       }
@@ -87,6 +95,7 @@ if (window.location.pathname.includes('login.html')) {
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       loginSucceeded = true;
+      loginLock.clear();
       setMessage('تم تسجيل الدخول بنجاح، جاري فتح لوحة التحكم...', 'success');
 
       window.setTimeout(() => {
@@ -96,7 +105,7 @@ if (window.location.pathname.includes('login.html')) {
       const message = error instanceof TypeError
         ? 'تعذر الاتصال بالخادم، تحقق من الإنترنت وحاول مرة أخرى'
         : error.message;
-      setMessage(message, 'error');
+      if (!loginLock.isBlocked()) setMessage(message, 'error');
     } finally {
       if (!loginSucceeded) setLoading(false);
     }

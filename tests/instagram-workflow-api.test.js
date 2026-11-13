@@ -116,6 +116,7 @@ test('الجرد وتصديره يعرضان المباعة والشحن الم�
   assert.equal(response.data[0].shipping_delivered, 1); assert.equal(response.data[0].sold, 3);
   assert.equal(response.data[0].reserved_delivery, 2); assert.equal(response.data[0].remaining, 8);
   const exported = await api('/inventory/export', 'admin');
+  assert.equal(exported.status, 200);
   assert(exported.data.indexOf('المباعة') < exported.data.indexOf('الشحن المُسلَّم'));
   assert(exported.data.indexOf('الشحن المُسلَّم') < exported.data.indexOf('المؤجلة'));
 });
@@ -194,4 +195,18 @@ test('مسارات قبول ورفض الشحن أُزيلت وحالات الش
   assert.equal((await api(`/orders/${ids.pending}/status`, 'admin', 'PATCH', { status: 'تم' })).status, 400);
   assert.equal((await api('/orders/bulk-status', 'admin', 'PATCH', { ids: [ids.pending], status: 'تم' })).status, 400);
   assert.equal(rpcCalls.length, 0);
+});
+
+test('تعديل الأصناف يقبل فعال ومتوقف ويمنع الأرشفة دون تغيير حالات قديمة ضمنياً', async () => {
+  rpcCalls = [];
+  assert.equal((await api(`/products/${product}`, 'admin', 'PATCH', { status: 'archived' })).status, 400);
+  assert.equal(rpcCalls.length, 0);
+  for (const status of ['active', 'stopped']) {
+    assert.equal((await api(`/products/${product}`, 'admin', 'PATCH', { status })).status, 200);
+    assert.equal(rpcCalls.at(-1).params.p_status, status);
+  }
+  assert.equal((await api(`/products/${product}`, 'admin', 'PATCH', { name: 'اسم معدل' })).status, 200);
+  assert.equal(rpcCalls.at(-1).name, 'update_instagram_product_atomic');
+  assert.equal(rpcCalls.at(-1).params.p_status, null);
+  assert.equal((await api(`/products/${product}`, 'viewer', 'PATCH', { status: 'active' })).status, 403);
 });

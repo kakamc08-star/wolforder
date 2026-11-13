@@ -70,5 +70,5 @@ test('Service Worker لا يخزن API ويبطل نسخة الكاش القدي
   const serviceWorker = read('public/sw.js');
   assert.match(serviceWorker, /pathname\.startsWith\('\/api\/'\)/);
   assert.match(serviceWorker, /if \(requestUrl\.pathname\.startsWith\('\/api\/'\).*return;/s);
-  assert.match(serviceWorker, /wolforder-pwa-v17-instagram-admin-filters/);
+  assert.match(serviceWorker, /wolforder-pwa-v18-all-requested-updates/);
 });

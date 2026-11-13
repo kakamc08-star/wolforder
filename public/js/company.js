@@ -343,17 +343,7 @@ function convertToEnglishDigits(value) {
 }
 
 // التحويل مباشرة أثناء الكتابة في لوحة الشركة
-document.addEventListener('input', function (event) {
-    const input = event.target;
 
-    if (!input.matches('input, textarea')) return;
-
-    const convertedValue = convertToEnglishDigits(input.value);
-
-    if (input.value !== convertedValue) {
-        input.value = convertedValue;
-    }
-});
 
 // ==================== حالة الاتصال ====================
 function updateOnlineStatus() {
@@ -431,7 +421,7 @@ async function fetchOrders() {
         if (endDateEl && endDateEl.value !== endDateInput) endDateEl.value = endDateInput;
         if (searchEl && searchEl.value !== searchInput) searchEl.value = searchInput;
 
-        document.getElementById('lastUpdateTime').textContent = `آخر تحديث: ${new Date().toLocaleTimeString('ar')}`;
+        document.getElementById('lastUpdateTime').textContent = `آخر تحديث: ${new Date().toLocaleTimeString('ar-u-nu-latn')}`;
     } catch (err) {
         console.error('fetchOrders error:', err);
     } finally {
@@ -761,7 +751,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             const message = 'مرحبًا، لدي استفسار بخصوص الطلبات.';
-            const whatsappUrl = `https://wa.me/${adminPhone}?text=${encodeURIComponent(message)}`;
+            const whatsappUrl = `https://wa.me/${convertToEnglishDigits(adminPhone)}?text=${encodeURIComponent(message)}`;
             window.open(whatsappUrl, '_blank');
         });
     }

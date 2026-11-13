@@ -395,7 +395,11 @@ function updateBulkBar() {
   const bar = document.getElementById('igBulkBar');
   bar.hidden = igState.selectedOrders.size === 0;
   document.getElementById('igSelectedCount').textContent = `${igState.selectedOrders.size} محدد`;
-  document.getElementById('igSelectAll').checked = igState.orders.length > 0 && igState.selectedOrders.size === igState.orders.length;
+  for (const id of ['igSelectAll', 'igSelectAllMobile']) {
+    const checkbox = document.getElementById(id);
+    checkbox.checked = igState.orders.length > 0 && igState.orders.every((order) => igState.selectedOrders.has(order.id));
+    checkbox.indeterminate = !checkbox.checked && igState.orders.some((order) => igState.selectedOrders.has(order.id));
+  }
   updateBulkActionOptions();
 }
 
@@ -413,11 +417,14 @@ document.getElementById('instagramOrdersBody').addEventListener('change', (event
   updateBulkBar();
 });
 
-document.getElementById('igSelectAll').addEventListener('change', (event) => {
+function selectAllInstagramOrders(event) {
   igState.selectedOrders.clear();
   if (event.target.checked) igState.orders.forEach((order) => igState.selectedOrders.add(order.id));
   renderInstagramOrders();
-});
+}
+for (const id of ['igSelectAll', 'igSelectAllMobile']) {
+  document.getElementById(id).addEventListener('change', selectAllInstagramOrders);
+}
 
 async function performOrderAction(url, body, successMessage) {
   await igApi(url, { method: 'PATCH', body });
@@ -944,7 +951,7 @@ function printInstagramOrders(orders) {
       </div>`;
   }).join('');
 
-  printWindow.document.write(`
+  printWindow.document.write(window.WolfNumbers.toEnglish(`
     <!DOCTYPE html>
     <html dir="rtl" lang="ar">
     <head>
@@ -968,7 +975,7 @@ function printInstagramOrders(orders) {
       <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); };</script>
     </body>
     </html>
-  `);
+  `));
   printWindow.document.close();
 }
 
@@ -1023,19 +1030,36 @@ async function loadReportProductOptions() {
   }
 }
 
-function statusOptions(selected) {
-  return [['active', 'فعال'], ['stopped', 'متوقف'], ['archived', 'مؤرشف']].map(([value, label]) => `<option value="${value}" ${value === selected ? 'selected' : ''}>${label}</option>`).join('');
-}
-
 function renderInstagramProducts() {
   const grid = document.getElementById('instagramProductsGrid');
   if (!igState.products.length) { grid.innerHTML = '<div class="ig-mini-card">لا توجد أصناف.</div>'; return; }
   grid.innerHTML = igState.products.map((product) => {
     const company = igState.bootstrap.companies.find((item) => item.id === product.company_id);
+    const variants = product.variants || [];
     return `<article class="ig-mini-card product-admin-card" data-product-id="${product.id}">
-      <div class="product-admin-head"><div class="form-group"><label>اسم الصنف</label><input class="edit-product-name" value="${igEscape(product.name)}"></div><div class="form-group"><label>السعر</label><input class="edit-product-price" type="number" min="0" value="${product.unit_price}"></div><div class="form-group"><label>الحالة</label><select class="edit-product-status">${statusOptions(product.status)}</select></div><div><small>${igEscape(company?.name || '')}</small><div class="link-actions"><button class="btn btn-primary btn-sm" data-product-action="save">حفظ</button><button class="btn btn-danger btn-sm" data-product-action="delete">حذف نهائي</button></div></div></div>
-      <div class="product-variants-list">${(product.variants || []).map((variant) => `<div class="product-variant-line" data-variant-id="${variant.id}"><input class="variant-color" value="${igEscape(variant.color)}"><input class="variant-size" value="${igEscape(variant.size)}"><input class="variant-stock" type="number" min="0" value="${variant.stock_total}"><label><input class="variant-active" type="checkbox" ${variant.is_active ? 'checked' : ''}> فعال</label><div class="variant-actions"><button class="btn btn-primary btn-sm" data-variant-action="save">حفظ</button><button class="btn btn-danger btn-sm" data-variant-action="delete">حذف</button></div></div>`).join('')}</div>
+      <div class="product-card-heading">
+        <div><small>${igEscape(company?.name || '')}</small><h3>${igEscape(product.name)}</h3></div>
+        <label class="product-status-toggle">
+          <input class="edit-product-status" type="checkbox" role="switch" aria-label="حالة الصنف ${igEscape(product.name)}" ${product.status === 'active' ? 'checked' : ''}>
+          <span class="product-toggle-track" aria-hidden="true"></span>
+          <span class="product-state-text"><span class="state-active">فعال</span><span class="state-stopped">متوقف</span></span>
+        </label>
+      </div>
+      <div class="product-admin-head">
+        <label class="form-group">اسم الصنف<input class="edit-product-name" value="${igEscape(product.name)}"></label>
+        <label class="form-group">السعر (${igEscape(product.currency || 'ل.س')})<input class="edit-product-price" type="number" min="0" value="${product.unit_price}"></label>
+      </div>
+      <div class="product-variants-heading"><strong>الألوان والمقاسات</strong><span>${variants.length} تركيبة</span></div>
+      <div class="product-variants-list">${variants.map((variant) => `
+        <div class="product-variant-line" data-variant-id="${variant.id}">
+          <label>اللون<input class="variant-color" value="${igEscape(variant.color)}"></label>
+          <label>المقاس<input class="variant-size" value="${igEscape(variant.size)}"></label>
+          <label>الكمية الكلية<input class="variant-stock" type="number" min="0" value="${variant.stock_total}"></label>
+          <label class="variant-state"><input class="variant-active" type="checkbox" ${variant.is_active ? 'checked' : ''}> فعال</label>
+          <div class="variant-actions"><button class="btn btn-primary btn-sm" data-variant-action="save">حفظ التركيبة</button><button class="btn btn-danger btn-sm" data-variant-action="delete">حذف</button></div>
+        </div>`).join('')}</div>
       <div class="product-add-variant"><strong>إضافة لون ومقاس</strong><div class="variant-edit-row"><input class="new-variant-color" placeholder="اللون"><input class="new-variant-size" placeholder="المقاس"><input class="new-variant-stock" type="number" min="0" value="0" placeholder="المخزون"><button class="btn btn-secondary btn-sm" data-product-action="add-variant">إضافة</button></div></div>
+      <div class="product-card-actions"><small>تُحفظ الحالة مع الصنف</small><button class="btn btn-primary" data-product-action="save">حفظ الصنف</button><button class="btn btn-danger btn-sm" data-product-action="delete">حذف نهائي</button></div>
     </article>`;
   }).join('');
 }
@@ -1047,7 +1071,7 @@ document.getElementById('instagramProductsGrid').addEventListener('click', async
   if (!card) return;
   try {
     if (productButton?.dataset.productAction === 'save') {
-      await igApi(`/api/instagram/products/${card.dataset.productId}`, { method: 'PATCH', body: { name: card.querySelector('.edit-product-name').value, unitPrice: card.querySelector('.edit-product-price').value, status: card.querySelector('.edit-product-status').value } });
+      await igApi(`/api/instagram/products/${card.dataset.productId}`, { method: 'PATCH', body: { name: card.querySelector('.edit-product-name').value, unitPrice: card.querySelector('.edit-product-price').value, status: card.querySelector('.edit-product-status').checked ? 'active' : 'stopped' } });
       igNotify('تم تعديل الصنف'); await loadInstagramProducts();
     } else if (productButton?.dataset.productAction === 'delete') {
       if (!confirm('حذف الصنف نهائياً؟ لا يمكن الحذف إذا استُخدم في طلب.')) return;

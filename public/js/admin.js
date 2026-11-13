@@ -5,6 +5,7 @@ const wsUrl = `${wsProtocol}//${window.location.host}`;
 let socket;
 
 function connectWebSocket() {
+  if (socket && [WebSocket.CONNECTING, WebSocket.OPEN].includes(socket.readyState)) return;
   socket = new WebSocket(wsUrl);
 
   socket.onopen = () => {
@@ -16,7 +17,7 @@ function connectWebSocket() {
       const data = JSON.parse(event.data);
       if (data.type === 'ORDER_UPDATED' || data.type === 'ORDER_CREATED' || data.type === 'ORDER_DELETED') {
         console.log('🔄 جاري تحديث الطلبات فوراً...');
-        if (typeof fetchOrders === 'function') fetchOrders();
+        scheduleOrdersRefresh();
       }
     } catch (err) {
       console.error('❌ خطأ في قراءة بيانات WebSocket:', err);
@@ -62,6 +63,12 @@ document.addEventListener('DOMContentLoaded', () => {
 let selectedOrderIds = new Set();
 let allOrders = [];
 let currentSort = 'default';
+let ordersRequest = null;
+let ordersRefreshTimer = null;
+let ordersRefreshRequested = false;
+const orderRows = new Map();
+const orderSearchText = new WeakMap();
+const orderNumberCollator = new Intl.Collator('ar', { numeric: true });
 
 // تشغيل الاتصال الفوري الآن بأمان بعد تعريف المتغيرات والدالة
 connectWebSocket();
@@ -182,9 +189,6 @@ function insertVariable(variable) {
 
 // ==================== تهيئة الأحداث عند تحميل الصفحة ====================
 document.addEventListener('DOMContentLoaded', () => {
-  // تشغيل الاتصال الفوري
-  connectWebSocket();
-
   // ربط تغير الشركة بدالة جلب رقم الطلب الآلي
   const companySelect = document.getElementById('companySelect');
   if (companySelect) {
@@ -279,73 +283,91 @@ function convertToEnglishDigits(value) {
         .replace(/٬/g, '');
 }
 
-document.addEventListener('input', function (event) {
-    const input = event.target;
 
-    if (!input.matches('input, textarea')) return;
-
-    const convertedValue = convertToEnglishDigits(input.value);
-
-    if (input.value !== convertedValue) {
-        input.value = convertedValue;
-    }
-});
 
 // ==================== جلب الطلبات ====================
-async function fetchOrders() {
+function getOrdersQuery() {
+  const params = new URLSearchParams();
+  const fields = {
+    status: 'filterStatus',
+    driverId: 'filterDriver',
+    companyId: 'filterCompany',
+    orderType: 'filterOrderType'
+  };
+  Object.entries(fields).forEach(([key, id]) => {
+    const value = document.getElementById(id)?.value;
+    if (value) params.set(key, value);
+  });
+  const start = document.getElementById('filterStartDate')?.value;
+  const end = document.getElementById('filterEndDate')?.value;
+  if (start) params.set('startDate', new Date(start + 'T00:00:00').toISOString());
+  if (end) params.set('endDate', new Date(end + 'T23:59:59.999').toISOString());
+  return params.toString();
+}
+
+function scheduleOrdersRefresh() {
+  if (ordersRequest) {
+    ordersRefreshRequested = true;
+    return;
+  }
+  if (ordersRefreshTimer !== null) return;
+  ordersRefreshTimer = setTimeout(() => {
+    ordersRefreshTimer = null;
+    fetchOrders();
+  }, 120);
+}
+
+function fetchOrders() {
+  clearTimeout(ordersRefreshTimer);
+  ordersRefreshTimer = null;
+  const query = getOrdersQuery();
+  if (ordersRequest?.query === query) {
+    ordersRefreshRequested = true;
+    return ordersRequest.promise;
+  }
+
+  ordersRequest?.controller.abort();
+  ordersRefreshRequested = false;
+  const request = { query, controller: new AbortController() };
+  ordersRequest = request;
+  request.promise = loadOrders(request);
+  return request.promise;
+}
+
+async function loadOrders(request) {
   try {
-    const savedStatus = document.getElementById('filterStatus')?.value || '';
-    const savedStartDateInput = document.getElementById('filterStartDate')?.value || '';
-    const savedEndDateInput = document.getElementById('filterEndDate')?.value || '';
-    const savedDriverId = document.getElementById('filterDriver')?.value || '';
-    const savedCompanyId = document.getElementById('filterCompany')?.value || '';
-    const savedOrderType = document.getElementById('filterOrderType')?.value || '';
-    const savedSearch = document.getElementById('searchInput')?.value || '';
-
-    let startDate = '';
-    let endDate = '';
-    if (savedStartDateInput) {
-      const localStart = new Date(savedStartDateInput + 'T00:00:00');
-      startDate = localStart.toISOString();
-    }
-    if (savedEndDateInput) {
-      const localEnd = new Date(savedEndDateInput + 'T23:59:59');
-      endDate = localEnd.toISOString();
-    }
-
-    let url = '/api/orders?';
-    if (savedStatus) url += `status=${savedStatus}&`;
-    if (startDate) url += `startDate=${startDate}&`;
-    if (endDate) url += `endDate=${endDate}&`;
-    if (savedDriverId) url += `driverId=${savedDriverId}&`;
-    if (savedCompanyId) url += `companyId=${savedCompanyId}&`;
-    if (savedOrderType) url += `orderType=${encodeURIComponent(savedOrderType)}&`;
-
-    const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+    const res = await fetch('/api/orders?' + request.query, {
+      headers: { 'Authorization': `Bearer ${token}` },
+      signal: request.controller.signal,
+      cache: 'no-store'
+    });
     if (!res.ok) throw new Error('فشل جلب الطلبات');
     const orders = await res.json();
+    if (ordersRequest !== request) return;
+    if (request.query !== getOrdersQuery()) {
+      ordersRefreshRequested = true;
+      return;
+    }
+
     allOrders = orders;
+    const loadedIds = new Set(orders.map((order) => order.id || order._id));
+    for (const id of orderRows.keys()) {
+      if (!loadedIds.has(id)) orderRows.delete(id);
+    }
     applyFiltersAndRender();
-
-    const elStatus = document.getElementById('filterStatus');
-    const elStart = document.getElementById('filterStartDate');
-    const elEnd = document.getElementById('filterEndDate');
-    const elDriver = document.getElementById('filterDriver');
-    const elCompany = document.getElementById('filterCompany');
-    const elOrderType = document.getElementById('filterOrderType');
-    const elSearch = document.getElementById('searchInput');
-
-    if (elStatus && elStatus.value !== savedStatus) elStatus.value = savedStatus;
-    if (elStart && elStart.value !== savedStartDateInput) elStart.value = savedStartDateInput;
-    if (elEnd && elEnd.value !== savedEndDateInput) elEnd.value = savedEndDateInput;
-    if (elDriver && elDriver.value !== savedDriverId) elDriver.value = savedDriverId;
-    if (elCompany && elCompany.value !== savedCompanyId) elCompany.value = savedCompanyId;
-    if (elOrderType && elOrderType.value !== savedOrderType) elOrderType.value = savedOrderType;
-    if (elSearch && elSearch.value !== savedSearch) elSearch.value = savedSearch;
-
-    document.getElementById('lastUpdateTime').textContent = `آخر تحديث: ${new Date().toLocaleTimeString('ar')}`;
+    document.getElementById('lastUpdateTime').textContent = `آخر تحديث: ${new Date().toLocaleTimeString('ar-u-nu-latn')}`;
   } catch (err) {
+    if (err.name === 'AbortError' || ordersRequest !== request) return;
     console.error('fetchOrders error:', err);
+    showNotification('تعذر تحديث الطلبات. حاول مجدداً.', 'error');
+  } finally {
+    if (ordersRequest === request) {
+      ordersRequest = null;
+      if (ordersRefreshRequested) {
+        ordersRefreshRequested = false;
+        scheduleOrdersRefresh();
+      }
+    }
   }
 }
 
@@ -365,9 +387,15 @@ function applyFiltersAndRender() {
   }
 
   if (currentSort === 'asc') {
-    filtered.sort((a, b) => (a.order_number || '').localeCompare(b.order_number || '', 'ar', { numeric: true }));
+    filtered.sort((a, b) => orderNumberCollator.compare(
+      String(a.order_number ?? a.orderNumber ?? ''),
+      String(b.order_number ?? b.orderNumber ?? '')
+    ));
   } else if (currentSort === 'desc') {
-    filtered.sort((a, b) => (b.order_number || '').localeCompare(a.order_number || '', 'ar', { numeric: true }));
+    filtered.sort((a, b) => orderNumberCollator.compare(
+      String(b.order_number ?? b.orderNumber ?? ''),
+      String(a.order_number ?? a.orderNumber ?? '')
+    ));
   }
   renderOrdersTable(filtered);
 }
@@ -386,7 +414,7 @@ function renderOrdersTable(orders) {
   const tbody = document.getElementById('ordersTableBody');
   if (!tbody) return;
   const currentSelected = new Set(selectedOrderIds);
-  tbody.innerHTML = '';
+  const rows = document.createDocumentFragment();
   const now = new Date();
   let totalSYR = 0, totalUSD = 0, totalRatio = 0;
 
@@ -399,43 +427,54 @@ function renderOrdersTable(orders) {
     }
     totalRatio += Number(order.ratio) || 0;
 
-    const tr = document.createElement('tr');
-    const createdAt = new Date(order.created_at || order.createdAt);
-    if ((now - createdAt) < 10000) tr.style.backgroundColor = '#e0f2fe';
-
-    let actionButtons = `<div style="display:flex; gap:8px; flex-wrap:wrap;">`;
-    if (!order.driver_id && !order.driver) {
-      actionButtons += `<button class="btn btn-sm btn-primary" onclick="showAssignDriverModal('${order.id}')">🚚 تعيين</button>`;
-    }
-    actionButtons += `<button class="btn btn-sm btn-secondary" onclick="showEditOrderModal('${order.id}')">✏️ تعديل</button>`;
-    actionButtons += `<button class="btn btn-sm btn-info" onclick="printOrder('${order.id || order._id}')">🖨️ طباعة</button>`;
-    actionButtons += `<button class="btn btn-sm btn-danger" onclick="deleteOrder('${order.id}')">🗑️ حذف</button>`;
-    actionButtons += `</div>`;
-
     const orderId = order.id || order._id;
-    const isChecked = currentSelected.has(orderId) ? 'checked' : '';
+    const signature = JSON.stringify(order);
+    let cached = orderRows.get(orderId);
+    if (!cached || cached.signature !== signature) {
+      cached = { signature, element: document.createElement('tr') };
+      orderRows.set(orderId, cached);
+    }
+    const tr = cached.element;
+    const createdAt = new Date(order.created_at || order.createdAt);
+    tr.style.backgroundColor = (now - createdAt) < 10000 ? '#e0f2fe' : '';
 
-    tr.innerHTML = `
-      <td><input type="checkbox" class="orderCheckbox" value="${orderId}" ${isChecked} onchange="handleCheckboxChange(this)"></td>
-      <td data-label="الرقم التسلسلي :">${order.serial_number || order.serialNumber || ''}</td>
-      <td data-label="عداد الطلبات :">${index + 1}</td>
-      <td data-label="رقم الطلب :">${order.order_number || order.orderNumber}</td>
-      <td data-label="نوع الطلب :"><span class="order-type-badge ${getOrderTypeClass(getOrderType(order))}">${getOrderType(order)}</span></td>
-      <td class="text-wrap-column" data-label="محتويات الطلب :">${order.order_contents || '-'}</td>
-      <td data-label="اسم العميل :">${order.customer_name || order.customerName}</td>
-      <td data-label="رقم العميل :">${order.customer_number ? `<a href="tel:${order.customer_number}">${order.customer_number}</a>` : '-'}</td>
-      <td data-label="العنوان :">${order.address}</td>
-      <td data-label="السعر :">${formatNumber(order.price)} ${order.currency || 'ل.س'}</td>
-      <td data-label="النسبة :">${formatNumber(order.ratio || 0)}</td>
-      <td data-label="الحالة :"><span class="status-badge status-${order.status}">${order.status}</span></td>
-      <td class="text-wrap-column" data-label="ملاحظة :">${order.note || '-'}</td>
-      <td data-label="السائق :">${order.driver_name || order.driverName || '-'}</td>
-      <td data-label="الشركة :">${order.company_name || order.companyName || '-'}</td>
-      <td data-label="التاريخ :">${formatDate(order.created_at || order.createdAt)}</td>
-      <td data-label="">${actionButtons}</td>
-    `;
-    tbody.appendChild(tr);
+    if (!tr.children.length) {
+      let actionButtons = `<div style="display:flex; gap:8px; flex-wrap:wrap;">`;
+      if (!order.driver_id && !order.driver) {
+        actionButtons += `<button class="btn btn-sm btn-primary" onclick="showAssignDriverModal('${order.id}')">🚚 تعيين</button>`;
+      }
+      actionButtons += `<button class="btn btn-sm btn-secondary" onclick="showEditOrderModal('${order.id}')">✏️ تعديل</button>`;
+      actionButtons += `<button class="btn btn-sm btn-info" onclick="printOrder('${order.id || order._id}')">🖨️ طباعة</button>`;
+      actionButtons += `<button class="btn btn-sm btn-danger" onclick="deleteOrder('${order.id}')">🗑️ حذف</button>`;
+      actionButtons += `</div>`;
+
+      const isChecked = currentSelected.has(orderId) ? 'checked' : '';
+
+      tr.innerHTML = `
+        <td><input type="checkbox" class="orderCheckbox" value="${orderId}" ${isChecked} onchange="handleCheckboxChange(this)"></td>
+        <td data-label="الرقم التسلسلي :">${order.serial_number || order.serialNumber || ''}</td>
+        <td data-label="عداد الطلبات :">${index + 1}</td>
+        <td data-label="رقم الطلب :">${order.order_number || order.orderNumber}</td>
+        <td data-label="نوع الطلب :"><span class="order-type-badge ${getOrderTypeClass(getOrderType(order))}">${getOrderType(order)}</span></td>
+        <td class="text-wrap-column" data-label="محتويات الطلب :">${order.order_contents || '-'}</td>
+        <td data-label="اسم العميل :">${order.customer_name || order.customerName}</td>
+        <td data-label="رقم العميل :">${order.customer_number ? `<a href="tel:${order.customer_number}">${order.customer_number}</a>` : '-'}</td>
+        <td data-label="العنوان :">${order.address}</td>
+        <td data-label="السعر :">${formatNumber(order.price)} ${order.currency || 'ل.س'}</td>
+        <td data-label="النسبة :">${formatNumber(order.ratio || 0)}</td>
+        <td data-label="الحالة :"><span class="status-badge status-${order.status}">${order.status}</span></td>
+        <td class="text-wrap-column" data-label="ملاحظة :">${order.note || '-'}</td>
+        <td data-label="السائق :">${order.driver_name || order.driverName || '-'}</td>
+        <td data-label="الشركة :">${order.company_name || order.companyName || '-'}</td>
+        <td data-label="التاريخ :">${formatDate(order.created_at || order.createdAt)}</td>
+        <td data-label="">${actionButtons}</td>
+      `;
+    }
+    tr.cells[2].textContent = index + 1;
+    tr.querySelector('.orderCheckbox').checked = currentSelected.has(orderId);
+    rows.appendChild(tr);
   });
+  tbody.replaceChildren(rows);
 
   const elSYR = document.getElementById('totalPriceSYR');
   const elUSD = document.getElementById('totalPriceUSD');
@@ -448,35 +487,19 @@ function renderOrdersTable(orders) {
 // ==================== فلترة وبحث ====================
 function filterOrdersBySearch(orders, searchText) {
   if (!searchText.trim()) return orders;
-  const searchLower = searchText.trim().toLowerCase();
-  
-  return orders.filter(o => {
-    return (
-      // 1. رقم الطلب (أساسي)
-      (o.order_number && String(o.order_number).toLowerCase().includes(searchLower)) ||
-      (o.orderNumber && String(o.orderNumber).toLowerCase().includes(searchLower)) ||
-      
-      // 2. محتويات الطلب (الإضافة الجديدة)
-      (o.order_contents && String(o.order_contents).toLowerCase().includes(searchLower)) ||
-      (o.orderContents && String(o.orderContents).toLowerCase().includes(searchLower)) ||
-
-      // 3. نوع الطلب
-      getOrderType(o).toLowerCase().includes(searchLower) ||
-      
-      // 4. اسم العميل
-      (o.customer_name && String(o.customer_name).toLowerCase().includes(searchLower)) ||
-      (o.customerName && String(o.customerName).toLowerCase().includes(searchLower)) ||
-      
-      // 5. رقم العميل
-      (o.customer_number && String(o.customer_number).toLowerCase().includes(searchLower)) ||
-      (o.customerNumber && String(o.customerNumber).toLowerCase().includes(searchLower)) ||
-      
-      // 6. العنوان
-      (o.address && String(o.address).toLowerCase().includes(searchLower)) ||
-      
-      // 7. الملاحظات
-      (o.note && String(o.note).toLowerCase().includes(searchLower))
-    );
+  const searchLower = convertToEnglishDigits(searchText.trim()).toLowerCase();
+  return orders.filter((order) => {
+    if (!orderSearchText.has(order)) {
+      const values = [
+        order.order_number, order.orderNumber, order.order_contents, order.orderContents,
+        getOrderType(order), order.customer_name, order.customerName,
+        order.customer_number, order.customerNumber, order.address, order.note
+      ];
+      orderSearchText.set(order, values.map((value) => (
+        convertToEnglishDigits(String(value ?? '')).toLowerCase()
+      )).join('\u0000'));
+    }
+    return orderSearchText.get(order).includes(searchLower);
   });
 }
 
@@ -490,7 +513,7 @@ async function deleteOrder(orderId) {
     });
     if (!res.ok) throw new Error((await res.json()).message);
     showNotification('✅ تم حذف الطلب بنجاح');
-    fetchOrders();
+    scheduleOrdersRefresh();
   } catch (err) {
     alert('❌ فشل حذف الطلب: ' + err.message);
   }
@@ -547,7 +570,7 @@ if (createForm) {
         saveLastOrderNumberForCompany(companySelect.value, orderNumberInput.value);
       }
       createForm.reset();
-      fetchOrders();
+      scheduleOrdersRefresh();
       showNotification('تم إنشاء الطلب');
     } catch (err) { alert(err.message); }
   });
@@ -679,7 +702,7 @@ if (editForm) {
       });
       if (!res.ok) throw new Error((await res.json()).message);
       closeEditModal();
-      fetchOrders();
+      scheduleOrdersRefresh();
       showNotification('✅ تم تحديث الطلب بنجاح');
     } catch (err) {
       alert('❌ ' + err.message);
@@ -750,7 +773,7 @@ if (assignForm) {
       });
       if (!res.ok) throw new Error((await res.json()).message);
       closeAssignModal();
-      fetchOrders();
+      scheduleOrdersRefresh();
       showNotification('✅ تم تعيين السائق بنجاح');
     } catch (err) {
       alert('❌ ' + err.message);
@@ -765,14 +788,11 @@ async function loadUsersLists() {
   let companies = [];
 
   try {
-    const driversRes = await fetch('/api/online-drivers', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
+    const [driversRes, usersRes] = await Promise.all([
+      fetch('/api/online-drivers', { headers: { 'Authorization': `Bearer ${token}` } }),
+      fetch('/api/orders/users-list', { headers: { 'Authorization': `Bearer ${token}` } })
+    ]);
     drivers = driversRes.ok ? await driversRes.json() : [];
-
-    const usersRes = await fetch('/api/orders/users-list', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
     const allData = usersRes.ok ? await usersRes.json() : { drivers: [], companies: [] };
     allDrivers = allData.drivers || [];
     companies = allData.companies || [];
@@ -1016,7 +1036,7 @@ async function acceptEditRequest(id) {
     });
     if (!res.ok) throw new Error('فشل القبول');
     fetchEditRequests();
-    fetchOrders();
+    scheduleOrdersRefresh();
     showNotification('✅ تم قبول طلب التعديل');
   } catch (err) {
     alert(err.message);
@@ -1145,20 +1165,11 @@ document.addEventListener('DOMContentLoaded', function() {
       clearTimeout(searchTimeout);
       searchTimeout = setTimeout(() => {
         applyFiltersAndRender();
-      }, 300);
+      }, 180);
     });
   }
 
-  const today = new Date();
-  const yyyy = today.getFullYear();
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
-  const dd = String(today.getDate()).padStart(2, '0');
-  const formattedDate = `${yyyy}-${mm}-${dd}`;
-  const startDateInput = document.getElementById('filterStartDate');
-  const endDateInput = document.getElementById('filterEndDate');
-  if (startDateInput) startDateInput.value = formattedDate;
-  if (endDateInput) endDateInput.value = formattedDate;
-
+  // التواريخ الفارغة تستخدم عرض اليوم وقيد المتابعة حتى يختار المستخدم نطاقاً.
   const companySelect = document.getElementById('companySelect');
   if (companySelect) {
     companySelect.addEventListener('change', loadAutoOrderNumberForCompany);
@@ -1321,7 +1332,7 @@ async function applyBulkEdit() {
     }
     showNotification(`✅ تم حذف ${successCount} طلب` + (failCount ? `، فشل ${failCount}` : ''), 'success');
     selectedOrderIds.clear();
-    fetchOrders();
+    scheduleOrdersRefresh();
     document.querySelectorAll('.orderCheckbox').forEach(cb => cb.checked = false);
     document.getElementById('selectAllCheckbox').checked = false;
     updateBulkControls();
@@ -1360,7 +1371,7 @@ async function applyBulkEdit() {
     if (!res.ok) throw new Error((await res.json()).message || 'فشل التحديث');
     showNotification(`✅ تم تحديث ${ids.length} طلبات بنجاح`, 'success');
     selectedOrderIds.clear();
-    fetchOrders();
+    scheduleOrdersRefresh();
     document.querySelectorAll('.orderCheckbox').forEach(cb => cb.checked = false);
     document.getElementById('selectAllCheckbox').checked = false;
     updateBulkControls();
@@ -1395,7 +1406,7 @@ function printOrder(orderId) {
   const note = order.note || '-';
 
   const printWindow = window.open('', '_blank', 'width=600,height=400');
-  printWindow.document.write(`
+  printWindow.document.write(window.WolfNumbers.toEnglish(`
     <!DOCTYPE html>
     <html dir="rtl" lang="ar">
     <head>
@@ -1431,7 +1442,7 @@ function printOrder(orderId) {
       <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); };</script>
     </body>
     </html>
-  `);
+  `));
   printWindow.document.close();
 }
 
@@ -1474,7 +1485,7 @@ async function printSelectedOrders() {
   });
 
   const printWindow = window.open('', '_blank', 'width=600,height=400');
-  printWindow.document.write(`
+  printWindow.document.write(window.WolfNumbers.toEnglish(`
     <!DOCTYPE html>
     <html dir="rtl" lang="ar">
     <head>
@@ -1498,7 +1509,7 @@ async function printSelectedOrders() {
       <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); };</script>
     </body>
     </html>
-  `);
+  `));
   printWindow.document.close();
 
   document.querySelectorAll('.orderCheckbox').forEach(cb => cb.checked = false);
@@ -1519,7 +1530,7 @@ async function sendBulkWhatsApp() {
 
   // ====== تحويل الأرقام إلى الصيغة المطلوبة ======
   const sendList = ordersToSend.map(order => {
-    let phone = (order.customer_number || order.customerNumber || '').replace(/\D/g, '');
+    let phone = convertToEnglishDigits(order.customer_number || order.customerNumber || '').replace(/\D/g, '');
     if (phone.length < 9) return null; // أقل من 9 أرقام (بدون رمز الدولة)
     if (phone.startsWith('0')) phone = phone.substring(1);
     if (phone.length === 9 && !phone.startsWith('963')) phone = '963' + phone;
@@ -1548,7 +1559,7 @@ async function sendBulkWhatsApp() {
   // ====== نافذة التقدم ======
   const w = window.open('', '', 'width=900,height=700');
 
-  w.document.write(`
+  w.document.write(window.WolfNumbers.toEnglish(`
     <!DOCTYPE html>
     <html dir="rtl" lang="ar">
     <head>
@@ -1619,7 +1630,7 @@ async function sendBulkWhatsApp() {
           const container = document.getElementById('logContainer');
           const div = document.createElement('div');
           div.className = 'log-item log-' + type;
-          const time = new Date().toLocaleTimeString('ar-EG');
+          const time = new Date().toLocaleTimeString('ar-EG-u-nu-latn');
           const icons = { success: '✅', error: '❌', pending: '⏳', info: 'ℹ️' };
           div.textContent = \`[\${time}] \${icons[type] || '•'} \${message}\`;
           container.appendChild(div);
@@ -1728,7 +1739,7 @@ async function sendBulkWhatsApp() {
       </script>
     </body>
     </html>
-  `);
+  `));
   w.document.close();
 
   // إعادة تعيين التحديدات

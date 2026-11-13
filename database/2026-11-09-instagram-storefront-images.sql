@@ -1,6 +1,6 @@
 -- WolfOrder / Store images for public Instagram order links.
 -- Create the private instagram-storefront-images bucket in Supabase Storage.
--- Limit it to 2 MiB and image/jpeg, image/png, image/webp.
+-- Limit it to 3 MiB and image/jpeg, image/png, image/webp.
 -- Run this migration on the schema with instagram_company_links.slug (text)
 -- and public.users.id / instagram_company_links.company_id (uuid).
 --

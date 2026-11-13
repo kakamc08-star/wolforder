@@ -147,7 +147,7 @@ async function restoreCachedOrders(showMessage = false) {
 
     const savedAt = snapshot.updatedAt ? new Date(snapshot.updatedAt) : null;
     const savedTime = savedAt && !isNaN(savedAt.getTime())
-      ? savedAt.toLocaleTimeString('ar')
+      ? savedAt.toLocaleTimeString('ar-u-nu-latn')
       : '-';
     const lastUpdate = document.getElementById('lastUpdateTime');
     if (lastUpdate) lastUpdate.textContent = `نسخة محفوظة: ${savedTime}`;
@@ -288,7 +288,7 @@ const orders = [...basicOrders, ...instagramOrders]
     if (elStatus && elStatus.value !== savedStatus) elStatus.value = savedStatus;
     if (elSearch && elSearch.value !== savedSearch) elSearch.value = savedSearch;
 
-    document.getElementById('lastUpdateTime').textContent = `آخر تحديث: ${new Date().toLocaleTimeString('ar')}`;
+    document.getElementById('lastUpdateTime').textContent = `آخر تحديث: ${new Date().toLocaleTimeString('ar-u-nu-latn')}`;
   } catch (err) {
     console.error('fetchOrders error:', err);
     if (!allOrders.length) await restoreCachedOrders(true);

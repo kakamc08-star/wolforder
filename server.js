@@ -33,6 +33,7 @@ wss.on('connection', (ws) => {
 // ============================================================
 
 app.use(express.json({ limit: '100kb' }));
+app.use(require('./middleware/numbers'));
 
 // إجبار المتصفح على فحص نسخة Service Worker الجديدة عند كل زيارة.
 app.use((req, res, next) => {

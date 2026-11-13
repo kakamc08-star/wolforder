@@ -1,7 +1,8 @@
 'use strict';
+const { normalizeDigits } = require('./instagram-validation');
 
 function escapeXml(value) {
-  return String(value ?? '')
+  return normalizeDigits(value)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')

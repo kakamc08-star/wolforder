@@ -1,6 +1,7 @@
-const CACHE_NAME = 'wolforder-pwa-v17-instagram-admin-filters';
+const CACHE_NAME = 'wolforder-pwa-v18-all-requested-updates';
 const APP_SHELL = [
   '/login.html',
+  '/instagram-login.html',
   '/admin.html',
   '/driver.html',
   '/company.html',
@@ -8,11 +9,16 @@ const APP_SHELL = [
   '/instagram-viewer.html',
   '/instagram-order.html',
   '/css/style.css',
+  '/css/updates.css',
   '/css/instagram.css',
   '/css/company-instagram.css',
   '/js/pwa.js',
   '/js/dashboard-ui.js',
   '/js/auth.js',
+  '/js/number-format.js',
+  '/js/login-lockout.js',
+  '/js/password-admin.js',
+  '/js/instagram-auth.js',
   '/js/admin.js',
   '/js/driver-offline.js',
   '/js/driver.js',

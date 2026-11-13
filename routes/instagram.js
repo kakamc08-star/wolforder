@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const { randomUUID } = require('crypto');
 const supabase = require('../config/db');
 const authenticateToken = require('../middleware/auth');
-const { normalizePhone } = require('../utils/instagram-validation');
+const { normalizePhone, normalizeDigits } = require('../utils/instagram-validation');
 const { validateInstagramEditChanges } = require('../utils/instagram-edit-validation');
 
 const router = express.Router();
@@ -30,35 +30,22 @@ function storefrontImageFormat(bytes) {
   if (!Buffer.isBuffer(bytes) || bytes.length < 12) return null;
 
   const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
-
-  if (
-    bytes.length >= 45 &&
-    bytes.subarray(0, 8).equals(pngSignature) &&
-    bytes.toString('latin1', 12, 16) === 'IHDR' &&
-    bytes.toString('latin1', bytes.length - 8, bytes.length - 4) === 'IEND'
-  ) {
+  if (bytes.length >= 45
+      && bytes.subarray(0, 8).equals(pngSignature)
+      && bytes.toString('latin1', 12, 16) === 'IHDR'
+      && bytes.toString('latin1', bytes.length - 8, bytes.length - 4) === 'IEND') {
     return { extension: 'png', contentType: 'image/png' };
   }
-
-  if (
-    bytes[0] === 0xff &&
-    bytes[1] === 0xd8 &&
-    bytes[2] === 0xff &&
-    bytes.lastIndexOf(Buffer.from([0xff, 0xd9])) >= 3
-  ) {
+  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
+      && bytes.lastIndexOf(Buffer.from([0xff, 0xd9])) >= 3) {
     return { extension: 'jpg', contentType: 'image/jpeg' };
   }
-
-  if (
-    bytes.length >= 20 &&
-    bytes.toString('latin1', 0, 4) === 'RIFF' &&
-    bytes.readUInt32LE(4) === bytes.length - 8 &&
-    bytes.toString('latin1', 8, 12) === 'WEBP' &&
-    ['VP8 ', 'VP8L', 'VP8X'].includes(bytes.toString('latin1', 12, 16))
-  ) {
+  if (bytes.length >= 20 && bytes.toString('latin1', 0, 4) === 'RIFF'
+      && bytes.readUInt32LE(4) === bytes.length - 8
+      && bytes.toString('latin1', 8, 12) === 'WEBP'
+      && ['VP8 ', 'VP8L', 'VP8X'].includes(bytes.toString('latin1', 12, 16))) {
     return { extension: 'webp', contentType: 'image/webp' };
   }
-
   return null;
 }
 
@@ -327,7 +314,7 @@ function normalizeInstagramOrder(order) {
 }
 
 function escapeXml(value) {
-  return String(value ?? '')
+  return normalizeDigits(value ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -1434,6 +1421,9 @@ router.post('/products', requireRole('admin'), async (req, res) => {
 
 router.patch('/products/:id', requireRole('admin'), async (req, res) => {
   try {
+    if (req.body.status !== undefined && !['active', 'stopped'].includes(req.body.status)) {
+      return res.status(400).json({ message: 'حالة الصنف يجب أن تكون فعال أو متوقف' });
+    }
     const { data, error } = await supabase.rpc('update_instagram_product_atomic', {
       p_product_id: req.params.id,
       p_actor_user_id: req.user.id,
@@ -1682,7 +1672,7 @@ router.put('/links/:companyId/image', requireRole('admin'), parseStorefrontImage
   }
 }, (error, _req, res, _next) => {
   if (error.type === 'entity.too.large') {
-    return res.status(413).json({ message: 'حجم الصورة يجب ألا يتجاوز 2 MB' });
+    return res.status(413).json({ message: 'حجم الصورة يجب ألا يتجاوز 3 MB' });
   }
   return res.status(400).json({ message: 'تعذر قراءة ملف الصورة' });
 });

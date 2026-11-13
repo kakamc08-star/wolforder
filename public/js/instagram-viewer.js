@@ -132,7 +132,7 @@ function showViewerPanel(panel) {
   document.querySelectorAll('[data-viewer-section]').forEach((item) => item.classList.toggle('active', item.dataset.viewerSection === panel));
   document.getElementById('viewerPageTitle').textContent = panel === 'orders' ? 'طلبات الإنستغرام' : panel === 'inventory' ? 'الجرد والمبيعات' : panel === 'editRequests' ? 'طلبات التعديل' : `مرحباً ${viewerUser.name || ''}`;
   if (panel === 'orders' && !viewerState.orders.length) loadViewerOrders();
-  if (panel === 'inventory' && !viewerState.inventory.length) loadViewerInventory();
+  if (panel === 'inventory' && !viewerState.inventoryLoaded) loadViewerInventory();
   if (panel === 'editRequests') loadViewerEditRequests();
   document.body.classList.remove('sidebar-open');
 }
@@ -256,9 +256,23 @@ async function loadViewerInventory() {
   try {
     viewerState.inventory = await viewerApi('/api/instagram/inventory');
     viewerState.inventoryLoaded = true;
-    document.getElementById('viewerInventoryBody').innerHTML = viewerState.inventory.length ? viewerState.inventory.map((row) => `<tr><td data-label="الصنف">${viewerEscape(row.product_name)}</td><td data-label="اللون">${viewerEscape(row.color)}</td><td data-label="المقاس">${viewerEscape(row.size)}</td><td data-label="الكلية">${row.quantity_total}</td><td data-label="محجوز التوصيل">${row.reserved_delivery}</td><td data-label="محجوز الشحن">${row.reserved_shipping}</td><td data-label="المباعة">${row.sold}</td><td data-label="الشحن المُسلَّم">${row.shipping_delivered}</td><td data-label="المؤجلة">${row.postponed}</td><td data-label="المرتجع">${row.returned}</td><td data-label="الإلغاء">${row.cancelled}</td><td data-label="المتبقية"><strong>${row.remaining}</strong></td></tr>`).join('') : '<tr><td colspan="12">لا توجد بيانات جرد.</td></tr>';
+    const select = document.getElementById('viewerInventoryProduct');
+    const selected = select.value;
+    const products = new Map(viewerState.inventory.map((row) => [row.product_id, row.product_name]));
+    select.innerHTML = '<option value="">جميع الأصناف</option>'
+      + [...products].map(([id, name]) => `<option value="${viewerEscape(id)}">${viewerEscape(name)}</option>`).join('');
+    if (products.has(selected)) select.value = selected;
+    renderViewerInventory();
   } catch (error) { viewerNotify(error.message); }
 }
+
+function renderViewerInventory() {
+  const productId = document.getElementById('viewerInventoryProduct').value;
+  const rows = viewerState.inventory.filter((row) => !productId || row.product_id === productId);
+  document.getElementById('viewerInventoryBody').innerHTML = rows.length ? rows.map((row) => `<tr><td data-label="الصنف">${viewerEscape(row.product_name)}</td><td data-label="اللون">${viewerEscape(row.color)}</td><td data-label="المقاس">${viewerEscape(row.size)}</td><td data-label="الكلية">${row.quantity_total}</td><td data-label="محجوز التوصيل">${row.reserved_delivery}</td><td data-label="محجوز الشحن">${row.reserved_shipping}</td><td data-label="المباعة">${row.sold}</td><td data-label="الشحن المُسلَّم">${row.shipping_delivered}</td><td data-label="المؤجلة">${row.postponed}</td><td data-label="المرتجع">${row.returned}</td><td data-label="الإلغاء">${row.cancelled}</td><td data-label="المتبقية"><strong>${row.remaining}</strong></td></tr>`).join('') : '<tr><td colspan="12">لا توجد بيانات جرد مطابقة.</td></tr>';
+}
+
+document.getElementById('viewerInventoryProduct').addEventListener('change', renderViewerInventory);
 
 function viewerStatusLabel(order) {
   return order.order_type === 'شحن' ? (order.shipping_delivery_status === 'delivered' ? 'تم التسليم' : 'لم يتم التسليم') : order.status;

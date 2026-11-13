@@ -6,9 +6,11 @@
   <meta name="description" content="حساب مشاهدة Instagram للشركة">
   <title>لوحة الشركة | WolfOrder</title>
   <link rel="stylesheet" href="css/style.css?v=20260901.1">
-  <link rel="stylesheet" href="css/instagram.css?v=20260930.3">
+  <link rel="stylesheet" href="css/instagram.css?v=20261113.4">
   <link rel="icon" href="/favicon.ico">
   <meta name="theme-color" content="#4c1d95">
+  <script src="/js/number-format.js?v=20261113.4"></script>
+  <link rel="stylesheet" href="/css/updates.css?v=20261113.4">
 </head>
 <body class="dashboard-page role-instagram-viewer instagram-theme">
   <div class="app-shell">
@@ -41,16 +43,19 @@
       <div class="workspace-content">
         <!-- الرئيسية -->
         <section data-viewer-panel="home">
+          <div class="viewer-home-intro"><span>لوحة الشركة</span><h2>متابعة المتجر</h2><p>تابع طلبات الإنستغرام وراجع الجرد والمبيعات الخاصة بشركتك.</p></div>
           <div class="viewer-home-grid">
-            <button class="viewer-home-card" data-open-viewer="orders">
-              <span>📦</span>
+            <button class="viewer-home-card viewer-home-orders" data-open-viewer="orders">
+              <span class="viewer-home-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="3"></rect><path d="M8 8h8M8 12h8M8 16h5"></path></svg></span>
               <strong>طلبات الإنستغرام</strong>
               <small>مشاهدة طلبات التوصيل والشحن وحالتها</small>
+              <span class="viewer-home-link">عرض الطلبات <span aria-hidden="true">←</span></span>
             </button>
-            <button class="viewer-home-card" data-open-viewer="inventory">
-              <span>📊</span>
+            <button class="viewer-home-card viewer-home-inventory" data-open-viewer="inventory">
+              <span class="viewer-home-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10h4v10M10 20V4h4v16M16 20v-7h4v7M3 20h18"></path></svg></span>
               <strong>الجرد والمبيعات</strong>
               <small>مشاهدة المخزون والمبيعات الخاصة بشركتك</small>
+              <span class="viewer-home-link">عرض الجرد <span aria-hidden="true">←</span></span>
             </button>
           </div>
         </section>
@@ -123,6 +128,7 @@
                 <div><h2>الجرد والمبيعات</h2><p>بيانات شركتك حصراً</p></div>
               </div>
             </div>
+            <div class="viewer-inventory-filter form-group"><label for="viewerInventoryProduct">تصفية حسب الصنف</label><select id="viewerInventoryProduct"><option value="">جميع الأصناف</option></select></div>
             <div class="table-responsive ig-inventory-wrap ig-viewer-inventory-wrap" tabindex="0" aria-label="الجرد والمبيعات">
               <table class="ig-inventory-table ig-viewer-inventory-table">
                 <thead><tr><th>الصنف</th><th>اللون</th><th>المقاس</th><th>الكلية</th><th>محجوز التوصيل</th><th>محجوز الشحن</th><th>المباعة</th><th>الشحن المُسلَّم</th><th>المؤجلة</th><th>المرتجع</th><th>الإلغاء</th><th>المتبقية</th></tr></thead>
@@ -153,8 +159,8 @@
   </div>
   <div id="notificationArea"></div>
   <script src="js/dashboard-ui.js?v=20260901.1"></script>
-  <script src="js/auth.js?v=20260901.1"></script>
+  <script src="js/auth.js?v=20261113.4"></script>
   <script src="js/instagram-edit-requests-ui.js?v=20260930.3"></script>
-  <script src="js/instagram-viewer.js?v=20260930.3"></script>
+  <script src="js/instagram-viewer.js?v=20261113.4"></script>
 </body>
 </html>
