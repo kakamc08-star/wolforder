@@ -7,6 +7,9 @@ const { normalizePhone, normalizeDigits } = require('../utils/instagram-validati
 const { validateInstagramEditChanges } = require('../utils/instagram-edit-validation');
 
 const router = express.Router();
+const variantImages = require('./instagram-variant-images').createVariantImageRoutes({
+  supabase, requireRole, broadcastInstagramUpdate
+});
 const INSTAGRAM_ORDER_TYPE_ALIASES = Object.freeze({
   'توصيل': 'توصيل',
   delivery: 'توصيل',
@@ -411,6 +414,8 @@ async function loadInventoryForUser(user, filters = {}) {
 // Public storefront routes (no login)
 // =========================================================
 
+router.use(variantImages.publicRouter);
+
 router.get('/storefront/:slug', async (req, res) => {
   try {
     const { data, error } = await supabase.rpc('get_instagram_storefront_catalog_filtered', {
@@ -537,6 +542,7 @@ router.post('/storefront/:slug/orders', publicRateLimit, async (req, res) => {
 
 // All routes below require a WolfOrder login.
 router.use(authenticateToken);
+router.use(variantImages.adminRouter);
 
 // =========================================================
 // Bootstrap and lists

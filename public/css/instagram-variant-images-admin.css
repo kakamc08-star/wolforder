@@ -1,0 +1,19 @@
+/* Only the new image controls, without restyling any existing admin fields. */
+.role-instagram-admin .variant-image-controls {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  min-width: 0;
+  padding: 8px 0 4px;
+}
+.role-instagram-admin .variant-image-controls img {
+  width: min(180px, 100%);
+  max-height: 180px;
+  object-fit: contain;
+  border: 1px solid var(--ig-line, #e5e7eb);
+  border-radius: 10px;
+}
+.role-instagram-admin .variant-image-controls [hidden] { display: none !important; }
+.role-instagram-admin .variant-image-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.role-instagram-admin .variant-image-status { color: var(--ig-muted, #6b7280); }

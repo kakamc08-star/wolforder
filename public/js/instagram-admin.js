@@ -1083,6 +1083,7 @@ function renderInstagramProducts() {
       <div class="product-card-actions"><small>تُحفظ الحالة مع الصنف</small><button class="btn btn-primary" data-product-action="save">حفظ الصنف</button><button class="btn btn-danger btn-sm" data-product-action="delete">حذف نهائي</button></div>
     </article>`;
   }).join('');
+  window.WolfOrderVariantImageAdmin?.refresh();
 }
 
 document.getElementById('instagramProductsGrid').addEventListener('click', async (event) => {

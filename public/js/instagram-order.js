@@ -136,6 +136,9 @@ function updateRowSummary(row) {
   fields.lineTotal.textContent = product
     ? formatMoney(Number(product.unit_price) * quantity, product.currency)
     : '-';
+  window.WolfOrderVariantImages?.update(row, product?.variants.find((variant) => (
+    variant.variant_id === fields.size.value && variant.color === fields.color.value
+  )), product?.name);
   updateOrderTotal();
 }
 
@@ -187,6 +190,7 @@ function addStorefrontItem() {
       updateRowSummary(row);
       return;
     }
+    window.WolfOrderVariantImages?.dispose(row);
     row.remove();
     updateOrderTotal();
   });
@@ -367,6 +371,9 @@ function applyStorefrontCatalog(data, initial = false) {
   storefrontElements.app.hidden = false;
 
   if (!nextProducts.length) {
+    storefrontElements.items.querySelectorAll('.storefront-item').forEach((row) => {
+      window.WolfOrderVariantImages?.update(row, null);
+    });
     if (initial || hadProducts) setStorefrontMessage('لا توجد أصناف متوفرة للطلب حالياً.');
     storefrontElements.addItem.disabled = true;
     storefrontElements.submit.disabled = true;
@@ -429,6 +436,10 @@ function connectStorefrontSocket() {
       const data = JSON.parse(event.data);
       if (data.source === 'instagram' && data.type === 'INSTAGRAM_STOREFRONT_IMAGE_UPDATED') {
         refreshStorefrontImage();
+      }
+      if (data.source === 'instagram' && data.type === 'INSTAGRAM_VARIANT_IMAGE_UPDATED') {
+        window.WolfOrderVariantImages?.invalidate();
+        storefrontElements.items.querySelectorAll('.storefront-item').forEach(updateRowSummary);
       }
       if (data.source === 'instagram' && ['INSTAGRAM_ORDER_CREATED', 'INSTAGRAM_ORDER_UPDATED', 'INSTAGRAM_ORDER_DELETED', 'INSTAGRAM_INVENTORY_UPDATED'].includes(data.type)) {
         refreshStorefrontCatalog();

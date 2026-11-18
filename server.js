@@ -64,6 +64,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/edit-requests', require('./routes/editRequests'));
 app.use('/api/instagram', require('./routes/instagram'));
+require('./routes/instagram-variant-images').startVariantImageCleanup(supabase);
 
 // ✅ مسار السائقين المتصلين (معدل لـ Supabase)
 app.get('/api/online-drivers', authenticateToken, async (req, res) => {
